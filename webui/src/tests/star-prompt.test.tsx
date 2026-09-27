@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
@@ -13,6 +15,7 @@ const client = {
 };
 vi.mock("@/providers/ClientProvider", () => ({ useClient: () => ({ client }) }));
 const action = vi.mocked(starPromptAction);
+const starPromptStyles = readFileSync(resolve(process.cwd(), "src/components/StarPrompt.css"), "utf8");
 
 beforeEach(async () => {
   vi.clearAllMocks();
@@ -182,4 +185,41 @@ it.each([false, true])("preserves middle-click dismissal for the GitHub link (fu
   expect(action).toHaveBeenCalledWith(client, "dismiss");
   expect(saved).toHaveBeenCalledTimes(1);
   if (!fullWidth) expect(link.querySelector(".star-prompt-decoration")).toBeNull();
+});
+
+it.each([
+  { input: "hover", reduced: false },
+  { input: "focus-visible", reduced: false },
+  { input: "hover", reduced: true },
+  { input: "focus-visible", reduced: true },
+])("respects reduced motion ($reduced) for $input decoration", ({ input, reduced }) => {
+  // happy-dom cannot emulate these device/input states. Enable their media
+  // branches and replace pseudo-classes with equally specific attributes so
+  // the real stylesheet's cascade, including !important, is still exercised.
+  const style = document.createElement("style");
+  style.textContent = starPromptStyles
+    .replaceAll(":hover", "[data-hover]")
+    .replaceAll(":focus-visible", "[data-focus-visible]")
+    .replace("(hover: hover) and (pointer: fine)", "all")
+    .replace("(prefers-reduced-motion: reduce)", reduced ? "all" : "not all");
+  document.head.append(style);
+  try {
+    render(<StarLink fullWidth />);
+    const link = screen.getByRole("link");
+    link.setAttribute(`data-${input}`, "");
+    const decoration = getComputedStyle(link.querySelector(".star-prompt-decoration")!);
+    const sparkle = getComputedStyle(link.querySelector(".star-prompt-sparkle")!);
+    if (reduced) {
+      expect(decoration.animation).toBe("none");
+      expect(decoration.transition).toBe("none");
+      expect(decoration.transform).toBe("none");
+      expect(sparkle.animation).toBe("none");
+      expect(sparkle.display).toBe("none");
+    } else {
+      expect(decoration.animation).toContain("star-prompt-pop");
+      expect(sparkle.animation).toContain("star-prompt-twinkle");
+    }
+  } finally {
+    style.remove();
+  }
 });

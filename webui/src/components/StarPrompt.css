@@ -61,9 +61,10 @@
 @media (prefers-reduced-motion: reduce) {
   .star-prompt-action .star-prompt-decoration,
   .star-prompt-action .star-prompt-sparkle {
-    animation: none;
+    /* Override the more specific hover and focus-visible rules above. */
+    animation: none !important;
     transition: none;
-    transform: none;
+    transform: none !important;
   }
   .star-prompt-action .star-prompt-sparkle { display: none; }
 }
