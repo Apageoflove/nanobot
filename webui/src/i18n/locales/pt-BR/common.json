@@ -31,11 +31,13 @@
   },
   "starPrompt": {
     "footerAction": "Dê uma estrela ao nanobot",
-    "title": "Obrigado por usar o nanobot",
-    "description": "Dê uma estrela no GitHub para nos ajudar a continuar melhorando o nanobot.",
+    "title": "Que bom poder ajudar.",
+    "intro": "Se o nanobot deixou seu dia a dia um pouco mais leve,",
+    "invitation": "que tal deixar uma estrela no GitHub?",
+    "thanks": "Esse pequeno gesto significa muito para nós.",
     "action": "Dar uma estrela",
-    "later": "Agora não",
-    "never": "Não perguntar novamente",
+    "later": "Mais tarde",
+    "never": "Não perguntar de novo",
     "saveError": "Pode haver um problema de conexão. Este lembrete pode aparecer novamente."
   },
   "app": {

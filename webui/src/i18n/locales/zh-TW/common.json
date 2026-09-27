@@ -31,10 +31,12 @@
   },
   "starPrompt": {
     "footerAction": "給 nanobot 一顆 Star",
-    "title": "感謝使用 nanobot",
-    "description": "歡迎到 GitHub 給顆 Star，支持我們持續改進。",
-    "action": "給個 Star",
-    "later": "暫時不用",
+    "title": "很高興，能幫上你的忙。",
+    "intro": "如果 nanobot 讓你的日常輕鬆了一點，",
+    "invitation": "歡迎在 GitHub 留下一顆 Star。",
+    "thanks": "這份小小的鼓勵，我們會認真珍惜。",
+    "action": "去點顆 Star",
+    "later": "下次再說",
     "never": "不再提醒",
     "saveError": "網路可能出了點問題，之後可能還會跳出此提醒。"
   },

@@ -31,11 +31,13 @@
   },
   "starPrompt": {
     "footerAction": "nanobot にスターを付ける",
-    "title": "nanobot のご利用ありがとうございます",
-    "description": "GitHub でスターを付けて、nanobot をより良くしていく取り組みを応援してください。",
-    "action": "スターを付ける",
-    "later": "今はしない",
-    "never": "今後表示しない",
+    "title": "お役に立てて、うれしいです。",
+    "intro": "nanobot で毎日が少しでも楽になったら、",
+    "invitation": "GitHub で Star をいただけるとうれしいです。",
+    "thanks": "その小さな応援が、私たちの励みになります。",
+    "action": "Star で応援する",
+    "later": "また今度",
+    "never": "今後は表示しない",
     "saveError": "ネットワークに問題が発生した可能性があります。この案内が再び表示されることがあります。"
   },
   "app": {

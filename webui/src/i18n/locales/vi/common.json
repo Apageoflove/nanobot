@@ -31,10 +31,12 @@
   },
   "starPrompt": {
     "footerAction": "Tặng nanobot một sao",
-    "title": "Cảm ơn bạn đã dùng nanobot",
-    "description": "Hãy tặng một sao trên GitHub để ủng hộ chúng tôi tiếp tục cải thiện nanobot.",
-    "action": "Tặng sao",
-    "later": "Để sau",
+    "title": "Thật vui khi giúp được bạn.",
+    "intro": "Nếu nanobot giúp mỗi ngày của bạn nhẹ nhàng hơn một chút,",
+    "invitation": "hãy tặng chúng mình một sao trên GitHub nhé.",
+    "thanks": "Sự động viên nhỏ ấy có ý nghĩa rất lớn với chúng mình.",
+    "action": "Tặng một sao",
+    "later": "Để lần sau",
     "never": "Không nhắc lại",
     "saveError": "Có thể đã xảy ra sự cố mạng. Lời nhắc này có thể xuất hiện lại."
   },

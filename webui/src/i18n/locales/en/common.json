@@ -31,11 +31,13 @@
   },
   "starPrompt": {
     "footerAction": "Star nanobot on GitHub",
-    "title": "Thanks for using nanobot",
-    "description": "Star nanobot on GitHub to help us keep improving it.",
+    "title": "Glad we could help.",
+    "intro": "If nanobot has made your day a little easier,",
+    "invitation": "we'd love a Star on GitHub.",
+    "thanks": "Your support means a lot to us.",
     "action": "Star on GitHub",
-    "later": "Not now",
-    "never": "Don’t ask again",
+    "later": "Maybe later",
+    "never": "Don't ask again",
     "saveError": "There may be a network issue. This reminder may appear again."
   },
   "app": {
