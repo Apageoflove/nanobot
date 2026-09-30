@@ -14,7 +14,6 @@ from pathlib import Path
 from typing import NoReturn
 
 import typer
-from click import IntRange
 
 app = typer.Typer(help="Pair this server with a local nanobot. No public WebUI or relay.")
 
@@ -66,18 +65,74 @@ def _tencent_public_host() -> str:
         connection.close()
 
 
+def _ssh_login_users() -> list[str]:
+    """List regular interactive accounts, not root or service identities."""
+    import pwd
+
+    return sorted(u.pw_name for u in pwd.getpwall()
+                  if 1000 <= u.pw_uid < 65534 and u.pw_shell.endswith(("/bash", "/sh", "/zsh")))
+
+
+def _cloud_ssh_user() -> str | None:
+    """Read only cloud-init's configured login name, never its full instance data."""
+    cloud_init = shutil.which("cloud-init")
+    if not cloud_init:
+        return None
+    try:
+        result = subprocess.run([cloud_init, "query", "system_info.default_user.name"],
+                                capture_output=True, text=True, timeout=2, check=False)
+    except (OSError, UnicodeError, subprocess.SubprocessError):
+        return None
+    return result.stdout.strip() if result.returncode == 0 else None
+
+
 def _default_ssh_user() -> str | None:
-    """Suggest the existing login account, including when invoked through sudo."""
+    """Prefer the current login, then the cloud image's existing default account."""
     import pwd
 
     current = pwd.getpwuid(os.getuid())
     if current.pw_uid:
         return current.pw_name
-    users = [u.pw_name for u in pwd.getpwall() if 1000 <= u.pw_uid < 65534 and u.pw_shell.endswith(("/bash", "/sh", "/zsh"))]
+    users = _ssh_login_users()
     sudo_user = os.environ.get("SUDO_USER")
     if sudo_user in users:
         return sudo_user
-    return users[0] if len(users) == 1 else None
+    if len(users) == 1:
+        return users[0]
+    if users:
+        cloud_user = _cloud_ssh_user()
+        if cloud_user in users:
+            return cloud_user
+    return None
+
+
+def _choose_number(prompt: str, count: int) -> int:
+    """Keep invalid selections in the current step, including across Typer versions."""
+    while True:
+        choice = int(typer.prompt(prompt, type=int))
+        if 1 <= choice <= count:
+            return choice
+        typer.echo(f"Please choose a number from 1 to {count}.")
+
+
+def _choose_ssh_user() -> str:
+    """Ask only when discovery is ambiguous; never make the user invent a name."""
+    user = _default_ssh_user()
+    if user:
+        return user
+    users = _ssh_login_users()
+    if not users:
+        typer.echo("No regular login account was found on this server.\n"
+                   "Ask the server administrator to set up a non-root login account, then try again.\n"
+                   "No device was authorized and no server accounts were changed.")
+        raise typer.Exit(1)
+    typer.echo("\nThis server has several login accounts.\n"
+               "Choose the one you normally use to log into this server, not your cloud website account.\n"
+               "No password is needed here. If unsure, press Ctrl+C and ask the server administrator.")
+    for index, name in enumerate(users, 1):
+        typer.echo(f"  {index}. {name}")
+    choice = _choose_number("Choose an account number", len(users))
+    return users[choice - 1]
 
 
 def _pair_as_administrator(request: str, config: Path, host: str, ssh_user: str, port: int) -> NoReturn:
@@ -143,7 +198,7 @@ def pair(
             elif candidates:
                 for index, item in enumerate(candidates, 1):
                     typer.echo(f'{index}. {item.service or "nanobot"} — {item.config_path}')
-                choice = int(typer.prompt("Which nanobot?", type=IntRange(1, len(candidates))))
+                choice = _choose_number("Which nanobot?", len(candidates))
                 config = Path(candidates[choice - 1].config_path)
             else:
                 config = Path(typer.prompt("Path to your nanobot config"))
@@ -156,7 +211,7 @@ def pair(
                 raise
             _pair_as_administrator(request, config, host, ssh_user, port)
         if not ssh_user:
-            ssh_user = _default_ssh_user() or typer.prompt("SSH login account")
+            ssh_user = _choose_ssh_user()
         if not host:
             host = _default_host()
             if not host:

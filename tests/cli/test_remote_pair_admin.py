@@ -10,6 +10,7 @@ import pytest
 from typer.testing import CliRunner
 
 from nanobot.cli import remote
+from nanobot.cli.remote import _default_ssh_user
 from nanobot.webui import remote_pair_server
 from nanobot.webui.remote_pairing import PairStore, read_request
 from nanobot.webui.remote_ssh import RemoteError
@@ -199,3 +200,93 @@ def test_explicit_host_skips_address_detection(protected, monkeypatch):
     assert result.exit_code == 0, result.output
     assert "on this server (ubuntu@server.example)" in result.output
     detect.assert_not_called()
+
+
+def test_root_console_with_two_accounts_goes_straight_to_device_consent(protected, monkeypatch):
+    pwd = pytest.importorskip("pwd")
+    protected.metadata.side_effect = None
+    protected.metadata.return_value = {"port": 8765}
+    monkeypatch.setattr(remote.os, "getuid", lambda: 0)
+    monkeypatch.setattr(pwd, "getpwuid", lambda _: SimpleNamespace(pw_uid=0, pw_name="root"))
+    monkeypatch.delenv("SUDO_USER", raising=False)
+    monkeypatch.setattr(remote, "_ssh_login_users", lambda: ["lighthouse", "ubuntu"])
+    monkeypatch.setattr(remote, "_cloud_ssh_user", lambda: "ubuntu")
+    monkeypatch.setattr(remote, "_default_ssh_user", _default_ssh_user)
+    result = CliRunner().invoke(remote.app, protected.args, input="n\n")
+    assert result.exit_code == 0, result.output
+    assert "on this server (ubuntu@8.8.8.8)" in result.output
+    assert "Authorize this computer?" in result.output
+    assert "SSH login account" not in result.output
+    assert "Choose an account" not in result.output
+    protected.authorize.assert_not_called()
+
+
+def test_ambiguous_accounts_are_numbered_and_explained_before_consent(protected, monkeypatch):
+    protected.metadata.side_effect = None
+    protected.metadata.return_value = {"port": 8765}
+    monkeypatch.setattr(remote, "_default_ssh_user", lambda: None)
+    monkeypatch.setattr(remote, "_ssh_login_users", lambda: ["deploy", "ubuntu"])
+    result = CliRunner().invoke(remote.app, protected.args, input="not-a-number\n0\n3\n2\nn\n")
+    assert result.exit_code == 0, result.output
+    assert "1. deploy" in result.output and "2. ubuntu" in result.output
+    assert "not your cloud website account" in result.output
+    assert "No password is needed here" in result.output
+    assert "on this server (ubuntu@8.8.8.8)" in result.output
+    assert "SSH login account:" not in result.output
+    assert result.output.count("Choose an account number") == 4
+    assert result.output.count("Please choose a number from 1 to 2") == 2
+    protected.authorize.assert_not_called()
+
+
+def test_account_picker_can_be_cancelled_without_authorizing(protected, monkeypatch):
+    protected.metadata.side_effect = None
+    protected.metadata.return_value = {"port": 8765}
+    monkeypatch.setattr(remote, "_default_ssh_user", lambda: None)
+    monkeypatch.setattr(remote, "_ssh_login_users", lambda: ["deploy", "ubuntu"])
+    result = CliRunner().invoke(remote.app, protected.args, input="")
+    assert result.exit_code == 1, result.output
+    assert "Authorize this computer?" not in result.output
+    protected.authorize.assert_not_called()
+
+
+def test_no_login_accounts_explains_recovery_without_asking_for_a_name(protected, monkeypatch):
+    protected.metadata.side_effect = None
+    protected.metadata.return_value = {"port": 8765}
+    monkeypatch.setattr(remote, "_default_ssh_user", lambda: None)
+    monkeypatch.setattr(remote, "_ssh_login_users", lambda: [])
+    result = CliRunner().invoke(remote.app, protected.args)
+    assert result.exit_code == 1, result.output
+    assert "No regular login account was found on this server" in result.output
+    assert "No device was authorized" in result.output
+    assert "Choose an account number" not in result.output
+    assert "Authorize this computer?" not in result.output
+    protected.authorize.assert_not_called()
+
+
+def test_explicit_account_skips_discovery_and_selection(protected, monkeypatch):
+    protected.metadata.side_effect = None
+    protected.metadata.return_value = {"port": 8765}
+    choose = Mock(side_effect=AssertionError("explicit account must win"))
+    monkeypatch.setattr(remote, "_choose_ssh_user", choose)
+    result = CliRunner().invoke(remote.app, protected.args + ["--ssh-user", "deploy"], input="n\n")
+    assert result.exit_code == 0, result.output
+    assert "on this server (deploy@8.8.8.8)" in result.output
+    choose.assert_not_called()
+    protected.authorize.assert_not_called()
+
+
+def test_multiple_nanobots_keep_invalid_choices_in_the_selection_step(protected):
+    protected.metadata.side_effect = None
+    protected.metadata.return_value = {"port": 8765}
+    protected.run.return_value = SimpleNamespace(stdout="NANOBOT_REMOTE:" + json.dumps({
+        "hostname": "team", "incomplete": False, "candidates": [
+            {"config_path": str(protected.config), "runtime_user": "nanobot", "service": "nanobot-team.service"},
+            {"config_path": str(protected.config.parent / "other.json"), "runtime_user": "nanobot", "service": "other.service"},
+        ],
+    }))
+    result = CliRunner().invoke(remote.app, ["pair", protected.request], input="0\n3\n1\nn\n")
+    assert result.exit_code == 0, result.output
+    assert result.output.count("Which nanobot?") == 3
+    assert result.output.count("Please choose a number from 1 to 2") == 2
+    protected.metadata.assert_called_once_with(protected.config)
+    protected.authorize.assert_not_called()

@@ -4,7 +4,7 @@ Open your local **nanobot WebUI**, click the current host (initially **Local**)
 at the bottom of the sidebar, and choose **Manage connections…**. This is the
 single entry point for switching and managing hosts. The page lists this computer
 and your saved servers. Choose
-**Add server** to copy a prepared pairing command, or choose **Other ways → Use existing SSH settings**
+**Connect to remote nanobot** to copy a prepared pairing command, or choose **Other ways → Use existing SSH settings**
 to enter an SSH address such as
 `ubuntu@your-server` or pick a suggested host from your SSH config. Choose
 **Connect**. Next time, select the saved server directly. No port-forwarding
@@ -16,7 +16,7 @@ computer stays at the top. Only the host list scrolls, so **Manage connections�
 stays visible. Use the arrow keys to choose a result, Enter to connect, and Escape
 to close. Recent choices are remembered in this browser, not synced to servers.
 
-To add another server, choose **Add server** below your saved connections. Use a
+To add another server, choose **Connect to remote nanobot** below your saved connections. Use a
 server's menu to edit or forget it. Editing opens the same dialog; **Save changes**
 saves without connecting or switching hosts. Disconnect an open server before
 editing its connection settings. The page supports browser back/forward and the
@@ -34,7 +34,7 @@ It is separate from remote execution/worker deployment.
 For a Linux server with this version of nanobot installed, you do not need to
 prepare a local SSH key or know the service account/config path:
 
-1. In your **local** WebUI choose **Add server → Copy command**. The command is
+1. In your **local** WebUI choose **Connect to remote nanobot → Copy command**. The command is
    prepared when setup opens; **View command** lets you inspect it before running.
    After a successful copy, the dialog shows what to do in your server terminal.
    This is a clipboard confirmation, not a claim that the server is connected.
@@ -42,10 +42,17 @@ prepare a local SSH key or know the service account/config path:
 2. Open your cloud provider's server terminal. Run the command in the environment
    where nanobot is installed (activate its virtual environment for source installs).
    The command discovers the default config and named nanobot systemd services;
-   choose a configuration if there is more than one. Provide the server's reachable
-   IP/hostname and an existing non-root SSH login account when prompted.
-   A single existing login account (including the original account under sudo)
-   is selected automatically and shown in the authorization summary. A global
+   choose a configuration if there is more than one. The connection account is
+   detected from your current login, the original login under sudo, or the only
+   regular account. In a root cloud console with several accounts, pairing checks
+   [cloud-init's configured default user](https://docs.cloud-init.io/en/latest/explanation/instancedata.html)
+   and uses it only if it matches an existing regular login account. It queries
+   only the username, not passwords or other instance data. No account name or
+   password needs to be entered when detection succeeds. If the account is still
+   ambiguous, choose from a numbered list; this is an account **on this server**,
+   not your cloud website account. Invalid numbers can be corrected without
+   restarting pairing. No account is created and no device is authorized by making
+   that choice. The account is shown in the authorization summary. A global
    server address reported by the SSH session can also be selected automatically.
    On recognized Tencent Cloud Linux instances, pairing can instead read this
    server's public IPv4 from the fixed, instance-local metadata endpoint, without
