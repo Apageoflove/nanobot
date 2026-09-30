@@ -3,6 +3,7 @@
     "activeForgetWarning": "이 연결을 사용하는 모든 탭의 연결이 끊어집니다. 저장하지 않은 내용이 손실될 수 있습니다.",
     "saved": "저장됨",
     "pair": {
+      "waitingForLocal": "이 컴퓨터의 nanobot에 연결 중…",
       "expiringDevice": "인증이 {{date}}에 만료됩니다.",
       "expiredDevice": "인증이 만료되었습니다. 다시 연결하기 전에 서버를 다시 페어링하세요.",
       "introHint": "서버 터미널에서 명령어를 실행해 연결하세요.",
@@ -145,6 +146,7 @@
     "forgetTitle": "Forget {{name}}?",
     "forgetDescription": "Only this saved connection will be removed. nanobot, its keys and conversations on the server will stay untouched.",
     "errors": {
+      "local_connection_unavailable": "이 컴퓨터의 nanobot에 연결하지 못했습니다. 실행 중인지 확인한 후 다시 시도하세요.",
       "disconnected": "공유 연결이 종료되었습니다. 준비되면 다시 연결하세요.",
       "instance_changed": "이 서버 연결이 변경되었습니다. 다시 연결하면 화면이 새로고침되어 보내지 않은 초안이 사라질 수 있습니다.",
       "pair_authorization_rejected": "서버가 이 기기의 키를 더 이상 허용하지 않습니다. 권한이 취소되었거나 만료되었을 수 있습니다. 서버 콘솔에서 다시 페어링하세요.",

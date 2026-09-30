@@ -10,6 +10,7 @@ import { useClient } from "@/providers/ClientProvider";
 import { copyTextToClipboard } from "@/lib/clipboard";
 import { remoteAction } from "@/lib/remote-instances";
 import { pairingReturnOrigin, type PairReturn } from "@/lib/remote-pair-return";
+import type { ConnectionStatus } from "@/lib/types";
 import { useRemoteConnections } from "./RemoteInstances";
 import { PairRouteSettings } from "./PairRouteSettings";
 
@@ -28,6 +29,7 @@ export function QuickPairSetup({ returned, onSSH, onClose }: { returned?: PairRe
   const [busy, setBusy] = useState(false);
   const [busyVisible, setBusyVisible] = useState(false);
   const [error, setError] = useState("");
+  const [status, setStatus] = useState<ConnectionStatus>(client.status);
   const [copied, setCopied] = useState(false);
   const [expired, setExpired] = useState(false);
   const [manual, setManual] = useState(false);
@@ -39,13 +41,17 @@ export function QuickPairSetup({ returned, onSSH, onClose }: { returned?: PairRe
   const focusManual = useRef(false);
   const codeId = useId();
   const panelId = useId();
+  const waitingForLocal = status !== "open";
+  const pending = busy || (waitingForLocal && !error);
+
+  useEffect(() => client.onStatus(setStatus), [client]);
 
   useEffect(() => {
-    if (!busy) { setBusyVisible(false); return; }
+    if (!pending) { setBusyVisible(false); return; }
     // Fast local preparation should not flash a loading label or move the dialog.
     const timer = window.setTimeout(() => setBusyVisible(true), 200);
     return () => window.clearTimeout(timer);
-  }, [busy]);
+  }, [pending]);
 
   useEffect(() => {
     alive.current = true;
@@ -66,7 +72,8 @@ export function QuickPairSetup({ returned, onSSH, onClose }: { returned?: PairRe
     setBusy(true); setError("");
     try { await action(); }
     catch (reason) {
-      if (alive.current) setError(t(`remote.errors.${reason instanceof Error ? reason.message : "unknown"}`, { defaultValue: t("remote.errors.unknown") }));
+      const localFailure = reason instanceof Error && "status" in reason && [503, 504].includes(Number(reason.status));
+      if (alive.current) setError(`remote.errors.${localFailure ? "local_connection_unavailable" : reason instanceof Error ? reason.message : "unknown"}`);
     } finally { if (alive.current) setBusy(false); }
   };
   const start = () => run(async () => {
@@ -98,31 +105,38 @@ export function QuickPairSetup({ returned, onSSH, onClose }: { returned?: PairRe
 
   useEffect(() => {
     if (initialized.current) return;
+    // A return link mounts immediately after bootstrap, before the local socket
+    // opens. Wait for it; rejecting here would mislabel a valid link as invalid.
+    if (status !== "open") {
+      const timer = window.setTimeout(() => setError("remote.errors.local_connection_unavailable"), 10_000);
+      return () => window.clearTimeout(timer);
+    }
     initialized.current = true;
     if (returned) void review();
     else void start();
     // One invitation per mounted dialog, never one per re-render. The returned
     // receipt is reviewed only; saving/connecting still requires a user click.
-  }, []);
+  }, [status]);
   const copyCommand = () => {
     if (!request) return;
     void copyTextToClipboard(request.command).then((ok) => {
       if (!alive.current || requestId.current !== request.id || Date.now() >= request.expires * 1000) return;
       if (ok) { setCopied(true); setError(""); setPanel(null); }
-      else { setPanel("command"); setError(t("remote.pair.copyFailed")); }
+      else { setPanel("command"); setError("remote.pair.copyFailed"); }
     });
   };
-  const restartAvailable = !saved && (expired || (!!error && !request?.command && !preview));
+  const invalidReturn = ["pair_invalid", "pair_expired", "pair_used"].some((code) => error === `remote.errors.${code}`);
+  const restartAvailable = !saved && (expired || (!!error && !request?.command && !preview && (!returned || invalidReturn)));
   const reviewingReturn = !!returned && !request?.command && !preview && !manual && !restartAvailable;
   const title = preview ? "remote.pair.confirmTitle" : reviewingReturn ? "remote.pair.review" : restartAvailable ? "remote.add"
     : manual ? "remote.pair.code" : copied ? "remote.pair.copiedTitle" : "remote.add";
   const description = preview || reviewingReturn ? "remote.pair.confirmLinkDescription" : restartAvailable ? "remote.pair.introHint"
     : manual ? "remote.pair.codeHint" : copied ? "remote.pair.afterCopyHint" : "remote.pair.introHint";
   const showCopied = copied && !manual && !preview && !restartAvailable;
-  const showBusy = busy && busyVisible;
-  const actionLabel = restartAvailable ? "remote.pair.restart" : reviewingReturn ? "remote.pair.review" : preview ? saved ? "remote.retry" : "remote.connect"
+  const showBusy = pending && busyVisible;
+  const actionLabel = restartAvailable ? "remote.pair.restart" : reviewingReturn ? error ? "remote.retry" : "remote.pair.review" : preview ? saved ? "remote.retry" : "remote.connect"
     : manual ? "remote.pair.review" : copied ? "remote.pair.copyAgain" : "remote.pair.copy";
-  const busyLabel = preview ? "remote.connecting" : !restartAvailable && (manual || returned)
+  const busyLabel = waitingForLocal ? "remote.pair.waitingForLocal" : preview ? "remote.connecting" : !restartAvailable && (manual || returned)
     ? "remote.pair.checkingLink" : "remote.pair.preparing";
 
   return <>
@@ -180,13 +194,13 @@ export function QuickPairSetup({ returned, onSSH, onClose }: { returned?: PairRe
         </div>
       </>}
       {expired && !saved && <p role="status" className="text-xs leading-5 text-muted-foreground">{t("remote.pair.expired")}</p>}
-      {error && <p role="alert" className="flex items-start gap-2 text-[13px] leading-5 text-foreground"><AlertCircle aria-hidden="true" className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />{error}</p>}
+      {error && <p role="alert" className="flex items-start gap-2 text-[13px] leading-5 text-foreground"><AlertCircle aria-hidden="true" className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />{t(error, { defaultValue: t("remote.errors.unknown") })}</p>}
     </div>
     <div className={preview ? "flex shrink-0 flex-col-reverse gap-2 pt-1 sm:flex-row sm:items-center sm:justify-between" : "flex shrink-0 flex-col gap-2 pt-1"}>
       {preview && (!saved ? <Button variant="ghost" disabled={busy} onClick={() => { setPreview(null); setError(""); if (!request?.command) setManual(true); }}><ArrowLeft className="mr-1 h-4 w-4" />{t("remote.back")}</Button>
           : <Button variant="ghost" onClick={() => { connections?.cancel(); onClose(); }}>{t("common.cancel")}</Button>
       )}
-      <Button variant={showCopied ? "outline" : "default"} className={showCopied ? "bg-transparent" : undefined} aria-label={t(showBusy ? busyLabel : actionLabel)} aria-busy={busy} disabled={busy || (!restartAvailable && (!request || (!preview && (manual ? !code.trim() : !request.command))))} onClick={() => { if (restartAvailable) void start(); else if (preview) void connect(); else if (manual) void review(); else copyCommand(); }}>
+      <Button variant={showCopied ? "outline" : "default"} className={showCopied ? "bg-transparent" : undefined} aria-label={t(showBusy ? busyLabel : actionLabel)} aria-busy={pending} disabled={busy || waitingForLocal || (!restartAvailable && (!request || (!preview && (manual || reviewingReturn ? !code.trim() : !request.command))))} onClick={() => { if (restartAvailable) void start(); else if (preview) void connect(); else if (manual || reviewingReturn) void review(); else copyCommand(); }}>
         {showBusy ? <Loader2 aria-hidden="true" className="mr-2 h-4 w-4 shrink-0 animate-spin motion-reduce:animate-none" /> : !restartAvailable && !preview && !manual && !reviewingReturn ? <Copy aria-hidden="true" className="mr-2 h-4 w-4 shrink-0" /> : null}
         <span role="status" className="min-w-0 truncate">{t(showBusy ? busyLabel : actionLabel)}</span>
       </Button>

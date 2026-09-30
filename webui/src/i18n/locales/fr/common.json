@@ -3,6 +3,7 @@
     "activeForgetWarning": "Tous les onglets utilisant cette connexion seront déconnectés. Le travail non enregistré peut être perdu.",
     "saved": "Enregistré",
     "pair": {
+      "waitingForLocal": "Connexion à nanobot sur cet ordinateur…",
       "expiringDevice": "L’autorisation expire le {{date}}.",
       "expiredDevice": "L’autorisation a expiré. Associez à nouveau ce serveur avant de vous reconnecter.",
       "introHint": "Exécutez une commande dans le terminal du serveur pour vous connecter.",
@@ -145,6 +146,7 @@
     "forgetTitle": "Forget {{name}}?",
     "forgetDescription": "Only this saved connection will be removed. nanobot, its keys and conversations on the server will stay untouched.",
     "errors": {
+      "local_connection_unavailable": "Impossible de joindre nanobot sur cet ordinateur. Vérifiez qu’il est en cours d’exécution, puis réessayez.",
       "disconnected": "Cette connexion partagée a été fermée. Reconnectez-vous quand vous le souhaitez.",
       "instance_changed": "La connexion à ce serveur a changé. La reconnexion rechargera la vue ; les brouillons non envoyés risquent d’être perdus.",
       "pair_authorization_rejected": "Le serveur n’accepte plus la clé de cet appareil. L’autorisation a peut-être été révoquée ou a expiré. Relancez l’association depuis la console du serveur.",

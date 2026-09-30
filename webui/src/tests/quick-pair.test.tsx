@@ -2,13 +2,25 @@ import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-libra
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { QuickPairSetup } from "@/components/remote/QuickPairSetup";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
+import type { ConnectionStatus } from "@/lib/types";
+import { NanobotClient } from "@/lib/nanobot-client";
 import i18n from "@/i18n";
 
 const mocks = vi.hoisted(() => {
   const action = vi.fn();
-  return { action, client: { requestMutation: action }, connect: vi.fn(), refresh: vi.fn(), cancel: vi.fn(), copy: vi.fn() };
+  const listeners = new Set<(status: ConnectionStatus) => void>();
+  const client = {
+    status: "open" as ConnectionStatus,
+    requestMutation: action,
+    onStatus: (listener: (status: ConnectionStatus) => void) => {
+      listeners.add(listener);
+      listener(client.status);
+      return () => { listeners.delete(listener); };
+    },
+  };
+  return { action, client, listeners, transportClient: null as NanobotClient | null, connect: vi.fn(), refresh: vi.fn(), cancel: vi.fn(), copy: vi.fn() };
 });
-vi.mock("@/providers/ClientProvider", () => ({ useClient: () => ({ client: mocks.client }) }));
+vi.mock("@/providers/ClientProvider", () => ({ useClient: () => ({ client: mocks.transportClient ?? mocks.client }) }));
 vi.mock("@/components/remote/RemoteInstances", () => ({ useRemoteConnections: () => ({ connect: mocks.connect, refresh: mocks.refresh, cancel: mocks.cancel, directory: { profiles: [] } }) }));
 vi.mock("@/lib/clipboard", () => ({ copyTextToClipboard: mocks.copy }));
 const request = () => ({ id: "request-1", command: "nanobot remote pair nbpr1.public", expires: Date.now() / 1000 + 600 });
@@ -16,6 +28,8 @@ const preview = { id: "request-1", host: "ubuntu@server", hostname: "team", fing
 
 beforeEach(async () => {
   await i18n.changeLanguage("en");
+  mocks.client.status = "open";
+  mocks.listeners.clear();
   mocks.action.mockReset().mockImplementation(async (action: string) => {
     if (action === "remote.pair_start") return request();
     if (action === "remote.pair_preview") return preview;
@@ -26,11 +40,20 @@ beforeEach(async () => {
   mocks.connect.mockReset().mockResolvedValue(undefined);
   mocks.refresh.mockReset().mockResolvedValue(undefined);
 });
-afterEach(() => { cleanup(); vi.useRealTimers(); vi.restoreAllMocks(); });
+afterEach(() => { cleanup(); mocks.transportClient?.close(); mocks.transportClient = null; vi.useRealTimers(); vi.restoreAllMocks(); });
 const view = (onSSH = vi.fn(), onClose = vi.fn()) => render(<Dialog open><DialogContent><QuickPairSetup onSSH={onSSH} onClose={onClose} /></DialogContent></Dialog>);
 function chooseOtherWay(name: string) {
   fireEvent.pointerDown(screen.getByRole("button", { name: "Other ways" }), { button: 0, ctrlKey: false });
   fireEvent.click(screen.getByRole("menuitem", { name }));
+}
+function setStatus(status: ConnectionStatus) {
+  act(() => {
+    mocks.client.status = status;
+    mocks.listeners.forEach((listener) => listener(status));
+  });
+}
+function returnedView() {
+  return render(<Dialog open><DialogContent><QuickPairSetup returned={{ id: "request-1", code: "nbpc1.encrypted" }} onSSH={vi.fn()} onClose={vi.fn()} /></DialogContent></Dialog>);
 }
 
 async function reviewed() {
@@ -42,6 +65,79 @@ async function reviewed() {
 }
 
 describe("quick pairing", () => {
+  it("reviews through the real NanobotClient after its socket opens", async () => {
+    const socket = {
+      readyState: 0,
+      onopen: null as (() => void) | null,
+      onmessage: null as ((event: MessageEvent) => void) | null,
+      onerror: null as (() => void) | null,
+      onclose: null as (() => void) | null,
+      send: vi.fn(), close: vi.fn(),
+    };
+    mocks.transportClient = new NanobotClient({
+      url: "ws://local-test", reconnect: false,
+      socketFactory: () => socket as unknown as WebSocket,
+    });
+    mocks.transportClient.connect();
+    returnedView();
+    expect(socket.send).not.toHaveBeenCalled();
+    expect(screen.queryByRole("alert")).toBeNull();
+    act(() => { socket.readyState = 1; socket.onopen?.(); });
+    const frame = JSON.parse(socket.send.mock.calls[0][0]);
+    expect(frame).toMatchObject({ type: "webui_request", action: "remote.pair_preview", payload: { id: "request-1", code: "nbpc1.encrypted" } });
+    await act(async () => {
+      socket.onmessage?.({ data: JSON.stringify({ event: "webui_response", request_id: frame.request_id, ok: true, result: preview }) } as MessageEvent);
+    });
+    expect(screen.getByRole("heading", { name: "Open this nanobot?" })).toBeVisible();
+    expect(socket.send).toHaveBeenCalledTimes(1);
+    expect(mocks.connect).not.toHaveBeenCalled();
+  });
+  it("waits for the local socket on a cold return-link page and reviews only once", async () => {
+    mocks.client.status = "connecting";
+    returnedView();
+    expect(mocks.action).not.toHaveBeenCalled();
+    expect(screen.queryByRole("alert")).toBeNull();
+    expect(screen.queryByRole("button", { name: "Get a new command" })).toBeNull();
+    setStatus("open");
+    await screen.findByRole("heading", { name: "Open this nanobot?" });
+    setStatus("reconnecting"); setStatus("open");
+    expect(mocks.action).toHaveBeenCalledTimes(1);
+    expect(mocks.action).toHaveBeenCalledWith("remote.pair_preview", { id: "request-1", code: "nbpc1.encrypted" }, 65000);
+    expect(mocks.connect).not.toHaveBeenCalled();
+  });
+  it("waits before preparing an invitation and stops waiting when the dialog closes", () => {
+    mocks.client.status = "connecting";
+    const result = view();
+    expect(mocks.action).not.toHaveBeenCalled();
+    result.unmount();
+    setStatus("open");
+    expect(mocks.action).not.toHaveBeenCalled();
+    expect(mocks.listeners.size).toBe(0);
+  });
+  it("explains a slow local connection and recovers without discarding the receipt", async () => {
+    vi.useFakeTimers();
+    mocks.client.status = "connecting";
+    returnedView();
+    await act(async () => { vi.advanceTimersByTime(10_000); });
+    expect(screen.getByRole("alert")).toHaveTextContent(/local nanobot/);
+    expect(screen.queryByRole("button", { name: "Get a new command" })).toBeNull();
+    expect(mocks.action).not.toHaveBeenCalled();
+    setStatus("open");
+    await act(async () => {});
+    expect(screen.getByRole("heading", { name: "Open this nanobot?" })).toBeVisible();
+    expect(screen.queryByRole("alert")).toBeNull();
+  });
+  it.each([["WebUI connection is not open", 503], ["WebUI request timed out after 65000ms", 504]])("retries the same returned receipt after %s", async (message, status) => {
+    mocks.action.mockRejectedValueOnce(Object.assign(new Error(String(message)), { status }));
+    returnedView();
+    expect(await screen.findByRole("alert")).toHaveTextContent(/local nanobot/);
+    expect(screen.queryByRole("button", { name: "Get a new command" })).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Retry" }));
+    await screen.findByRole("heading", { name: "Open this nanobot?" });
+    expect(mocks.action.mock.calls.map(([action]) => action)).toEqual(["remote.pair_preview", "remote.pair_preview"]);
+    expect(mocks.action.mock.calls[0]).toEqual(mocks.action.mock.calls[1]);
+    expect(mocks.connect).not.toHaveBeenCalled();
+  });
   it("never asks a returning user to copy another command while validating their link", async () => {
     mocks.action.mockImplementation(() => new Promise(() => {}));
     render(<Dialog open><DialogContent><QuickPairSetup returned={{ id: "request-1", code: "nbpc1.encrypted" }} onSSH={vi.fn()} onClose={vi.fn()} /></DialogContent></Dialog>);

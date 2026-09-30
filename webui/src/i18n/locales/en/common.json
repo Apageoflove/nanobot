@@ -3,6 +3,7 @@
     "activeForgetWarning": "All tabs using this connection will disconnect. Unsaved work may be lost.",
     "saved": "Saved",
     "pair": {
+      "waitingForLocal": "Connecting to local nanobot…",
       "expiringDevice": "Authorization expires {{date}}.",
       "expiredDevice": "Authorization expired. Pair this server again before reconnecting.",
       "introHint": "Run one command in your server terminal to connect.",
@@ -145,6 +146,7 @@
     "forgetTitle": "Forget {{name}}?",
     "forgetDescription": "Only this saved connection will be removed. nanobot, its keys and conversations on the server will stay untouched.",
     "errors": {
+      "local_connection_unavailable": "Couldn't reach local nanobot on this computer. Keep it running and try again.",
       "disconnected": "This shared connection was closed. Reconnect when you’re ready.",
       "instance_changed": "This server connection changed. Reconnecting will reload its view; unsent drafts may be lost.",
       "pair_authorization_rejected": "The server no longer accepts this device key. Its authorization may have been revoked or expired. Pair again from your server console.",

@@ -3,6 +3,7 @@
     "activeForgetWarning": "Se desconectarán todas las pestañas que usen esta conexión. El trabajo sin guardar puede perderse.",
     "saved": "Guardado",
     "pair": {
+      "waitingForLocal": "Conectando con nanobot en este equipo…",
       "expiringDevice": "La autorización vence el {{date}}.",
       "expiredDevice": "La autorización ha vencido. Vuelve a emparejar este servidor antes de reconectar.",
       "introHint": "Ejecuta un comando en la terminal de tu servidor para conectarte.",
@@ -145,6 +146,7 @@
     "forgetTitle": "Forget {{name}}?",
     "forgetDescription": "Only this saved connection will be removed. nanobot, its keys and conversations on the server will stay untouched.",
     "errors": {
+      "local_connection_unavailable": "No se pudo conectar con nanobot en este equipo. Comprueba que esté en ejecución e inténtalo de nuevo.",
       "disconnected": "Esta conexión compartida se cerró. Reconecta cuando quieras.",
       "instance_changed": "La conexión a este servidor cambió. Al reconectar se recargará la vista; los borradores sin enviar podrían perderse.",
       "pair_authorization_rejected": "El servidor ya no acepta la clave de este dispositivo. La autorización puede haberse revocado o caducado. Vuelve a emparejar desde la consola del servidor.",

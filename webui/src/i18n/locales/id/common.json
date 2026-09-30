@@ -3,6 +3,7 @@
     "activeForgetWarning": "Semua tab yang memakai koneksi ini akan terputus. Pekerjaan yang belum disimpan dapat hilang.",
     "saved": "Tersimpan",
     "pair": {
+      "waitingForLocal": "Menghubungkan ke nanobot di komputer ini…",
       "expiringDevice": "Otorisasi berakhir pada {{date}}.",
       "expiredDevice": "Otorisasi telah berakhir. Pasangkan ulang server ini sebelum menyambungkan kembali.",
       "introHint": "Jalankan satu perintah di terminal server untuk terhubung.",
@@ -145,6 +146,7 @@
     "forgetTitle": "Forget {{name}}?",
     "forgetDescription": "Only this saved connection will be removed. nanobot, its keys and conversations on the server will stay untouched.",
     "errors": {
+      "local_connection_unavailable": "Tidak dapat terhubung ke nanobot di komputer ini. Pastikan nanobot berjalan, lalu coba lagi.",
       "disconnected": "Koneksi bersama ini telah ditutup. Sambungkan kembali saat Anda siap.",
       "instance_changed": "Koneksi server ini berubah. Menyambungkan kembali akan memuat ulang tampilan; draf yang belum dikirim dapat hilang.",
       "pair_authorization_rejected": "Server tidak lagi menerima kunci perangkat ini. Otorisasinya mungkin dicabut atau kedaluwarsa. Pasangkan kembali melalui konsol server.",

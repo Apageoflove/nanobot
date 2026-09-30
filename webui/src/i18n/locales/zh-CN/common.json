@@ -3,6 +3,7 @@
     "activeForgetWarning": "也会断开正在使用此连接的标签页，未保存的内容可能丢失。",
     "saved": "已保存",
     "pair": {
+      "waitingForLocal": "正在连接本机 nanobot…",
       "expiringDevice": "授权将于 {{date}} 到期。",
       "expiredDevice": "授权已到期，重新连接前请再次配对。",
       "introHint": "在服务器终端运行一条命令，即可开始连接。",
@@ -145,6 +146,7 @@
     "forgetTitle": "忘记 {{name}}？",
     "forgetDescription": "只移除本机保存的连接。服务器上的 nanobot、密钥和会话都不会被删除。",
     "errors": {
+      "local_connection_unavailable": "暂时无法连接这台电脑上的 nanobot，请确保它正在运行后重试。",
       "disconnected": "此共享连接已断开，需要时可重新连接。",
       "instance_changed": "此服务器的连接已发生变化。重新连接会重新打开页面，未发送的草稿可能丢失。",
       "pair_authorization_rejected": "服务器不再接受这台设备的密钥，授权可能已撤销或过期。请从服务器终端重新配对。",

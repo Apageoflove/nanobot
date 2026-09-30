@@ -3,6 +3,7 @@
     "activeForgetWarning": "Tất cả thẻ đang dùng kết nối này sẽ bị ngắt. Nội dung chưa lưu có thể bị mất.",
     "saved": "Đã lưu",
     "pair": {
+      "waitingForLocal": "Đang kết nối với nanobot trên máy tính này…",
       "expiringDevice": "Quyền truy cập hết hạn vào {{date}}.",
       "expiredDevice": "Quyền truy cập đã hết hạn. Hãy ghép nối lại máy chủ trước khi kết nối lại.",
       "introHint": "Chạy một lệnh trong terminal máy chủ để kết nối.",
@@ -145,6 +146,7 @@
     "forgetTitle": "Forget {{name}}?",
     "forgetDescription": "Only this saved connection will be removed. nanobot, its keys and conversations on the server will stay untouched.",
     "errors": {
+      "local_connection_unavailable": "Không thể kết nối với nanobot trên máy tính này. Hãy đảm bảo nanobot đang chạy rồi thử lại.",
       "disconnected": "Kết nối dùng chung này đã đóng. Bạn có thể kết nối lại khi sẵn sàng.",
       "instance_changed": "Kết nối đến máy chủ này đã thay đổi. Kết nối lại sẽ tải lại giao diện; bản nháp chưa gửi có thể bị mất.",
       "pair_authorization_rejected": "Máy chủ không còn chấp nhận khóa của thiết bị này. Quyền truy cập có thể đã bị thu hồi hoặc hết hạn. Hãy ghép nối lại từ bảng điều khiển máy chủ.",

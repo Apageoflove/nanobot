@@ -3,6 +3,7 @@
     "activeForgetWarning": "この接続を使用しているすべてのタブが切断されます。未保存の内容が失われる可能性があります。",
     "saved": "保存済み",
     "pair": {
+      "waitingForLocal": "このコンピューターの nanobot に接続しています…",
       "expiringDevice": "認証は {{date}} に期限切れになります。",
       "expiredDevice": "認証の期限が切れました。再接続する前にペアリングし直してください。",
       "introHint": "サーバーのターミナルでコマンドを実行して接続します。",
@@ -145,6 +146,7 @@
     "forgetTitle": "Forget {{name}}?",
     "forgetDescription": "Only this saved connection will be removed. nanobot, its keys and conversations on the server will stay untouched.",
     "errors": {
+      "local_connection_unavailable": "このコンピューターの nanobot に接続できませんでした。起動していることを確認して、もう一度お試しください。",
       "disconnected": "この共有接続は閉じられました。必要なときに再接続できます。",
       "instance_changed": "このサーバーへの接続が変わりました。再接続すると画面が再読み込みされ、未送信の下書きが失われる場合があります。",
       "pair_authorization_rejected": "サーバーがこのデバイスの鍵を受け付けなくなりました。認可が取り消されたか期限切れの可能性があります。サーバーのコンソールから再度ペアリングしてください。",
