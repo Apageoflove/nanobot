@@ -31,6 +31,7 @@ from nanobot.webui.remote_ssh import Tunnel, _listen  # pyright: ignore[reportPr
 
 _MAX_BYTES = 64 * 1024 * 1024
 _MAX_CAPABILITIES = 10000
+_STATIC_ASSET = re.compile(r"/assets/[^/]+-[A-Za-z0-9_-]{8,}\.(?:js|css|woff2?|ttf|svg|png|webp|ico)$")
 _MEDIA_PATH = r"/api/media/[A-Za-z0-9_-]{22}/[A-Za-z0-9_-]+"
 # Consume absolute URLs unchanged before matching gateway-relative media paths.
 # An external site's similarly named route is not this proxy's capability.
@@ -307,6 +308,15 @@ class RemoteProxy:
                 outgoing = {key: value for key, value in upstream.headers.items()
                             if key.lower() in _RESPONSE_HEADERS}
                 outgoing["Cache-Control"] = "no-store"
+                upstream_cache = upstream.headers.get("cache-control", "").lower()
+                if (upstream.status_code == 200 and _STATIC_ASSET.fullmatch(path)
+                        and not request.rel_url.query and "set-cookie" not in upstream.headers
+                        and "public" in upstream_cache and "immutable" in upstream_cache
+                        and "no-store" not in upstream_cache and "private" not in upstream_cache
+                        and "application/json" not in upstream.headers.get("content-type", "")):
+                    # Only versioned public build assets, never HTML, API data,
+                    # credentials or media capabilities. Keep caches browser-local.
+                    outgoing["Cache-Control"] = "private, max-age=31536000, immutable"
                 if "application/json" in upstream.headers.get("content-type", ""):
                     body = bytearray()
                     async for chunk in upstream.aiter_bytes():

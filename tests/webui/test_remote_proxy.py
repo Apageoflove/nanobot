@@ -44,6 +44,15 @@ async def remote(tmp_path, monkeypatch):
     async def process(connection, request):
         seen.append(request)
         path = urlsplit(request.path).path
+        if path.startswith("/assets/"):
+            response = connection.respond(200, "fixture asset")
+            response.headers["Content-Type"] = "application/javascript"
+            response.headers["Cache-Control"] = "public, max-age=31536000, immutable"
+            if "private" in request.path:
+                response.headers["Cache-Control"] = "private, no-store"
+            if "cookie" in request.path:
+                response.headers["Set-Cookie"] = "session=private"
+            return response
         if path == "/redirect" or (state.ws_redirect and path == config.path):
             response = connection.respond(302, "redirect")
             response.headers["Location"] = "http://127.0.0.1:1/?token=" + ROOT
@@ -116,6 +125,19 @@ async def bootstrap(remote, headers=None):
     ))
     assert response.status_code == 200, response.text
     return response.json()
+
+
+@pytest.mark.parametrize("path,cacheable", [
+    ("/assets/index-AbcD1234.js", True), ("/assets/index-AbcD1234.css", True),
+    ("/assets/private-AbcD1234.js", False), ("/assets/cookie-AbcD1234.js", False),
+    ("/assets/index-AbcD1234.js?token=secret", False), ("/assets/config.json", False),
+    ("/assets/index.js", False), ("/assets/index-AbcD1234.html", False),
+])
+async def test_cache_only_versioned_public_build_assets(remote, path, cacheable):
+    response = await remote.client.get(remote.proxy.origin + path)
+    assert response.status_code == 200
+    assert response.headers["cache-control"] == ("private, max-age=31536000, immutable" if cacheable else "no-store")
+    assert "set-cookie" not in response.headers
 
 
 async def test_remote_credentials_never_leave_the_backend(remote):

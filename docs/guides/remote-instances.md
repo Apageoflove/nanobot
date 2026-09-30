@@ -144,8 +144,10 @@ nanobot remote revoke DEVICE_ID --ssh-user LOGIN_ACCOUNT
 ```
 
 Only that device's exact managed key entry is removed; existing login keys stay
-unchanged. Close any already-open remote sessions too: removing an authorized
-key prevents new SSH authentication, not existing sessions. If setup is cancelled
+unchanged. Current pairing bridges also check the grant and its expiry before
+each new stream, including streams on a reused SSH transport. Close any
+already-open remote sessions too: revocation does not terminate existing streams.
+Older bridges enforce the grant only at SSH authentication. If setup is cancelled
 after server authorization, use the revoke command printed in that terminal.
 Re-pairing after expiry uses a new independent key, not an extension of an old grant.
 
@@ -255,6 +257,25 @@ its config in `/var/lib/nanobot/.nanobot/config.json`. The discovery step offers
 these values when it finds the service; otherwise use **Specify a different
 location** in the nanobot step. Editing a saved connection also exposes these
 fields. The connection does not grant new sudo privileges.
+
+## Connection performance
+
+On macOS and Linux, connections with an app-pinned host key reuse a private
+OpenSSH transport instead of authenticating for every HTTP request. Each
+connection owns its control socket; nanobot never borrows your shell's shared
+SSH session. Disconnecting closes the transport. Windows and unpinned
+connections retain the independent-stream path.
+
+Paired connections enable reuse only after the server bridge confirms that it
+checks expiry and revocation on every new stream. Older bridges still work with
+fresh authentication per stream. Pair again after upgrading the server to install
+the guarded bridge; upgrading nanobot alone does not rewrite existing grants.
+
+Versioned public JS/CSS and other build assets are cached in this browser, so
+refreshes do not download the same bundle again. HTML, API responses, credentials
+and media capabilities remain uncached by the proxy. Initial authentication,
+uncached assets and network latency still affect the first connection; reuse
+does not bypass a blocked SSH route or VPN policy.
 
 ## Using the remote instance
 

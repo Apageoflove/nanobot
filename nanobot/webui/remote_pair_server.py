@@ -23,8 +23,23 @@ from nanobot.webui.remote_pairing import PairReceipt, PairRequest, private_write
 from nanobot.webui.remote_ssh import RemoteError
 
 # No dynamic command, destination or environment input is accepted by the bridge.
-# SSH_ORIGINAL_COMMAND is deliberately ignored. Each invocation is one TCP stream.
-_BRIDGE = '''import os, socket, threading
+# SSH_ORIGINAL_COMMAND only negotiates the guard marker, never executed.
+# Each invocation is one TCP stream to the fixed loopback destination.
+_BRIDGE = '''import os, socket, threading, pathlib, sys, time
+# A multiplexed SSH transport authenticates only once. Re-check the exact
+# managed grant on EVERY new channel, including expiry and operator revocation.
+root = pathlib.Path(__file__).resolve().parent
+try:
+    line = (root / "authorization").read_text()
+    keys = root.parents[1] / "authorized_keys"
+    valid = line.endswith(" nanobot-remote:" + root.name + "\\n") and line in keys.read_text().splitlines(keepends=True)
+except (OSError, ValueError):
+    valid = False
+if not valid or time.time() >= UNTIL:
+    sys.stderr.write("Permission denied: device authorization expired or revoked\\n")
+    sys.exit(1)
+if os.environ.get("SSH_ORIGINAL_COMMAND") == "nanobot-remote-bridge-v2":
+    os.write(1, b"NANOBOT_REMOTE_BRIDGE_2\\n")
 s = socket.create_connection(("127.0.0.1", PORT), timeout=10)
 s.settimeout(None)
 def send():
@@ -48,6 +63,11 @@ try:
 finally:
     s.close()
 '''
+
+
+def bridge_source(port: int, until: int) -> str:
+    """Render only fixed, operator-approved destination and authorization expiry."""
+    return _BRIDGE.replace("PORT", str(port)).replace("UNTIL", str(until))
 
 
 def metadata(config: Path) -> dict[str, Any]:
@@ -100,7 +120,7 @@ def write_authorization(home: Path, request: PairRequest, port: int, until: int)
         target.mkdir(mode=0o700)
         try:
             bridge = target / "bridge.py"
-            private_write(bridge, _BRIDGE.replace("PORT", str(port)).encode())
+            private_write(bridge, bridge_source(port, until).encode())
             command = shlex.join(["/usr/bin/python3", "-I", "-S", str(bridge)]).replace("\\", "\\\\").replace('"', '\\"')
             expiry = datetime.datetime.fromtimestamp(until, datetime.UTC).strftime("%Y%m%d%H%M%SZ")
             line = f'restrict,expiry-time="{expiry}",command="{command}" {request.ssh_key} nanobot-remote:{request.id}\n'

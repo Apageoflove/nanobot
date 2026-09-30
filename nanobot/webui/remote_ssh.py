@@ -20,6 +20,10 @@ from typing import Any, cast
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
+from nanobot.webui.remote_mux import SSHMaster
+
+_BRIDGE_READY = b"NANOBOT_REMOTE_BRIDGE_2\n"
+
 
 class RemoteError(Exception):
     """A stable, non-secret error code for the connection UI."""
@@ -53,7 +57,7 @@ def transport_arguments(profile: RemoteProfile, remote_port: int, known_hosts: P
     if isinstance(profile, PairedSSHProfile):
         # The server key's forced command owns the fixed destination. Do not
         # request forwarding or execute the ordinary credential probe.
-        return [*args, profile.host, "nanobot-remote-bridge"]
+        return [*args, profile.host, "nanobot-remote-bridge-v2"]
     return [*args, "-W", f"127.0.0.1:{remote_port}", profile.host]
 
 
@@ -269,13 +273,26 @@ class Tunnel:
         self.enabled = True
         self.error = ""
         self._streams: set[asyncio.Task[None]] = set()
+        self._master: SSHMaster | None = None
+        self._master_args: tuple[list[str], str] | None = None
+        self._paired = False
+        self._reuse_verified = False
+        self._probe_started = False
+        # Leave room below OpenSSH's usual MaxSessions=10, including a live WS.
+        self._slots = asyncio.Semaphore(8)
 
     @property
     def active(self) -> bool:
         return self.enabled and self.server is not None and self.server.is_serving()
 
-    def resume(self, profile: RemoteProfile, remote_port: int, known_hosts: Path) -> None:
+    def resume(self, profile: RemoteProfile, remote_port: int, known_hosts: Path | None) -> None:
         self.args = transport_arguments(profile, remote_port, known_hosts)
+        self._paired = isinstance(profile, PairedSSHProfile)
+        self._master_args = ((ssh_arguments(profile, known_hosts), profile.host)
+                             if os.name != "nt" and known_hosts and known_hosts.is_file() else None)
+        self._master = SSHMaster(*self._master_args) if self._master_args else None
+        self._reuse_verified = not self._paired
+        self._probe_started = False
         self.error = ""
         self.enabled = True
 
@@ -294,9 +311,14 @@ class Tunnel:
         task.add_done_callback(finished)
 
     async def _relay(self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter) -> None:
+        async with self._slots:
+            await self._stream(reader, writer)
+
+    async def _stream(self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter) -> None:
         process: asyncio.subprocess.Process | None = None
         pumps: list[asyncio.Task[None]] = []
         stderr = bytearray()
+        master: SSHMaster | None = None
 
         async def copy(source: asyncio.StreamReader, destination: asyncio.StreamWriter) -> None:
             while data := await source.read(65536):
@@ -310,10 +332,16 @@ class Tunnel:
                 stderr.extend(data[:max(0, 8192 - len(stderr))])
 
         try:
+            if self._master and (self._reuse_verified or not self._probe_started):
+                # The first channel follows fresh SSH authentication. Only a
+                # guarded bridge can authorize MORE channels on that transport.
+                master = self._master
+                self._probe_started = True
+            args = await master.arguments(self.args) if master else self.args
             # Shield process creation so cancellation cannot lose a spawned child
             # before we have its handle and can reap it.
             spawn = asyncio.create_task(asyncio.create_subprocess_exec(
-                *self.args, stdin=asyncio.subprocess.PIPE,
+                *args, stdin=asyncio.subprocess.PIPE,
                 stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE,
             ))
             try:
@@ -323,8 +351,25 @@ class Tunnel:
                 raise
             assert process is not None
             assert process.stdin is not None and process.stdout is not None and process.stderr is not None
+            async def response() -> None:
+                assert process is not None and process.stdout is not None
+                if self._paired:
+                    first = await process.stdout.readline()
+                    if first == _BRIDGE_READY:
+                        # Only the guarded bridge advertises this capability.
+                        # Old bridges forward HTTP unchanged: keep authenticating
+                        # every stream until the server bridge is upgraded.
+                        self._reuse_verified = True
+                        if self._master_args and self._master is None:
+                            self._master = SSHMaster(*self._master_args)
+                    else:
+                        self._reuse_verified = False
+                        writer.write(first)
+                        await writer.drain()
+                await copy(process.stdout, writer)
+
             pumps = [asyncio.create_task(copy(reader, process.stdin)),
-                     asyncio.create_task(copy(process.stdout, writer)),
+                     asyncio.create_task(response()),
                      asyncio.create_task(drain_errors(process.stderr))]
             done, _ = await asyncio.wait(pumps[:2], return_when=asyncio.FIRST_COMPLETED)
             for task in done:
@@ -338,7 +383,9 @@ class Tunnel:
             await pumps[2]
             if process.returncode:
                 self.error = ssh_error(bytes(stderr))
-        except (OSError, ConnectionError):
+        except RemoteError as exc:
+            self.error = str(exc)
+        except (OSError, ConnectionError, ValueError):
             self.error = "ssh_unreachable"
         finally:
             for task in pumps:
@@ -346,6 +393,10 @@ class Tunnel:
             await asyncio.gather(*pumps, return_exceptions=True)
             if process is not None:
                 await stop_process(process)
+            if master is not None and not self._reuse_verified:
+                await master.close()
+                if self._master is master:
+                    self._master = None
             writer.close()
             with contextlib.suppress(OSError):
                 await writer.wait_closed()
@@ -356,6 +407,9 @@ class Tunnel:
         for task in streams:
             task.cancel()
         await asyncio.gather(*streams, return_exceptions=True)
+        if self._master is not None:
+            await self._master.close()
+            self._master = None
 
     async def close(self) -> None:
         await self.pause()
@@ -403,6 +457,7 @@ async def open_tunnel(
     listener = _listen(local_port, excluded_ports or set())
     tunnel = Tunnel(args, int(listener.getsockname()[1]))
     try:
+        tunnel.resume(profile, remote_port, known_hosts)
         tunnel.server = await asyncio.start_server(tunnel.accept, sock=listener)
         return tunnel
     except BaseException:

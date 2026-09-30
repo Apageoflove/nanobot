@@ -176,11 +176,12 @@ def test_paired_transport_cannot_fall_back_to_generic_probe_or_forwarding(pair, 
     assert args[1:3] == ["-F", os.devnull]
     transport = transport_arguments(profile, value.port, store.path(request.id) / "known_hosts")
     assert "-W" not in transport
-    assert transport[-1] == "nanobot-remote-bridge"
+    assert transport[-1] == "nanobot-remote-bridge-v2"
     assert "sudo" not in " ".join(transport)
 
 
-def test_fixed_bridge_streams_only_to_baked_in_loopback_port():
+@pytest.mark.parametrize("command", ["echo MUST-NOT-EXECUTE", "nanobot-remote-bridge-v2"])
+def test_fixed_bridge_streams_only_to_baked_in_loopback_port(tmp_path, command):
     # Real bidirectional bytes, no SSH_ORIGINAL_COMMAND interpolation.
     listener = socket.socket()
     listener.bind(("127.0.0.1", 0))
@@ -196,12 +197,39 @@ def test_fixed_bridge_streams_only_to_baked_in_loopback_port():
                 connection.sendall(b"received:" + data)
     worker = threading.Thread(target=serve, daemon=True)
     worker.start()
-    result = subprocess.run([sys.executable, "-I", "-S", "-c", remote_pair_server._BRIDGE.replace("PORT", str(port))],
+    target = tmp_path / ".ssh" / "nanobot-remote" / "device"
+    target.mkdir(parents=True)
+    line = "restrict fixture-key nanobot-remote:device\n"
+    (target / "authorization").write_text(line)
+    (tmp_path / ".ssh" / "authorized_keys").write_text(line)
+    bridge = target / "bridge.py"
+    bridge.write_text(remote_pair_server.bridge_source(port, int(time.time()) + 60))
+    result = subprocess.run([sys.executable, "-I", "-S", str(bridge)],
                             input=b"hello-webui", capture_output=True, timeout=5,
-                            env={**os.environ, "SSH_ORIGINAL_COMMAND": "echo MUST-NOT-EXECUTE"})
+                            env={**os.environ, "SSH_ORIGINAL_COMMAND": command})
     worker.join(2)
     assert result.returncode == 0
-    assert result.stdout == b"received:hello-webui"
+    prefix = remote_ssh._BRIDGE_READY if command == "nanobot-remote-bridge-v2" else b""
+    assert result.stdout == prefix + b"received:hello-webui"
+
+
+@pytest.mark.parametrize("reason", ["expired", "revoked", "missing", "another-device"])
+def test_guarded_bridge_rejects_new_channels_without_connecting(tmp_path, reason):
+    target = tmp_path / ".ssh" / "nanobot-remote" / "device"
+    target.mkdir(parents=True)
+    line = "restrict fixture-key nanobot-remote:device\n"
+    (target / "authorization").write_text(line)
+    keys = tmp_path / ".ssh" / "authorized_keys"
+    keys.write_text(line if reason == "expired" else line.replace(":device", ":other") if reason == "another-device" else "")
+    if reason == "missing":
+        keys.unlink()
+    bridge = target / "bridge.py"
+    bridge.write_text(remote_pair_server.bridge_source(1, int(time.time()) + (-1 if reason == "expired" else 60)))
+    result = subprocess.run([sys.executable, "-I", "-S", str(bridge)], capture_output=True, timeout=5,
+                            env={**os.environ, "SSH_ORIGINAL_COMMAND": "nanobot-remote-bridge-v2"})
+    assert result.returncode == 1
+    assert not result.stdout  # No reuse capability or connection to the target.
+    assert b"Permission denied" in result.stderr
 
 
 async def test_api_pair_finalization_pins_host_and_hides_credentials(tmp_path):
