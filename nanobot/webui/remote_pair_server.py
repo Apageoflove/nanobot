@@ -8,7 +8,6 @@ stdio bridge, with all OpenSSH forwarding and interactive features disabled.
 from __future__ import annotations
 
 import datetime
-import fcntl
 import json
 import os
 import shlex
@@ -84,6 +83,8 @@ def _directory(path: Path) -> None:
 
 def write_authorization(home: Path, request: PairRequest, port: int, until: int) -> None:
     """Runs as the SSH account, never with root privileges over another home."""
+    import fcntl
+
     request.check_expiry()
     ssh = home / ".ssh"
     _directory(ssh)
@@ -114,6 +115,8 @@ def write_authorization(home: Path, request: PairRequest, port: int, until: int)
 
 
 def _update_keys(path: Path, *, add: str = "", remove: str = "") -> None:
+    import fcntl
+
     fd = os.open(path, os.O_RDWR | os.O_CREAT | os.O_NOFOLLOW, 0o600)
     with os.fdopen(fd, "r+") as handle:
         info = os.fstat(handle.fileno())
@@ -146,6 +149,8 @@ def _update_keys(path: Path, *, add: str = "", remove: str = "") -> None:
 
 
 def remove_authorization(home: Path, key: str) -> None:
+    import fcntl
+
     from nanobot.webui.remote_pairing import PairStore
 
     # Validate before joining any path, even for a manually typed revoke command.

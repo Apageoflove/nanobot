@@ -291,6 +291,16 @@ these ports are not assigned to new targets, even after forgetting a profile.
 Keep that file alongside the connection directory when moving local settings.
 Port conflicts fail explicitly; nanobot does not attach to an unrelated listener.
 
+For a backup or move, stop the local gateway and preserve the entire adjacent
+`webui` directory, including `remote-hosts` and `remote-pairing`, with its private
+file permissions. Paired device keys and imported routes follow the restored
+directory automatically. Ordinary SSH profiles still reference your external
+SSH config/key paths; update those separately if they moved. Restoring only
+`remote-instances.json` cannot restore pairing credentials. Do not copy this
+directory to another user or untrusted computer: it grants full remote nanobot
+access. A downgrade to a version without remote connections leaves these files
+unused; keep the backup for upgrading again.
+
 The local gateway owns a browser-facing proxy and a separate, private SSH
 transport. Browser login, API, WebSocket and media credentials are local
 capabilities: they cannot authenticate to the remote gateway. The remote

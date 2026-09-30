@@ -2,6 +2,7 @@
 
 import json
 import os
+import shutil
 import socket
 import subprocess
 import sys
@@ -55,9 +56,10 @@ def test_round_trip_only_preview_public_fields_and_restart(pair):
     store.finish(request.id, code)
     assert PairStore(store.root.parent).connection(request.id)["secret"] == value.secret
     assert store.finish(request.id, code) == value
-    for path in store.path(request.id).iterdir():
-        assert path.stat().st_mode & 0o777 == 0o600
-    assert store.path(request.id).stat().st_mode & 0o777 == 0o700
+    if os.name != "nt":
+        for path in store.path(request.id).iterdir():
+            assert path.stat().st_mode & 0o777 == 0o600
+        assert store.path(request.id).stat().st_mode & 0o777 == 0o700
     assert value.secret not in (store.path(request.id) / "receipt").read_text()
 
 
@@ -128,6 +130,7 @@ def test_cancel_only_deletes_pending_pair_files(pair):
         store.cancel("../../outside")
 
 
+@pytest.mark.skipif(sys.platform == "win32", reason="Linux server authorization uses POSIX ownership and flock")
 def test_server_appends_restricted_key_and_revoke_preserves_existing(pair, tmp_path):
     _, _, request, _, _ = pair
     home = tmp_path / "server-home"
@@ -151,6 +154,7 @@ def test_server_appends_restricted_key_and_revoke_preserves_existing(pair, tmp_p
     assert keys.read_text() == original
 
 
+@pytest.mark.skipif(sys.platform == "win32", reason="Linux server authorization uses POSIX ownership and flock")
 def test_server_refuses_symlink_authorized_keys_without_touching_target(pair, tmp_path):
     _, _, request, _, _ = pair
     home = tmp_path / "server"
@@ -224,11 +228,71 @@ async def test_api_pair_finalization_pins_host_and_hides_credentials(tmp_path):
     assert manager.snapshot()["profiles"] == []
 
 
+@pytest.mark.parametrize("with_route", [False, True])
+async def test_paired_profile_follows_moved_data_root(tmp_path, monkeypatch, with_route):
+    original = tmp_path / "original"
+    manager = RemoteInstances(original)
+    started = await manager.action("pair_start", {})
+    request = read_request(started["command"].split()[-1])
+    value = receipt(request)
+    await manager.action("pair_finish", {"id": request.id, "code": seal(request, value)})
+    external = tmp_path / "external-ssh-config"
+    external.write_text("Host alias\n    HostName 203.0.113.1\n")
+    source = await manager.action("save", {"profile": {
+        "name": "Existing route", "host": "alias", "ssh_config": str(external),
+    }})
+    if with_route:
+        monkeypatch.setattr(remote_ssh, "pairing_route", AsyncMock(return_value="Host *\n"))
+        await manager.action("pair_route", {"id": request.id, "route_id": source["id"]})
+    await manager.close()
+    moved = tmp_path / "renamed-data-root"
+    shutil.move(str(original), moved)
+    restarted = RemoteInstances(moved)
+    profiles = (await restarted.health())["profiles"]
+    paired = next(item for item in profiles if item["id"] == request.id)
+    assert paired["identity_file"] == str(restarted.pairing.path(request.id) / "identity")
+    assert paired["ssh_config"] == (str(restarted.pairing.path(request.id) / "ssh_route") if with_route else "")
+    assert next(item for item in profiles if item["id"] == source["id"])["ssh_config"] == str(external)
+
+    async def check_transport(profile, port, known_hosts, **kwargs):
+        assert profile.identity_file == paired["identity_file"]
+        assert profile.ssh_config == paired["ssh_config"]
+        args = ssh_arguments(profile, known_hosts)
+        assert str(original) not in " ".join(args)
+        assert known_hosts.read_text() == "nanobot-remote " + value.host_key + "\n"
+        raise RemoteError("ssh_unreachable")
+
+    monkeypatch.setattr(remote_ssh, "open_tunnel", check_transport)
+    monkeypatch.setattr(remote_ssh.shutil, "which", lambda _: "/usr/bin/ssh")
+    with pytest.raises(RemoteError, match="ssh_unreachable"):
+        await restarted.action("connect", {"id": request.id})
+    await restarted.action("remove", {"id": request.id})
+    assert not restarted.pairing.path(request.id).exists()
+    assert external.exists()
+    assert len(RemoteInstances(moved).snapshot()["profiles"]) == 1
+
+
 def test_model_keys_never_enter_pairing_metadata(tmp_path):
     path = tmp_path / "config.json"
     path.write_text(json.dumps({"providers": {"deepseek": {"apiKey": "not-exported"}},
                                 "channels": {"websocket": {"enabled": True, "tokenIssueSecret": "webui-only"}}}))
     assert "not-exported" not in json.dumps(remote_pair_server.metadata(path))
+
+
+def test_pairing_modules_can_import_without_posix_server_dependencies():
+    # Windows clients still exercise encryption, import, reconnect and metadata.
+    # Only the Linux server grant/revoke path may require fcntl or pwd.
+    script = """
+import sys
+sys.modules['fcntl'] = None
+sys.modules['pwd'] = None
+from nanobot.webui import remote_pair_server, remote_pairing
+from nanobot.cli import remote
+assert remote_pair_server.metadata
+assert remote_pairing.PairStore
+"""
+    result = subprocess.run([sys.executable, "-c", script], capture_output=True, timeout=15)
+    assert result.returncode == 0, result.stderr.decode()
 
 
 async def test_route_import_only_copies_network_options(monkeypatch, tmp_path):

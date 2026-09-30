@@ -78,8 +78,17 @@ class RemoteInstances:
             raw = json.loads(self.path.read_text(encoding="utf-8"))
             if not isinstance(raw, dict):
                 raise ValueError
-            return {str(uuid.UUID(key)): _SavedProfile.model_validate(value)
-                    for key, value in cast(dict[str, Any], raw).items()}
+            profiles = {str(uuid.UUID(key)): _SavedProfile.model_validate(value)
+                        for key, value in cast(dict[str, Any], raw).items()}
+            for profile in profiles.values():
+                if profile.pair_id:
+                    # These are managed files, not external SSH settings. Resolve
+                    # them from the current root after a backup restore or move.
+                    directory = self.pairing.path(profile.pair_id)
+                    profile.identity_file = str(directory / "identity")
+                    if profile.ssh_config:
+                        profile.ssh_config = str(directory / "ssh_route")
+            return profiles
         except (ValueError, TypeError, OSError):
             raise RemoteError("profile_store_invalid") from None
 
