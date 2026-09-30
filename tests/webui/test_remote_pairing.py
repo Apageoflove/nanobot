@@ -228,6 +228,113 @@ async def test_api_pair_finalization_pins_host_and_hides_credentials(tmp_path):
     assert manager.snapshot()["profiles"] == []
 
 
+async def test_repeated_pairing_groups_one_instance_without_deleting_authorizations(tmp_path):
+    manager = RemoteInstances(tmp_path)
+    first = read_request((await manager.action("pair_start", {}))["command"].split()[-1])
+    original = receipt(first)
+    await manager.action("pair_finish", {"id": first.id, "code": seal(first, original)})
+    profiles = manager._read()
+    profiles[first.id].name = "My team"
+    manager._write(profiles)
+    before = manager.pairing.path(first.id).joinpath("identity").read_bytes()
+    second = read_request((await manager.action("pair_start", {}))["command"].split()[-1])
+    renewed = original.model_copy(update={"id": second.id, "ssh_key": second.ssh_key})
+    code = seal(second, renewed)
+    preview = await manager.action("pair_preview", {"id": second.id, "code": code})
+    assert preview["existing_connection"] == {"id": first.id, "name": "My team", "connected": False}
+    assert len(manager.snapshot()["profiles"]) == 1  # Preview never saves or deletes.
+    result = await manager.action("pair_finish", {"id": second.id, "code": code})
+    assert result["id"] == second.id
+    assert len(result["profiles"]) == 2  # Grants remain separately manageable.
+    assert {item["instance_id"] for item in result["profiles"]} == {first.id}
+    assert {item["name"] for item in result["profiles"]} == {"My team"}
+    assert manager.pairing.path(first.id).joinpath("identity").read_bytes() == before
+    assert manager.pairing.connection(second.id)["secret"] == original.secret
+    assert original.secret not in json.dumps(result)
+    assert original.host_key not in json.dumps(result)
+    assert (await manager.action("pair_finish", {"id": second.id, "code": code}))["id"] == second.id
+    assert len({item["instance_id"] for item in RemoteInstances(tmp_path).snapshot()["profiles"]}) == 1
+    await manager.action("remove", {"id": second.id})
+    assert manager.pairing.path(first.id).joinpath("identity").read_bytes() == before
+    assert len(manager.snapshot()["profiles"]) == 1
+
+
+@pytest.mark.parametrize("change", [
+    {"host": "203.0.113.2"}, {"user": "other"}, {"ssh_port": 2222},
+    {"config_path": "/srv/other/config.json"}, {"port": 9876},
+    {"secret": "another-private-credential"}, {"token_issue_path": "/different-issuer"},
+    {"host_key": ssh_public()},
+])
+async def test_same_name_or_ip_never_groups_different_pairing_destinations(tmp_path, change):
+    manager = RemoteInstances(tmp_path)
+    first = read_request((await manager.action("pair_start", {}))["command"].split()[-1])
+    original = receipt(first)
+    await manager.action("pair_finish", {"id": first.id, "code": seal(first, original)})
+    second = read_request((await manager.action("pair_start", {}))["command"].split()[-1])
+    other = original.model_copy(update={"id": second.id, "ssh_key": second.ssh_key, **change})
+    code = seal(second, other)
+    preview = await manager.action("pair_preview", {"id": second.id, "code": code})
+    assert "existing_connection" not in preview
+    result = await manager.action("pair_finish", {"id": second.id, "code": code})
+    assert len({item["instance_id"] for item in result["profiles"]}) == 2
+
+
+@pytest.mark.parametrize("healthy", [True, False])
+async def test_repair_retains_route_and_reuses_only_a_healthy_existing_connection(tmp_path, monkeypatch, healthy):
+    manager = RemoteInstances(tmp_path)
+    first = read_request((await manager.action("pair_start", {}))["command"].split()[-1])
+    original = receipt(first)
+    await manager.action("pair_finish", {"id": first.id, "code": seal(first, original)})
+    route = manager.pairing.path(first.id) / "ssh_route"
+    route.write_text("Host *\n  ProxyCommand /usr/bin/nc -b en0 %h %p\n")
+    profiles = manager._read()
+    profiles[first.id].ssh_config = str(route)
+    profiles[first.id].local_port = 23456
+    manager._write(profiles)
+    live = SimpleNamespace(tunnel=SimpleNamespace(active=True), error="", gateway_id="live-session",
+                           proxy=SimpleNamespace(pause=AsyncMock()))
+    manager.connections[first.id] = live
+
+    async def check(connection):
+        connection.error = "" if healthy else "remote_auth_failed"
+
+    monkeypatch.setattr(manager, "_check", check)
+    second = read_request((await manager.action("pair_start", {}))["command"].split()[-1])
+    renewed = original.model_copy(update={"id": second.id, "ssh_key": second.ssh_key})
+    code = seal(second, renewed)
+    result = await manager.action("pair_finish", {"id": second.id, "code": code})
+    assert result["id"] == (first.id if healthy else second.id)
+    assert manager.connections[first.id] is live
+    live.proxy.pause.assert_not_awaited()
+    assert manager._read()[first.id].local_port == 23456
+    new_route = manager.pairing.path(second.id) / "ssh_route"
+    assert new_route.read_text() == route.read_text()
+    if os.name != "nt":
+        assert new_route.stat().st_mode & 0o777 == 0o600
+    assert manager._read()[second.id].ssh_config == str(new_route)
+
+
+async def test_grouping_old_receipts_is_read_only_and_tolerates_expired_or_missing_grants(tmp_path, monkeypatch):
+    manager = RemoteInstances(tmp_path)
+    first = read_request((await manager.action("pair_start", {}))["command"].split()[-1])
+    original = receipt(first)
+    await manager.action("pair_finish", {"id": first.id, "code": seal(first, original)})
+    second = read_request((await manager.action("pair_start", {}))["command"].split()[-1])
+    other = original.model_copy(update={"id": second.id, "ssh_key": second.ssh_key})
+    await manager.action("pair_finish", {"id": second.id, "code": seal(second, other)})
+    saved = manager.path.read_bytes()
+    monkeypatch.setattr(time, "time", lambda: original.authorized_until + 10)
+    assert len({item["instance_id"] for item in manager.snapshot()["profiles"]}) == 1
+    assert manager.path.read_bytes() == saved
+    with pytest.raises(RemoteError, match="pair_authorization_expired"):
+        manager.pairing.connection(first.id)
+    manager.pairing.path(second.id).joinpath("receipt").unlink()
+    result = manager.snapshot()["profiles"]
+    assert len(result) == 2
+    assert "instance_id" not in result[1]
+    assert manager.path.read_bytes() == saved
+
+
 @pytest.mark.parametrize("with_route", [False, True])
 async def test_paired_profile_follows_moved_data_root(tmp_path, monkeypatch, with_route):
     original = tmp_path / "original"

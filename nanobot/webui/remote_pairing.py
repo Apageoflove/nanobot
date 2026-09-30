@@ -169,6 +169,17 @@ class PairReceipt(BaseModel):
                 "authorized_until": self.authorized_until,
                 "revoke_command": f"nanobot remote revoke {self.id} --ssh-user {self.user}"}
 
+    def destination(self) -> tuple[str, str, int, str, str, int, str, str]:
+        """Conservative same-instance evidence, confined to the local manager.
+
+        A name/IP or the restart-scoped gateway ID is not enough. Require the
+        same pinned SSH server, account, resolved config and WebUI capability.
+        Keep changed credentials/addresses separate rather than guessing. Never
+        send this tuple (or a credential-derived hash) to the browser.
+        """
+        return (self.host, self.user, self.ssh_port, self.host_key, self.config_path,
+                self.port, self.secret, self.token_issue_path)
+
 
 def _derive(shared: bytes, request_id: str) -> bytes:
     return HKDF(algorithm=hashes.SHA256(), length=32, salt=request_id.encode(), info=_CONTEXT).derive(shared)
@@ -266,6 +277,17 @@ class PairStore:
 
     def preview(self, key: str, code: str) -> dict[str, Any]:
         return self._decrypt(key, code, pending=True).preview()
+
+    def review(self, key: str, code: str) -> PairReceipt:
+        return self._decrypt(key, code, pending=True)
+
+    def saved_receipt(self, key: str) -> PairReceipt | None:
+        """Read grouping evidence, even for expired grants, without granting access."""
+        try:
+            code = (self.path(key) / "receipt").read_text()
+            return self._decrypt(key, code, pending=False, require_active=False)
+        except (OSError, RemoteError):
+            return None
 
     def finish(self, key: str, code: str) -> PairReceipt:
         receipt = self._decrypt(key, code, pending=True)

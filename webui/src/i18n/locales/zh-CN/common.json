@@ -1,5 +1,19 @@
 {
   "remote": {
+    "sameInstance": {
+      "forgetAction": "忘记",
+      "switchHint": "要使用另一份授权，请先断开当前连接。",
+      "title": "这个 nanobot 已连接过",
+      "saveAndOpen": "保存并打开",
+      "pairHint": "服务器列表只保留一条。这次授权也会保存，已有连接不会被删除。",
+      "details": "连接详情",
+      "detailsHint": "这些连接指向同一个 nanobot。选择一个使用，或管理它的授权。",
+      "connection": "连接 {{count}}",
+      "manageConnection": "管理连接 {{count}}",
+      "forgetConnection": "忘记此连接",
+      "forgetTitle": "忘记此连接？",
+      "forgetHint": "只移除此电脑上的这条连接，其他连接和服务器上的数据会保留。"
+    },
     "activeForgetWarning": "也会断开正在使用此连接的标签页，未保存的内容可能丢失。",
     "saved": "已保存",
     "pair": {
@@ -199,7 +213,7 @@
       "profile_store_invalid": "无法读取已保存的连接，原文件未被覆盖。",
       "invalid_profile": "请检查服务器地址、端口和连接选项。",
       "profile_not_found": "这个连接已不存在，请刷新列表。",
-      "profile_limit": "最多可以保存 20 台服务器。",
+      "profile_limit": "最多保存 20 条连接。请先在连接详情中移除不再使用的授权，或忘记不再使用的服务器。",
       "connection_limit": "请先断开一台服务器，再建立新连接。",
       "disconnect_before_edit": "请先断开这个服务器，再编辑连接信息。",
       "local_io_error": "无法保存或打开连接，请检查本机文件权限。",

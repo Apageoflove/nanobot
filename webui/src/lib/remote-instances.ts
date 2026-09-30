@@ -15,8 +15,34 @@ export interface RemoteProfile {
   view_id?: string;
   connection_error?: string;
   paired?: boolean;
+  /** Opaque grouping ID supplied only after the local backend verifies receipts. */
+  instance_id?: string;
   revoke_command?: string;
   authorized_until?: number;
+}
+
+export interface RemoteProfileGroup {
+  id: string;
+  profile: RemoteProfile;
+  connections: RemoteProfile[];
+}
+
+/** One visible instance; keep every underlying grant available in details. */
+export function groupRemoteProfiles(profiles: RemoteProfile[], currentId: string | null): RemoteProfileGroup[] {
+  const groups = new Map<string, RemoteProfile[]>();
+  for (const profile of profiles) {
+    const id = profile.instance_id || profile.id;
+    const group = groups.get(id) || [];
+    group.push(profile);
+    groups.set(id, group);
+  }
+  return [...groups].map(([id, connections]) => {
+    const preferred = connections.find((item) => item.id === currentId)
+      || connections.find((item) => item.connected)
+      || [...connections].reverse().find((item) => item.authorized_until != null && item.authorized_until * 1000 > Date.now())
+      || connections[0];
+    return { id, profile: { ...preferred, name: connections[0].name }, connections };
+  });
 }
 
 /** Persistent setup problems need a repair path, not an endless Retry button. */

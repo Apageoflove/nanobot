@@ -2,7 +2,7 @@ import { createContext, useContext, useEffect, useLayoutEffect, useRef, useState
 import { Loader2, PlugZap } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
-import { needsRemoteSetup, type RemoteDirectory } from "@/lib/remote-instances";
+import { groupRemoteProfiles, needsRemoteSetup, type RemoteDirectory } from "@/lib/remote-instances";
 import { useHostSessions } from "./useHostSessions";
 import { HostNavigationContext, HostSwitcher, RemoteHostMenu, type HostPicker } from "./HostSwitcher";
 import { useSidebarHostBridge } from "./useSidebarHostBridge";
@@ -101,7 +101,8 @@ export function RemoteInstances({ children }: { children: ReactNode }) {
   const picker: HostPicker = {
     kind: "shell", name: selected?.name || t("remote.localShort"), hostname: selected?.hostname || directory?.machine_name || "nanobot",
     localName: directory?.machine_name || "nanobot", currentId: selected?.id || null, recentIds: hosts.recentIds,
-    profiles: (directory?.profiles || []).map(({ id, name, host }) => ({ id, name, host, state: hostStates[id] })),
+    profiles: groupRemoteProfiles(directory?.profiles || [], selected?.id || null)
+      .map(({ profile: { id, name, host } }) => ({ id, name, host, state: hostStates[id] })),
     pending, error: message, offline: !!offline,
     select: (id) => {
       if (!id) selectLocal();

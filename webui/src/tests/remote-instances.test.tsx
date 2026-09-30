@@ -91,6 +91,51 @@ function chooseExistingSSH() {
 }
 
 describe("remote instance UX", () => {
+  it("shows one verified instance in management and the switcher while retaining both grants in details", async () => {
+    const second = { ...profile, id: "f1b18099-61d5-41d7-9c1d-6f647f7000e5", paired: true, instance_id: profile.id };
+    mocks.read.mockResolvedValue({ available: true, profiles: [{ ...profile, paired: true, instance_id: profile.id }, second] });
+    view();
+    await openDirectory();
+    expect(screen.getAllByRole("button", { name: "Team server ubuntu@example.test" })).toHaveLength(1);
+    fireEvent.pointerDown(screen.getByRole("button", { name: "Manage Team server" }), { button: 0, ctrlKey: false });
+    fireEvent.click(screen.getByRole("menuitem", { name: "Connection details" }));
+    const details = await screen.findByRole("dialog", { name: "Connection details" });
+    expect(within(details).getByRole("button", { name: /^Connection 1 / })).toBeVisible();
+    expect(within(details).getByRole("button", { name: /^Connection 2 / })).toBeVisible();
+    fireEvent.pointerDown(within(details).getByRole("button", { name: "Manage connection 1" }), { button: 0, ctrlKey: false });
+    fireEvent.click(screen.getByRole("menuitem", { name: "Forget connection" }));
+    expect(await screen.findByRole("dialog", { name: "Forget this connection?" })).toHaveTextContent(i18n.t("remote.sameInstance.forgetHint"));
+    expect(screen.getByRole("button", { name: "Forget", exact: true })).toBeVisible();
+    expect(screen.getByRole("button", { name: "Forget", exact: true }).firstElementChild).not.toHaveClass("truncate");
+    expect(screen.queryByRole("button", { name: "Forget server", exact: true })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Cancel", exact: true }));
+    expect(mocks.request).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button", { name: "Back", exact: true }));
+    fireEvent.pointerDown(screen.getByRole("button", { name: "Switch host" }), { button: 0, ctrlKey: false });
+    expect(await screen.findAllByRole("menuitem", { name: "Team server ubuntu@example.test" })).toHaveLength(1);
+  });
+
+  it("keeps same-address unverified instances separate and shows their config paths", async () => {
+    mocks.read.mockResolvedValue({ available: true, profiles: [profile, { ...profile, id: "another", config_path: "/srv/other/config.json" }] });
+    view(); await openDirectory();
+    expect(screen.getAllByRole("button", { name: "Team server ubuntu@example.test" })).toHaveLength(2);
+    expect(screen.getByTitle("/srv/other/config.json")).toBeVisible();
+    expect(screen.getByTitle(profile.config_path)).toBeVisible();
+  });
+
+  it("requires disconnecting before opening another authorization of an already-connected instance", async () => {
+    const second = { ...profile, id: "second-grant", connected: true, paired: true, instance_id: profile.id };
+    mocks.read.mockResolvedValue({ available: true, profiles: [{ ...profile, paired: true, instance_id: profile.id }, second] });
+    view(); await openDirectory();
+    fireEvent.pointerDown(screen.getByRole("button", { name: "Manage Team server" }), { button: 0, ctrlKey: false });
+    fireEvent.click(screen.getByRole("menuitem", { name: "Connection details" }));
+    const details = await screen.findByRole("dialog", { name: "Connection details" });
+    expect(within(details).getByRole("button", { name: /^Connection 1 / })).toBeDisabled();
+    expect(within(details).getByRole("button", { name: /^Connection 2 / })).toBeEnabled();
+    expect(within(details).getByText(i18n.t("remote.sameInstance.switchHint"))).toBeVisible();
+    expect(within(details).getByRole("button", { name: "Manage connection 1" })).toBeEnabled();
+    expect(mocks.request).not.toHaveBeenCalled();
+  });
   it("manages connections without changing the remote host, route, frame or authorization", async () => {
     view();
     await chooseHost("Team server ubuntu@example.test");

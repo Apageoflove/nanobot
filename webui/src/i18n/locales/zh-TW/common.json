@@ -1,5 +1,19 @@
 {
   "remote": {
+    "sameInstance": {
+      "forgetAction": "忘記",
+      "switchHint": "若要使用另一份授權，請先中斷目前連線。",
+      "title": "這個 nanobot 已連線過",
+      "saveAndOpen": "儲存並開啟",
+      "pairHint": "伺服器清單只保留一筆。這次授權也會儲存，已有連線不會被刪除。",
+      "details": "連線詳情",
+      "detailsHint": "這些連線指向同一個 nanobot。選擇一個使用，或管理它的授權。",
+      "connection": "連線 {{count}}",
+      "manageConnection": "管理連線 {{count}}",
+      "forgetConnection": "忘記此連線",
+      "forgetTitle": "忘記此連線？",
+      "forgetHint": "只移除此電腦上的這筆連線，其他連線與伺服器上的資料會保留。"
+    },
     "activeForgetWarning": "也會中斷正在使用此連線的分頁，未儲存的內容可能遺失。",
     "saved": "已儲存",
     "pair": {
@@ -199,7 +213,7 @@
       "profile_store_invalid": "Saved connections couldn't be read. They haven't been overwritten.",
       "invalid_profile": "Check the address, port and Connection options fields.",
       "profile_not_found": "This saved server no longer exists. Refresh the list.",
-      "profile_limit": "You can save up to 20 servers.",
+      "profile_limit": "最多儲存 20 筆連線。請先在連線詳情中移除不再使用的授權，或忘記不再使用的伺服器。",
       "connection_limit": "Disconnect an existing server before opening another connection.",
       "disconnect_before_edit": "Disconnect this server before editing it.",
       "local_io_error": "Couldn't save or open the connection. Check local file permissions.",

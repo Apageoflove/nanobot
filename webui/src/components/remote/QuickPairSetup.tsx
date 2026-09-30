@@ -15,7 +15,8 @@ import { useRemoteConnections } from "./RemoteInstances";
 import { PairRouteSettings } from "./PairRouteSettings";
 
 type Request = { id: string; command: string; expires: number };
-type Preview = { id: string; host: string; hostname: string; fingerprint: string; authorized_until: number; revoke_command: string };
+type Preview = { id: string; host: string; hostname: string; fingerprint: string; authorized_until: number; revoke_command: string;
+  existing_connection?: { id: string; name: string; connected: boolean } };
 
 /** Public invitation → encrypted receipt → explicit confirmation. No private key inputs. */
 export function QuickPairSetup({ returned, onSSH, onClose }: { returned?: PairReturn | null; onSSH: () => void; onClose: () => void }) {
@@ -128,14 +129,14 @@ export function QuickPairSetup({ returned, onSSH, onClose }: { returned?: PairRe
   const invalidReturn = ["pair_invalid", "pair_expired", "pair_used"].some((code) => error === `remote.errors.${code}`);
   const restartAvailable = !saved && (expired || (!!error && !request?.command && !preview && (!returned || invalidReturn)));
   const reviewingReturn = !!returned && !request?.command && !preview && !manual && !restartAvailable;
-  const title = preview ? "remote.pair.confirmTitle" : reviewingReturn ? "remote.pair.review" : restartAvailable ? "remote.add"
+  const title = preview ? preview.existing_connection ? "remote.sameInstance.title" : "remote.pair.confirmTitle" : reviewingReturn ? "remote.pair.review" : restartAvailable ? "remote.add"
     : manual ? "remote.pair.code" : copied ? "remote.pair.copiedTitle" : "remote.add";
   const description = preview || reviewingReturn ? "remote.pair.confirmLinkDescription" : restartAvailable ? "remote.pair.introHint"
     : manual ? "remote.pair.codeHint" : copied ? "remote.pair.afterCopyHint" : "remote.pair.introHint";
   const showCopied = copied && !manual && !preview && !restartAvailable;
   const showIllustration = !preview && !manual && !reviewingReturn && !restartAvailable;
   const showBusy = pending && busyVisible;
-  const actionLabel = restartAvailable ? "remote.pair.restart" : reviewingReturn ? error ? "remote.retry" : "remote.pair.review" : preview ? saved ? "remote.retry" : "remote.connect"
+  const actionLabel = restartAvailable ? "remote.pair.restart" : reviewingReturn ? error ? "remote.retry" : "remote.pair.review" : preview ? saved ? "remote.retry" : preview.existing_connection ? "remote.sameInstance.saveAndOpen" : "remote.connect"
     : manual ? "remote.pair.review" : copied ? "remote.pair.copyAgain" : "remote.pair.copy";
   const busyLabel = waitingForLocal ? "remote.pair.waitingForLocal" : preview ? "remote.connecting" : !restartAvailable && (manual || returned)
     ? "remote.pair.checkingLink" : "remote.pair.preparing";
@@ -154,9 +155,10 @@ export function QuickPairSetup({ returned, onSSH, onClose }: { returned?: PairRe
       </DialogHeader>
       {preview ? <div className="space-y-4 pt-4">
         <div className="rounded-2xl bg-muted/50 p-4">
-          <p className="font-medium">{preview.hostname}</p>
+          <p className="font-medium">{preview.existing_connection?.name || preview.hostname}</p>
           <p className="mt-1 break-all text-xs text-muted-foreground">{preview.host}</p>
         </div>
+        {preview.existing_connection && <p role="status" className="text-xs leading-5 text-muted-foreground">{t("remote.sameInstance.pairHint")}</p>}
         <p className="text-[13px] leading-5">{t("remote.pair.access")}</p>
         <p className="text-xs leading-5 text-muted-foreground">{t("remote.pair.expiry", { date: new Date(preview.authorized_until * 1000).toLocaleDateString() })}</p>
         <Disclosure className="text-xs text-muted-foreground" summaryClassName="flex min-h-9 items-center gap-2 rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"

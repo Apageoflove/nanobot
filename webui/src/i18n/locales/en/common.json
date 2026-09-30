@@ -1,5 +1,19 @@
 {
   "remote": {
+    "sameInstance": {
+      "forgetAction": "Forget",
+      "switchHint": "To use another authorization, disconnect the open connection first.",
+      "title": "This nanobot is already saved",
+      "saveAndOpen": "Save and open",
+      "pairHint": "Keep one server entry. This authorization will be saved too; existing connections are kept.",
+      "details": "Connection details",
+      "detailsHint": "These connections open the same nanobot. Choose one to use, or manage its authorization.",
+      "connection": "Connection {{count}}",
+      "manageConnection": "Manage connection {{count}}",
+      "forgetConnection": "Forget connection",
+      "forgetTitle": "Forget this connection?",
+      "forgetHint": "Only this saved connection will be removed. Other connections and data on the server will stay."
+    },
     "activeForgetWarning": "All tabs using this connection will disconnect. Unsaved work may be lost.",
     "saved": "Saved",
     "pair": {
@@ -199,7 +213,7 @@
       "profile_store_invalid": "Saved connections couldn't be read. They haven't been overwritten.",
       "invalid_profile": "Check the address, port and Connection options fields.",
       "profile_not_found": "This saved server no longer exists. Refresh the list.",
-      "profile_limit": "You can save up to 20 servers.",
+      "profile_limit": "You can save up to 20 connections. Remove an unused authorization in Connection details, or forget an unused server.",
       "connection_limit": "Disconnect an existing server before opening another connection.",
       "disconnect_before_edit": "Disconnect this server before editing it.",
       "local_io_error": "Couldn't save or open the connection. Check local file permissions.",

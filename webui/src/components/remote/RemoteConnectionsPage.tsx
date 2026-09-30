@@ -8,7 +8,7 @@ import { DisclosureContent } from "@/components/ui/disclosure";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { useClient } from "@/providers/ClientProvider";
-import { remoteAction, type RemoteInspection, type RemoteProfile } from "@/lib/remote-instances";
+import { groupRemoteProfiles, remoteAction, type RemoteInspection, type RemoteProfile } from "@/lib/remote-instances";
 import { cn } from "@/lib/utils";
 import { parseSSHAddress } from "@/lib/ssh-address";
 import { clearPairReturn, readPairReturn, subscribePairReturn } from "@/lib/remote-pair-return";
@@ -37,6 +37,7 @@ export function RemoteConnectionsPage({ mainNavigationExpanded = false, hostChro
   const returnedPair = useSyncExternalStore(subscribePairReturn, readPairReturn);
   const [quickOpen, setQuickOpen] = useState(!!returnedPair);
   const [pairRoute, setPairRoute] = useState("");
+  const [details, setDetails] = useState("");
   const [editing, setEditing] = useState(false);
   const [savedId, setSavedId] = useState("");
   const [busy, setBusy] = useState("");
@@ -247,6 +248,16 @@ export function RemoteConnectionsPage({ mainNavigationExpanded = false, hostChro
     setInspection(null); setManualLocation(false); setInspectBeforeConnect(true);
     setError(""); setErrorCode(""); setSSHOptions(true);
   };
+  const groups = groupRemoteProfiles(directory?.profiles || [], connections.activeHostId);
+  const detailGroup = groups.find((group) => group.id === details);
+  const detailConnection = detailGroup?.connections.find((profile) => profile.connected || connections.openHostIds.includes(profile.id));
+  const removalIsShared = groups.some((group) => group.connections.length > 1 && group.connections.some((profile) => profile.id === removalProfile?.id));
+  const connectionActions = (profile: RemoteProfile, grouped = false) => <>
+    {!profile.paired && <DropdownMenuItem disabled={profile.connected || connections.openHostIds.includes(profile.id)} onSelect={() => { setDetails(""); beginEditor(profile); }}>{t("remote.edit")}</DropdownMenuItem>}
+    {profile.paired && <DropdownMenuItem disabled={profile.connected || connections.openHostIds.includes(profile.id)} onSelect={() => { setDetails(""); setPairRoute(profile.id); }}>{t("remote.pair.route")}</DropdownMenuItem>}
+    {(profile.connected || connections.openHostIds.includes(profile.id)) && <DropdownMenuItem onSelect={() => { setDetails(""); setError(""); setDisconnecting(profile); }}>{t("remote.disconnect")}</DropdownMenuItem>}
+    <DropdownMenuItem tone="destructive" onSelect={() => { setDetails(""); setError(""); setRemoving(profile); }}>{t(grouped ? "remote.sameInstance.forgetConnection" : "remote.forget")}</DropdownMenuItem>
+  </>;
 
   return <div ref={page} tabIndex={-1} role="region" aria-label={t("remote.title")} className="flex min-h-0 flex-1 flex-col overflow-hidden bg-settings-canvas outline-none">
     <div className="min-w-0 flex-1 overflow-y-auto [scrollbar-gutter:stable]">
@@ -272,7 +283,7 @@ export function RemoteConnectionsPage({ mainNavigationExpanded = false, hostChro
               </button>
             </SettingsGroup>
             {directory.profiles.length > 0 && <SettingsGroup>
-              {directory.profiles.map((profile) => <div key={profile.id} className="settings-list-row settings-hover flex items-center gap-2 transition-colors">
+              {groups.map(({ id: groupId, profile, connections: entries }) => <div key={groupId} className="settings-list-row settings-hover flex items-center gap-2 transition-colors">
                 <button type="button" aria-label={`${profile.name} ${profile.host}`} aria-describedby={`${statusId}-${profile.id}`}
                   aria-current={connections.activeHostId === profile.id || undefined}
                   className="flex min-h-[60px] min-w-0 flex-1 items-center gap-3 rounded-xl py-3 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" disabled={!!busy} onClick={(event) => {
@@ -280,6 +291,7 @@ export function RemoteConnectionsPage({ mainNavigationExpanded = false, hostChro
                 }}>
                   {busy === profile.id ? <Loader2 className="h-[18px] w-[18px] shrink-0 animate-spin text-muted-foreground" /> : <Server className="h-[18px] w-[18px] shrink-0 text-muted-foreground" />}
                   <span className="min-w-0 flex-1"><span className="block truncate text-[14px] font-medium">{profile.name}</span><span className="mt-0.5 block truncate text-xs text-muted-foreground">{profile.host}</span>
+                    {groups.some((other) => other.id !== groupId && other.profile.name === profile.name && other.profile.host === profile.host) && <span className="mt-0.5 block truncate text-xs text-muted-foreground" title={profile.config_path}>{profile.port ? `:${profile.port} · ` : ""}{profile.config_path}</span>}
                     <span id={`${statusId}-${profile.id}`} className="mt-1 block"><HostConnectionStatus state={connections.hostStates[profile.id] || "closed"} /></span>
                     {profile.paired && typeof profile.authorized_until === "number" && Number.isFinite(profile.authorized_until)
                       && profile.authorized_until * 1000 <= Date.now() + 7 * 86_400_000 && <span className="mt-1 block text-xs leading-5 text-muted-foreground">
@@ -295,10 +307,7 @@ export function RemoteConnectionsPage({ mainNavigationExpanded = false, hostChro
                   onKeyDown={(event) => { editorTrigger.current = event.currentTarget; }}
                   aria-label={t("remote.manage", { name: profile.name })}><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
-                    {!profile.paired && <DropdownMenuItem disabled={profile.connected || connections.openHostIds.includes(profile.id)} onSelect={() => beginEditor(profile)}>{t("remote.edit")}</DropdownMenuItem>}
-                    {profile.paired && <DropdownMenuItem disabled={profile.connected || connections.openHostIds.includes(profile.id)} onSelect={() => setPairRoute(profile.id)}>{t("remote.pair.route")}</DropdownMenuItem>}
-                    {(profile.connected || connections.openHostIds.includes(profile.id)) && <DropdownMenuItem onSelect={() => { setError(""); setDisconnecting(profile); }}>{t("remote.disconnect")}</DropdownMenuItem>}
-                    <DropdownMenuItem tone="destructive" onSelect={() => { setError(""); setRemoving(profile); }}>{t("remote.forget")}</DropdownMenuItem>
+                    {entries.length > 1 ? <DropdownMenuItem onSelect={() => setDetails(groupId)}>{t("remote.sameInstance.details")}</DropdownMenuItem> : connectionActions(profile)}
                   </DropdownMenuContent>
                 </DropdownMenu>
               </div>)}
@@ -322,6 +331,28 @@ export function RemoteConnectionsPage({ mainNavigationExpanded = false, hostChro
         </div>
       </div>
     </div>
+
+    <Dialog open={!!detailGroup} onOpenChange={(open) => { if (!open) setDetails(""); }}>
+      <DialogContent className="flex max-h-[85dvh] max-w-md flex-col overflow-hidden">
+        <DialogHeader className="pr-5 text-left"><DialogTitle>{t("remote.sameInstance.details")}</DialogTitle><DialogDescription>{t("remote.sameInstance.detailsHint")}</DialogDescription></DialogHeader>
+        <div className="min-h-0 space-y-2 overflow-y-auto">
+          {detailGroup?.connections.map((profile, index) => <div key={profile.id} className="flex items-center gap-2 rounded-2xl bg-muted/40 p-3">
+            <button type="button" disabled={!!busy || (!!detailConnection && detailConnection.id !== profile.id)} aria-current={connections.activeHostId === profile.id || undefined}
+              className="min-w-0 flex-1 rounded-xl text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              onClick={() => { setDetails(""); void connect(profile.id); }}>
+              <span className="flex items-center gap-2 text-[13px] font-medium">{t("remote.sameInstance.connection", { count: index + 1 })}{connections.activeHostId === profile.id && <Check aria-label={t("remote.current")} className="h-3.5 w-3.5" />}</span>
+              <span className="mt-1 block truncate text-xs text-muted-foreground">{profile.host}</span>
+              <HostConnectionStatus state={connections.hostStates[profile.id] || "closed"} />
+              {profile.authorized_until != null && <span className="mt-1 block text-xs text-muted-foreground">{t(profile.authorized_until * 1000 <= Date.now() ? "remote.pair.expiredDevice" : "remote.pair.expiringDevice", { date: new Date(profile.authorized_until * 1000).toLocaleString() })}</span>}
+            </button>
+            <DropdownMenu><DropdownMenuTrigger asChild><Button size="icon" variant="ghost" className="h-8 w-8 shrink-0" disabled={!!busy} aria-label={t("remote.sameInstance.manageConnection", { count: index + 1 })}><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
+              <DropdownMenuContent align="end">{connectionActions(profile, true)}</DropdownMenuContent>
+            </DropdownMenu>
+          </div>)}
+        </div>
+        {detailConnection && <p className="text-xs leading-5 text-muted-foreground">{t("remote.sameInstance.switchHint")}</p>}
+      </DialogContent>
+    </Dialog>
 
     <Dialog open={quickOpen} onOpenChange={(open) => { setQuickOpen(open); if (!open) clearPairReturn(); }}>
       <DialogContent className="flex max-h-[85dvh] max-w-md flex-col overflow-hidden">
@@ -437,11 +468,11 @@ export function RemoteConnectionsPage({ mainNavigationExpanded = false, hostChro
       </DialogContent>
     </Dialog>
     <Dialog open={!!removing} onOpenChange={(value) => { if (!value && !busy) setRemoving(null); }}>
-      <DialogContent className="max-h-[85dvh] max-w-sm overflow-y-auto"><DialogHeader className="pr-5 text-left"><DialogTitle className="break-words leading-snug">{t("remote.forgetTitle", { name: removalProfile?.name })}</DialogTitle><DialogDescription>{t("remote.forgetDescription")}</DialogDescription></DialogHeader>
+      <DialogContent className="max-h-[85dvh] max-w-sm overflow-y-auto"><DialogHeader className="pr-5 text-left"><DialogTitle className="break-words leading-snug">{t(removalIsShared ? "remote.sameInstance.forgetTitle" : "remote.forgetTitle", { name: removalProfile?.name })}</DialogTitle><DialogDescription>{t(removalIsShared ? "remote.sameInstance.forgetHint" : "remote.forgetDescription")}</DialogDescription></DialogHeader>
         {removalProfile && (removalProfile.connected || connections.openHostIds.includes(removalProfile.id)) && <p role="note" className="rounded-xl bg-muted/40 p-3 text-xs leading-5">{t("remote.activeForgetWarning")}</p>}
         {removalProfile?.paired && <div className="space-y-2 text-xs text-muted-foreground"><p>{t("remote.pair.forgetHint")}</p><code className="block break-all">{removalProfile.revoke_command}</code></div>}
         {error && <p role="alert" className="flex items-start gap-2 text-[13px] leading-5 text-foreground"><AlertCircle aria-hidden="true" className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />{error}</p>}
-        <div className="grid grid-cols-2 gap-2"><Button variant="ghost" disabled={!!busy} onClick={() => setRemoving(null)}>{t("common.cancel")}</Button><Button variant="destructive" className="min-w-0" disabled={!!busy} aria-busy={!!busy} onClick={() => { void remove(); }}>{busy && <Loader2 aria-hidden className="mr-2 h-4 w-4 shrink-0 animate-spin motion-reduce:animate-none" />}<span className="truncate">{t("remote.forget")}</span></Button></div>
+        <div className="grid grid-cols-2 gap-2"><Button variant="ghost" disabled={!!busy} onClick={() => setRemoving(null)}>{t("common.cancel")}</Button><Button variant="destructive" className="h-auto min-h-10 min-w-0" disabled={!!busy} aria-busy={!!busy} onClick={() => { void remove(); }}>{busy && <Loader2 aria-hidden className="mr-2 h-4 w-4 shrink-0 animate-spin motion-reduce:animate-none" />}<span className="whitespace-normal break-words">{t(removalIsShared ? "remote.sameInstance.forgetAction" : "remote.forget")}</span></Button></div>
       </DialogContent>
     </Dialog>
   </div>;

@@ -125,6 +125,7 @@ class RemoteInstances:
 
     def snapshot(self) -> dict[str, Any]:
         profiles: list[dict[str, Any]] = []
+        instances: dict[tuple[str, str, int, str, str, int, str, str], str] = {}
         for key, profile in self._read().items():
             connection = self.connections.get(key)
             error = (connection.error or ("" if connection.tunnel.active else "ssh_unreachable")) if connection else "disconnected"
@@ -140,6 +141,11 @@ class RemoteInstances:
                 expiry = self.pairing.authorization_until(profile.pair_id)
                 if expiry is not None:
                     item["authorized_until"] = expiry
+                receipt = self.pairing.saved_receipt(profile.pair_id)
+                if receipt is not None:
+                    # Group only authenticated local receipt evidence, never
+                    # display names, addresses alone, or transient gateway IDs.
+                    item["instance_id"] = instances.setdefault(receipt.destination(), key)
             profiles.append(item)
         return {"available": True, "machine_name": socket.gethostname(), "profiles": profiles}
 
@@ -226,23 +232,53 @@ class RemoteInstances:
                 code = payload.get("code", "")
                 if not isinstance(code, str):
                     raise RemoteError("pair_invalid")
+                receipt = self.pairing.saved_receipt(profiles[key].pair_id) if action == "pair_finish" and key in profiles and profiles[key].pair_id else None
+                if receipt is None:
+                    receipt = self.pairing.review(key, code)
+                matches = [saved_key for saved_key, saved in profiles.items()
+                           if saved.pair_id and (previous := self.pairing.saved_receipt(saved.pair_id))
+                           and previous.destination() == receipt.destination()]
+                # Prefer an already-open connection; never disconnect it merely
+                # because the user paired this same instance again.
+                live_key = next((saved_key for saved_key in matches
+                                 if (live := self.connections.get(saved_key))
+                                 and live.tunnel.active and not live.error), "")
+                if action == "pair_finish" and live_key:
+                    await self._check(self.connections[live_key])
+                    if self.connections[live_key].error:
+                        live_key = ""
                 if action == "pair_preview":
-                    return self.pairing.preview(key, code)
+                    preview = receipt.preview()
+                    if matches:
+                        preview["existing_connection"] = {"id": live_key or matches[0],
+                                                          "name": profiles[matches[0]].name,
+                                                          "connected": bool(live_key)}
+                    return preview
                 if len(profiles) >= 20 and key not in profiles:
                     raise RemoteError("profile_limit")
                 # Completion is idempotent. No browser-provided host/path/key is
                 # trusted as a substitute for the encrypted server receipt.
                 if key in profiles:
-                    return {"id": key, **self.snapshot()}
+                    return {"id": live_key or key, **self.snapshot()}
                 receipt = self.pairing.finish(key, code)
                 profile = self.pairing.profile(receipt)
+                if matches:
+                    profile.name = profiles[matches[0]].name
+                    # A saved route belongs to this exact verified destination.
+                    # Keep it when re-pairing; do not fall back to a broken VPN route.
+                    source = profiles[live_key or matches[-1]]
+                    if source.ssh_config:
+                        route = self.pairing.path(key) / "ssh_route"
+                        _write_text_atomic(route, Path(source.ssh_config).read_text())
+                        route.chmod(0o600)
+                        profile.ssh_config = str(route)
                 known = self._known_hosts(key)
                 known.parent.mkdir(parents=True, exist_ok=True)
                 _write_text_atomic(known, "nanobot-remote " + receipt.host_key + "\n")
                 known.chmod(0o600)
                 profiles[key] = _SavedProfile(**profile.model_dump(), pair_id=key)
                 self._write(profiles)
-                return {"id": key, **self.snapshot()}
+                return {"id": live_key or key, **self.snapshot()}
             if action == "save":
                 profile = RemoteProfile.model_validate(payload.get("profile"))
                 if key and key not in profiles:

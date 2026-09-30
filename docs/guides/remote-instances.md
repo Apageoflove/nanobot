@@ -31,6 +31,22 @@ It is separate from remote execution/worker deployment.
 
 ## Quick pairing: copy a command, follow a link back
 
+Repeated pairing to the same verified destination appears as one server in the
+directory and host switcher. The confirmation says **This nanobot is already
+saved**; **Save and open** keeps the new authorization as well as the old ones,
+preserves the saved name, and reuses a healthy open connection. When reconnecting,
+the directory prefers a non-expired authorization unless another is already selected.
+Use **Connection details** in that server's menu to choose or forget one specific
+connection. Forgetting one does not delete the others or revoke its server-side key.
+Disconnect an open connection before choosing a different authorization. The
+20-connection limit counts retained authorizations, not just visible server rows.
+
+Grouping is read-only: it requires matching encrypted-receipt evidence for the
+SSH endpoint, pinned host key, account, resolved nanobot configuration, WebUI port
+and credential. Names/IPs alone and restart-scoped gateway IDs are insufficient.
+Different instances remain separate, as do unverified manual SSH entries or
+changed addresses/credentials. No old authorization files are silently deleted.
+
 For a Linux server with this version of nanobot installed, you do not need to
 prepare a local SSH key or know the service account/config path:
 

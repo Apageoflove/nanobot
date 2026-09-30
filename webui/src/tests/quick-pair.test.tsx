@@ -65,6 +65,22 @@ async function reviewed() {
 }
 
 describe("quick pairing", () => {
+  it("explains an existing instance and saves its additional authorization only on confirmation", async () => {
+    mocks.action.mockImplementation(async (action: string) => {
+      if (action === "remote.pair_preview") return { ...preview, existing_connection: { id: "saved-server", name: "My team", connected: true } };
+      if (action === "remote.pair_finish") return { id: "saved-server" };
+      return {};
+    });
+    returnedView();
+    await screen.findByRole("heading", { name: "This nanobot is already saved" });
+    expect(screen.getByText("My team")).toBeVisible();
+    expect(screen.getByText(i18n.t("remote.sameInstance.pairHint"))).toBeVisible();
+    expect(mocks.action.mock.calls.some(([action]) => action === "remote.pair_finish")).toBe(false);
+    expect(mocks.connect).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button", { name: "Save and open" }));
+    await waitFor(() => expect(mocks.connect).toHaveBeenCalledWith("saved-server", expect.any(Function)));
+    expect(mocks.action).toHaveBeenCalledWith("remote.pair_finish", { id: "request-1", code: "nbpc1.encrypted" }, 65000);
+  });
   it("introduces remote access with the original logo and no duplicate instruction spacer", async () => {
     view();
     await waitFor(() => expect(screen.getByRole("button", { name: "Copy command" })).toBeEnabled());
