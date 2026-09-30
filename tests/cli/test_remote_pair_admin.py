@@ -114,8 +114,9 @@ def test_readable_config_still_requires_device_authorization(protected):
     protected.metadata.side_effect = None
     protected.metadata.return_value = {"port": 8765}
     result = CliRunner().invoke(remote.app, protected.args + ["--host", "example.com"], input="n\n")
-    assert result.exit_code == 1
+    assert result.exit_code == 0
     assert "Authorize this computer?" in result.output
+    assert "Cancelled. No device was authorized" in result.output
     assert "Continue as server administrator?" not in result.output
     protected.run.assert_not_called()
     protected.authorize.assert_not_called()

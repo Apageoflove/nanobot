@@ -127,7 +127,9 @@ def pair(
             host = _default_host() or typer.prompt("Server public IP or hostname (shown in your cloud console)")
         typer.echo(f"\nAuthorize {invitation.label} to use nanobot on {ssh_user}@{host}?\nConfig: {config}\nServer fingerprint: {fingerprint(host_key)}")
         typer.echo("This grants full nanobot WebUI access, including configured tools and settings.\nA dedicated SSH key can only reach this nanobot port; no shell or other forwarding.\nAuthorization lasts 90 days. No existing keys, firewall rules or model settings change.")
-        typer.confirm("Authorize this computer?", abort=True, default=False)
+        if not typer.confirm("Authorize this computer?", default=False):
+            typer.echo("Cancelled. No device was authorized. Run the pairing command again when ready.")
+            return
         # Check the service is running before granting access; no credential is sent.
         import socket
 
