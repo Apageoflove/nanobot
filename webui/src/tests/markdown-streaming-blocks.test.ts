@@ -7,7 +7,9 @@ import { describe, expect, it } from "vitest";
 
 import { parseMathAwareMarkdownBlocks } from "@/lib/markdown-streaming-blocks";
 import { remarkTexMath } from "@/lib/remark-tex-math";
-import mixedMath from "@/tests/fixtures/markdown-math-mixed.md?raw";
+import mixedMathFixture from "@/tests/fixtures/markdown-math-mixed.md?raw";
+
+const mixedMath = mixedMathFixture.replaceAll("\r\n", "\n");
 
 const formula = String.raw`\[
 \tan\left(\frac{\mathrm{HFOV}}{2}\right)
