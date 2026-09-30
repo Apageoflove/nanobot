@@ -204,21 +204,36 @@ function tokenizeTexMathText(effects: Effects, ok: State, nok: State): State {
 
     effects.consume(code);
     effects.exit("mathTextSequence");
+    return between;
+  }
+
+  function between(code: Code): State | undefined {
+    if (code === null) return nok(code);
+
+    if (code === BACKSLASH) {
+      closeSequence = effects.enter("mathTextSequence");
+      effects.consume(code);
+      return close;
+    }
+
+    if (isLineEnding(code)) {
+      effects.enter("lineEnding");
+      effects.consume(code);
+      effects.exit("lineEnding");
+      return between;
+    }
+
+    // Commands can immediately follow the opening delimiter. Only enter a data
+    // token when there is a character to consume; micromark rejects empty tokens.
     effects.enter("mathTextData");
+    effects.consume(code);
     return data;
   }
 
   function data(code: Code): State | undefined {
-    if (code === null) {
+    if (code === null || code === BACKSLASH || isLineEnding(code)) {
       effects.exit("mathTextData");
-      return nok(code);
-    }
-
-    if (code === BACKSLASH) {
-      effects.exit("mathTextData");
-      closeSequence = effects.enter("mathTextSequence");
-      effects.consume(code);
-      return close;
+      return between(code);
     }
 
     effects.consume(code);

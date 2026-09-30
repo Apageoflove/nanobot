@@ -1,11 +1,13 @@
 import remarkMath from "remark-math";
 import remarkParse from "remark-parse";
+import remend from "remend";
 import { parseMarkdownIntoBlocks } from "streamdown";
 import { unified } from "unified";
 import { describe, expect, it } from "vitest";
 
 import { parseMathAwareMarkdownBlocks } from "@/lib/markdown-streaming-blocks";
 import { remarkTexMath } from "@/lib/remark-tex-math";
+import mixedMath from "@/tests/fixtures/markdown-math-mixed.md?raw";
 
 const formula = String.raw`\[
 \tan\left(\frac{\mathrm{HFOV}}{2}\right)
@@ -22,6 +24,30 @@ function expectIntact(source: string, protectedSource: string) {
 }
 
 describe("math-aware streaming blocks", () => {
+  it.each([
+    [String.raw`\(\alpha+\beta=\gamma\)`, String.raw`\alpha+\beta=\gamma`],
+    [String.raw`\(\nabla\cdot\vec{E}=\frac{\rho}{\varepsilon_0}\)`, String.raw`\nabla\cdot\vec{E}=\frac{\rho}{\varepsilon_0}`],
+    [String.raw`\(a\\b\)`, String.raw`a\\b`],
+    ["\\(a\n\\alpha\\)", "a\n\\alpha"],
+  ])("retains inline TeX data beginning with commands: %s", (source, value) => {
+    const parser = unified().use(remarkParse).use(remarkMath).use(remarkTexMath);
+    const paragraph = parser.parse(source).children[0];
+    expect(paragraph.type).toBe("paragraph");
+    if (paragraph.type !== "paragraph") throw new Error("Expected a paragraph");
+    expect(paragraph.children).toMatchObject([{ type: "inlineMath", value }]);
+  });
+
+  it("parses mixed math containers without creating empty inline-data tokens", () => {
+    expect(parseMathAwareMarkdownBlocks(mixedMath).join("")).toBe(mixedMath);
+  });
+
+  it("accepts every repaired prefix of a mixed math response", () => {
+    for (let end = 1; end <= mixedMath.length; end++) {
+      const source = remend(mixedMath.slice(0, end), { htmlTags: false });
+      expect(parseMathAwareMarkdownBlocks(source).join("")).toBe(source);
+    }
+  });
+
   it("merges a TeX formula split at a Setext equals line and blank lines", () => {
     const source = "Before\n\n" + formula + "\n\nAfter";
     expect(parseMarkdownIntoBlocks(source).some((block) => block.includes(formula))).toBe(false);
