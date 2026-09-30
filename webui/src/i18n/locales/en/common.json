@@ -37,7 +37,7 @@
       "useSSH": "Use existing SSH settings",
       "start": "Get pairing command",
       "runTitle": "1. Run on your server",
-      "runHint": "Open the terminal in your cloud console. Paste this command and follow the prompts. The server also needs this version of nanobot.",
+      "runHint": "Paste the command into your cloud terminal and follow the prompts. If asked, confirm administrator access to continue. The server needs this version of nanobot.",
       "command": "Pairing command",
       "copy": "Copy command",
       "copied": "Copied",

@@ -4,10 +4,13 @@ from __future__ import annotations
 
 import ipaddress
 import os
+import shlex
+import shutil
 import subprocess
 import sys
 import time
 from pathlib import Path
+from typing import NoReturn
 
 import typer
 from click import IntRange
@@ -41,6 +44,36 @@ def _default_ssh_user() -> str | None:
     if sudo_user in users:
         return sudo_user
     return users[0] if len(users) == 1 else None
+
+
+def _pair_as_administrator(request: str, config: Path, host: str, ssh_user: str, port: int) -> NoReturn:
+    """Continue the same request only with the operator's explicit sudo consent."""
+    typer.echo("\nnanobot's configuration is protected by another server account.")
+    typer.echo(f"Config: {config}\nAdministrator access is needed to continue. File permissions will not change.")
+    # Keep the installed environment (resolving a venv Python symlink loses it).
+    # Isolated mode excludes CWD/PYTHONPATH; never forward the caller's environment
+    # with sudo -E or re-evaluate a shell command supplied in the invitation.
+    command = [str(Path(sys.executable).absolute()), "-I", "-m", "nanobot", "remote", "pair",
+               request, "--config", str(config), "--port", str(port)]
+    for option, value in (("--host", host or _default_host()),
+                          ("--ssh-user", ssh_user or _default_ssh_user())):
+        if value:
+            command.extend([option, value])
+    sudo = shutil.which("sudo")
+    if os.getuid() == 0 or sudo is None:
+        typer.echo("Ask the administrator to run this in nanobot's installation environment:")
+        typer.echo(shlex.join(command))
+        typer.echo("Do not make the config publicly readable.")
+        raise typer.Exit(1)
+    typer.echo("You may be asked for your server login password. You'll review device access next.")
+    if not typer.confirm("Continue as server administrator?", default=False):
+        typer.echo("Cancelled. No device was authorized. Run the pairing command again when ready.")
+        raise typer.Exit(0)
+    result = subprocess.run([sudo, "--", *command], check=False)
+    if result.returncode:
+        typer.echo("Pairing did not finish. Follow the message above, or ask your server administrator.\n"
+                   "To retry, run the pairing command again; get a new command if it has expired.", err=True)
+    raise typer.Exit(result.returncode if result.returncode >= 0 else 1)
 
 
 @app.command()
@@ -80,8 +113,14 @@ def pair(
                 config = Path(candidates[choice - 1].config_path)
             else:
                 config = Path(typer.prompt("Path to your nanobot config"))
-        config = config.expanduser().resolve()
-        details = metadata(config)
+        config = config.expanduser().absolute()
+        try:
+            config = config.resolve()
+            details = metadata(config)
+        except (PermissionError, RemoteError) as exc:
+            if not isinstance(exc, PermissionError) and str(exc) != "config_permission":
+                raise
+            _pair_as_administrator(request, config, host, ssh_user, port)
         if not ssh_user:
             ssh_user = _default_ssh_user() or typer.prompt("SSH login account")
         if not host:

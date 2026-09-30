@@ -37,7 +37,7 @@
       "useSSH": "Usar configurações SSH",
       "start": "Obter comando",
       "runTitle": "1. Executar no servidor",
-      "runHint": "Abra o terminal do console de nuvem, cole o comando e siga as instruções. O servidor também precisa desta versão do nanobot.",
+      "runHint": "Cole o comando no terminal da nuvem e siga as instruções. Se solicitado, confirme o acesso de administrador para continuar. O servidor precisa desta versão do nanobot.",
       "command": "Comando de pareamento",
       "copy": "Copiar comando",
       "copied": "Copiado",

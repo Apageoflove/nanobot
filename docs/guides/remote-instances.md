@@ -49,8 +49,13 @@ prepare a local SSH key or know the service account/config path:
    server address reported by the SSH session can also be selected automatically;
    private/NAT addresses are never guessed. Use `--ssh-user` or `--host` to override.
 3. Review the **full nanobot access** authorization on the server and confirm it.
-   If nanobot runs as another service account, the server administrator must run
-   this step. Pairing does not install sudo rules or weaken config permissions.
+   If its config belongs to another service account, the command first asks
+   **Continue as server administrator?**. Confirm to continue via your existing
+   sudo access (your server login password may be required). The same installation,
+   config and SSH login account are retained; you do not need to rewrite the command.
+   Declining leaves everything unchanged. Without sudo access, ask the server
+   administrator to run the command. Pairing does not install sudo rules or weaken
+   config permissions, and device authorization still requires a separate confirmation.
 4. Open the terminal's **Return to nanobot** link on the same computer and in the
    same browser profile that started pairing. The local WebUI opens the server
    confirmation directly; review its identity and access, then choose **Connect**.

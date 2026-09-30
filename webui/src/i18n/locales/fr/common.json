@@ -37,7 +37,7 @@
       "useSSH": "Utiliser les réglages SSH",
       "start": "Obtenir la commande",
       "runTitle": "1. Exécuter sur le serveur",
-      "runHint": "Ouvrez le terminal de votre console cloud, collez la commande et suivez les indications. Le serveur doit aussi utiliser cette version de nanobot.",
+      "runHint": "Collez la commande dans le terminal cloud et suivez les instructions. Si nécessaire, confirmez l’accès administrateur pour continuer. Le serveur doit utiliser cette version de nanobot.",
       "command": "Commande d’association",
       "copy": "Copier la commande",
       "copied": "Copié",

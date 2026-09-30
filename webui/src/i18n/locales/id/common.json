@@ -37,7 +37,7 @@
       "useSSH": "Gunakan pengaturan SSH",
       "start": "Dapatkan perintah",
       "runTitle": "1. Jalankan di server",
-      "runHint": "Buka terminal konsol cloud, tempel perintah, lalu ikuti petunjuknya. Server juga memerlukan versi nanobot yang mendukung fitur ini.",
+      "runHint": "Tempel perintah di terminal cloud dan ikuti petunjuknya. Jika diminta, konfirmasikan akses administrator untuk melanjutkan. Server memerlukan versi nanobot ini.",
       "command": "Perintah pemasangan",
       "copy": "Salin perintah",
       "copied": "Disalin",

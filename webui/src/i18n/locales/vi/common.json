@@ -37,7 +37,7 @@
       "useSSH": "Dùng cấu hình SSH có sẵn",
       "start": "Lấy lệnh ghép nối",
       "runTitle": "1. Chạy trên máy chủ",
-      "runHint": "Mở terminal của bảng điều khiển đám mây, dán lệnh và làm theo hướng dẫn. Máy chủ cũng cần phiên bản nanobot hỗ trợ tính năng này.",
+      "runHint": "Dán lệnh vào terminal đám mây và làm theo hướng dẫn. Nếu được yêu cầu, xác nhận quyền quản trị để tiếp tục. Máy chủ cần phiên bản nanobot này.",
       "command": "Lệnh ghép nối",
       "copy": "Sao chép lệnh",
       "copied": "Đã sao chép",
