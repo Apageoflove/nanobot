@@ -46,8 +46,15 @@ prepare a local SSH key or know the service account/config path:
    IP/hostname and an existing non-root SSH login account when prompted.
    A single existing login account (including the original account under sudo)
    is selected automatically and shown in the authorization summary. A global
-   server address reported by the SSH session can also be selected automatically;
-   private/NAT addresses are never guessed. Use `--ssh-user` or `--host` to override.
+   server address reported by the SSH session can also be selected automatically.
+   On recognized Tencent Cloud Linux instances, pairing can instead read this
+   server's public IPv4 from the fixed, instance-local metadata endpoint, without
+   cloud API keys. Only that public-address field is read; no role credentials or
+   user data are requested. If neither source is available, enter **this server's**
+   public IP from the cloud console, not your computer's IP. Private addresses and
+   public-IP lookup services (which may report a shared NAT/proxy) are not used.
+   The detected address is shown in the authorization summary, not proof that SSH
+   is reachable. Use `--ssh-user` or `--host` to override.
 3. Review the **full nanobot access** authorization on the server and confirm it.
    If its config belongs to another service account, the command first asks
    **Continue as server administrator?**. Confirm to continue via your existing

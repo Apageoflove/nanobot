@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import http.client
 import ipaddress
 import os
 import shlex
@@ -19,17 +20,50 @@ app = typer.Typer(help="Pair this server with a local nanobot. No public WebUI o
 
 
 def _default_host() -> str:
-    """Use only a globally reachable address reported by this SSH session.
+    """Suggest this server's address from the SSH session or instance metadata.
 
-    A cloud's outbound address or a NAT/private address is not evidence of the
-    inbound SSH destination. Do not contact an external IP lookup service.
+    Outbound-IP lookup services can return a shared NAT/proxy, not this server.
+    Only the recognized cloud's fixed public-address metadata field is queried.
     """
     fields = os.environ.get("SSH_CONNECTION", "").split()
     try:
         address = ipaddress.ip_address(fields[2]) if len(fields) == 4 else None
-        return str(address) if address and address.is_global else ""
+        if address and address.is_global and not address.is_multicast:
+            return str(address)
     except ValueError:
+        pass
+    return _tencent_public_host()
+
+
+def _tencent_public_host() -> str:
+    """Read one non-secret field on Tencent instances; never probe other clouds.
+
+    This is an operator-run setup command, not an agent HTTP tool. Keep metadata
+    access fixed and local: no arbitrary URLs, redirects, proxies or credentials.
+    A literal link-local endpoint avoids DNS/proxy delays on non-cloud networks.
+    Unsupported installations and unavailable metadata keep the manual fallback.
+    """
+    try:
+        if sys.platform != "linux" or Path("/sys/class/dmi/id/sys_vendor").read_text().strip() != "Tencent Cloud":
+            return ""
+    except (OSError, UnicodeError):
         return ""
+    connection = http.client.HTTPConnection("169.254.0.23", timeout=1)
+    try:
+        connection.request("GET", "/latest/meta-data/public-ipv4",
+                           headers={"Host": "metadata.tencentyun.com"})
+        response = connection.getresponse()
+        if response.status != 200:
+            return ""
+        raw = response.read(64)
+        if len(raw) >= 64:
+            return ""
+        address = ipaddress.IPv4Address(raw.decode("ascii").strip())
+        return str(address) if address.is_global and not address.is_multicast else ""
+    except (OSError, ValueError, http.client.HTTPException):
+        return ""
+    finally:
+        connection.close()
 
 
 def _default_ssh_user() -> str | None:
@@ -79,7 +113,7 @@ def _pair_as_administrator(request: str, config: Path, host: str, ssh_user: str,
 @app.command()
 def pair(
     request: str = typer.Argument(help="Public pairing request copied from your local WebUI"),
-    host: str = typer.Option("", help="Server IP or hostname reachable from your computer"),
+    host: str = typer.Option("", help="Public IP or hostname of this server, reachable from your computer"),
     ssh_user: str = typer.Option("", help="Existing non-root SSH login account"),
     port: int = typer.Option(22, min=1, max=65535, help="Existing SSH port; not changed"),
     config: Path | None = typer.Option(None, help="Existing nanobot config; discovered if omitted"),
@@ -124,8 +158,12 @@ def pair(
         if not ssh_user:
             ssh_user = _default_ssh_user() or typer.prompt("SSH login account")
         if not host:
-            host = _default_host() or typer.prompt("Server public IP or hostname (shown in your cloud console)")
-        typer.echo(f"\nAuthorize {invitation.label} to use nanobot on {ssh_user}@{host}?\nConfig: {config}\nServer fingerprint: {fingerprint(host_key)}")
+            host = _default_host()
+            if not host:
+                typer.echo("Could not detect this server's public address.\n"
+                           "Use the public IP shown for this server in your cloud console, not your computer's IP.")
+                host = typer.prompt("This server's public IP or hostname")
+        typer.echo(f"\nAuthorize {invitation.label} to use nanobot on this server ({ssh_user}@{host})?\nConfig: {config}\nServer fingerprint: {fingerprint(host_key)}")
         typer.echo("This grants full nanobot WebUI access, including configured tools and settings.\nA dedicated SSH key can only reach this nanobot port; no shell or other forwarding.\nAuthorization lasts 90 days. No existing keys, firewall rules or model settings change.")
         if not typer.confirm("Authorize this computer?", default=False):
             typer.echo("Cancelled. No device was authorized. Run the pairing command again when ready.")

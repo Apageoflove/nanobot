@@ -32,4 +32,5 @@ def test_pair_suggests_existing_login_account(monkeypatch, uid, sudo_user, expec
 ])
 def test_only_global_ssh_server_address_can_be_suggested(monkeypatch, connection, expected):
     monkeypatch.setenv("SSH_CONNECTION", connection)
+    monkeypatch.setattr(remote, "_tencent_public_host", lambda: "")
     assert remote._default_host() == expected

@@ -165,3 +165,37 @@ def test_protected_parent_directory_offers_same_recovery(protected, monkeypatch)
     assert "Continue as server administrator?" in result.output
     protected.metadata.assert_not_called()
     protected.run.assert_not_called()
+
+
+def test_detected_address_skips_ip_prompt_and_identifies_this_server(protected):
+    protected.metadata.side_effect = None
+    protected.metadata.return_value = {"port": 8765}
+    result = CliRunner().invoke(remote.app, protected.args, input="n\n")
+    assert result.exit_code == 0, result.output
+    assert "on this server (ubuntu@8.8.8.8)" in result.output
+    assert "This server's public IP or hostname:" not in result.output
+    assert "Could not detect" not in result.output
+    protected.authorize.assert_not_called()
+
+
+def test_manual_fallback_names_this_server_not_the_local_computer(protected, monkeypatch):
+    protected.metadata.side_effect = None
+    protected.metadata.return_value = {"port": 8765}
+    monkeypatch.setattr(remote, "_default_host", lambda: "")
+    result = CliRunner().invoke(remote.app, protected.args, input="43.156.243.141\nn\n")
+    assert result.exit_code == 0, result.output
+    assert "This server's public IP or hostname:" in result.output
+    assert "not your computer's IP" in result.output
+    assert "on this server (ubuntu@43.156.243.141)" in result.output
+    protected.authorize.assert_not_called()
+
+
+def test_explicit_host_skips_address_detection(protected, monkeypatch):
+    protected.metadata.side_effect = None
+    protected.metadata.return_value = {"port": 8765}
+    detect = Mock()
+    monkeypatch.setattr(remote, "_default_host", detect)
+    result = CliRunner().invoke(remote.app, protected.args + ["--host", "server.example"], input="n\n")
+    assert result.exit_code == 0, result.output
+    assert "on this server (ubuntu@server.example)" in result.output
+    detect.assert_not_called()
