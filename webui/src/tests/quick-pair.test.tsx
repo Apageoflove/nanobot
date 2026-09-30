@@ -65,6 +65,17 @@ async function reviewed() {
 }
 
 describe("quick pairing", () => {
+  it("uses the same copyable revocation code block in pairing details", async () => {
+    returnedView();
+    await screen.findByRole("heading", { name: "Open this nanobot?" });
+    fireEvent.click(screen.getByRole("button", { name: "Connection details & revocation" }));
+    expect(screen.getByText(preview.revoke_command).closest("pre")).not.toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Copy code" }));
+    expect(await screen.findByRole("button", { name: "Copied" })).toBeVisible();
+    expect(mocks.copy).toHaveBeenCalledWith(preview.revoke_command);
+    expect(mocks.connect).not.toHaveBeenCalled();
+    expect(mocks.action.mock.calls.some(([action]) => action === "remote.pair_finish")).toBe(false);
+  });
   it("explains an existing instance and saves its additional authorization only on confirmation", async () => {
     mocks.action.mockImplementation(async (action: string) => {
       if (action === "remote.pair_preview") return { ...preview, existing_connection: { id: "saved-server", name: "My team", connected: true } };

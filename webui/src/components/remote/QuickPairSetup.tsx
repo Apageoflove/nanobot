@@ -8,6 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { useClient } from "@/providers/ClientProvider";
 import { copyTextToClipboard } from "@/lib/clipboard";
+import { CodeBlock } from "@/components/CodeBlock";
 import { remoteAction } from "@/lib/remote-instances";
 import { pairingReturnOrigin, type PairReturn } from "@/lib/remote-pair-return";
 import type { ConnectionStatus } from "@/lib/types";
@@ -164,7 +165,7 @@ export function QuickPairSetup({ returned, onSSH, onClose }: { returned?: PairRe
         <Disclosure className="text-xs text-muted-foreground" summaryClassName="flex min-h-9 items-center gap-2 rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           summary={<><ChevronDown aria-hidden className="h-3.5 w-3.5 shrink-0 transition-transform group-data-[state=open]/disclosure:rotate-180 motion-reduce:transition-none" />{t("remote.pair.security")}</>}>
           <p className="my-2 leading-5">{t("remote.pair.fingerprint")}</p><code className="block break-all">{preview.fingerprint}</code>
-          <p className="mb-2 mt-4 leading-5">{t("remote.pair.revoke")}</p><code className="block break-all">{preview.revoke_command}</code>
+          <p className="mb-2 mt-4 leading-5">{t("remote.pair.revoke")}</p><CodeBlock language="bash" code={preview.revoke_command} highlight={false} className="min-w-0 [&_pre]:[overflow-wrap:anywhere]" />
         </Disclosure>
         {saved && error && <div className="space-y-2"><p className="text-xs leading-5 text-muted-foreground">{t("remote.pair.retryHint")}</p>
           <Disclosure summaryClassName="flex min-h-9 items-center gap-2 rounded-xl text-xs text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" contentClassName="pt-2"

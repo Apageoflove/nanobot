@@ -2,6 +2,7 @@ import { useEffect, useId, useRef, useState, useSyncExternalStore, type ReactNod
 import { AlertCircle, ArrowUpRight, Check, ChevronDown, ChevronLeft, FolderOpen, Laptop, Loader2, MoreHorizontal, Plus, Server } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { SettingsGroup } from "@/components/settings/shared/SettingsControls";
+import { CodeBlock } from "@/components/CodeBlock";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { DisclosureContent } from "@/components/ui/disclosure";
@@ -470,7 +471,7 @@ export function RemoteConnectionsPage({ mainNavigationExpanded = false, hostChro
     <Dialog open={!!removing} onOpenChange={(value) => { if (!value && !busy) setRemoving(null); }}>
       <DialogContent className="max-h-[85dvh] max-w-sm overflow-y-auto"><DialogHeader className="pr-5 text-left"><DialogTitle className="break-words leading-snug">{t(removalIsShared ? "remote.sameInstance.forgetTitle" : "remote.forgetTitle", { name: removalProfile?.name })}</DialogTitle><DialogDescription>{t(removalIsShared ? "remote.sameInstance.forgetHint" : "remote.forgetDescription")}</DialogDescription></DialogHeader>
         {removalProfile && (removalProfile.connected || connections.openHostIds.includes(removalProfile.id)) && <p role="note" className="rounded-xl bg-muted/40 p-3 text-xs leading-5">{t("remote.activeForgetWarning")}</p>}
-        {removalProfile?.paired && <div className="space-y-2 text-xs text-muted-foreground"><p>{t("remote.pair.forgetHint")}</p><code className="block break-all">{removalProfile.revoke_command}</code></div>}
+        {removalProfile?.paired && <div className="space-y-2 text-xs text-muted-foreground"><p>{t("remote.pair.forgetHint")}</p>{removalProfile.revoke_command && <CodeBlock language="bash" code={removalProfile.revoke_command} highlight={false} className="min-w-0 [&_pre]:[overflow-wrap:anywhere]" />}</div>}
         {error && <p role="alert" className="flex items-start gap-2 text-[13px] leading-5 text-foreground"><AlertCircle aria-hidden="true" className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />{error}</p>}
         <div className="grid grid-cols-2 gap-2"><Button variant="ghost" disabled={!!busy} onClick={() => setRemoving(null)}>{t("common.cancel")}</Button><Button variant="destructive" className="h-auto min-h-10 min-w-0" disabled={!!busy} aria-busy={!!busy} onClick={() => { void remove(); }}>{busy && <Loader2 aria-hidden className="mr-2 h-4 w-4 shrink-0 animate-spin motion-reduce:animate-none" />}<span className="whitespace-normal break-words">{t(removalIsShared ? "remote.sameInstance.forgetAction" : "remote.forget")}</span></Button></div>
       </DialogContent>

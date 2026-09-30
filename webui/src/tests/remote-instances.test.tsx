@@ -7,6 +7,7 @@ import { Sidebar } from "@/components/Sidebar";
 import { HOST_BRIDGE } from "@/components/remote/host-bridge";
 import { readSelectedRemote, readRecentRemotes, rememberSelectedRemote, validateRemoteConnection, type RemoteConnection } from "@/lib/remote-instances";
 import i18n from "@/i18n";
+import * as clipboard from "@/lib/clipboard";
 import { clearPairReturn, initializePairReturn } from "@/lib/remote-pair-return";
 import type { Window as HappyWindow } from "happy-dom";
 
@@ -91,6 +92,24 @@ function chooseExistingSSH() {
 }
 
 describe("remote instance UX", () => {
+  it("shows revocation as a shared copyable code block without executing it or forgetting the connection", async () => {
+    const command = "nanobot remote revoke 0dec816f-55e8-47ab-a8ad-13251e2a4f30 --ssh-user ubuntu";
+    const copy = vi.spyOn(clipboard, "copyTextToClipboard").mockResolvedValue(true);
+    mocks.read.mockResolvedValue({ available: true, profiles: [{ ...profile, paired: true, revoke_command: command }] });
+    view(); await openDirectory();
+    fireEvent.pointerDown(screen.getByRole("button", { name: "Manage Team server" }), { button: 0, ctrlKey: false });
+    fireEvent.click(screen.getByRole("menuitem", { name: "Forget server" }));
+    const dialog = await screen.findByRole("dialog", { name: "Forget Team server?" });
+    const code = within(dialog).getByText(command);
+    expect(code.closest("pre")).not.toBeNull();
+    expect(code.closest(".not-prose")).toHaveClass("rounded-floating", "bg-secondary/70", "[&_pre]:[overflow-wrap:anywhere]");
+    fireEvent.click(within(dialog).getByRole("button", { name: "Copy code" }));
+    expect(await within(dialog).findByRole("button", { name: "Copied" })).toBeVisible();
+    expect(copy).toHaveBeenCalledWith(command);
+    expect(mocks.request).not.toHaveBeenCalled();
+    fireEvent.click(within(dialog).getByRole("button", { name: "Cancel", exact: true }));
+    expect(mocks.request).not.toHaveBeenCalled();
+  });
   it("shows one verified instance in management and the switcher while retaining both grants in details", async () => {
     const second = { ...profile, id: "f1b18099-61d5-41d7-9c1d-6f647f7000e5", paired: true, instance_id: profile.id };
     mocks.read.mockResolvedValue({ available: true, profiles: [{ ...profile, paired: true, instance_id: profile.id }, second] });
