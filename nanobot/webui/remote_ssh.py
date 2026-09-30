@@ -8,12 +8,13 @@ from __future__ import annotations
 
 import asyncio
 import base64
+import contextlib
 import hashlib
 import json
+import os
 import shlex
 import shutil
 import socket
-from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, cast
 
@@ -43,9 +44,27 @@ class RemoteProfile(BaseModel):
         return value
 
 
+class PairedSSHProfile(RemoteProfile):
+    """Internal transport marker. Not accepted by the editable profile API."""
+
+
+def transport_arguments(profile: RemoteProfile, remote_port: int, known_hosts: Path | None) -> list[str]:
+    args = ssh_arguments(profile, known_hosts)
+    if isinstance(profile, PairedSSHProfile):
+        # The server key's forced command owns the fixed destination. Do not
+        # request forwarding or execute the ordinary credential probe.
+        return [*args, profile.host, "nanobot-remote-bridge"]
+    return [*args, "-W", f"127.0.0.1:{remote_port}", profile.host]
+
+
+# Frame the result so login banners don't get mistaken for invalid config JSON.
+_PROBE_PREFIX = b"\x1eNANOBOT_REMOTE:"
+
 # Fixed program, quoted as one shell argument. No user-supplied shell commands.
 _PROBE = r'''
 import json, os, pathlib, socket, sys
+def emit(value):
+    print("\n\x1eNANOBOT_REMOTE:" + json.dumps(value))
 try:
     path = pathlib.Path(sys.argv[1]).expanduser()
     data = json.loads(path.read_text())
@@ -57,15 +76,20 @@ try:
         raise ValueError("webui_auth_required")
     if ws.get("publicWsUrl") or ws.get("public_ws_url"):
         raise ValueError("public_ws_unsupported")
-    print(json.dumps({"port": ws.get("port", 8765), "secret": secret,
-                      "hostname": socket.gethostname(), "config_path": str(path)}))
+    if ws.get("trustedProxyAuth") or ws.get("trusted_proxy_auth"):
+        raise ValueError("incompatible_gateway")
+    emit({"port": ws.get("port", 8765), "secret": secret,
+                      "token_issue_path": ws.get("tokenIssuePath") or ws.get("token_issue_path") or "",
+                      "hostname": socket.gethostname(), "config_path": str(path)})
 except FileNotFoundError:
-    print(json.dumps({"error": "config_not_found"}))
+    emit({"error": "config_not_found"})
 except PermissionError:
-    print(json.dumps({"error": "config_permission"}))
+    emit({"error": "config_permission"})
 except ValueError as e:
     code = str(e)
-    print(json.dumps({"error": code if code in {"webui_disabled", "webui_auth_required", "public_ws_unsupported"} else "config_invalid"}))
+    emit({"error": code if code in {"webui_disabled", "webui_auth_required", "public_ws_unsupported", "incompatible_gateway"} else "config_invalid"})
+except (AttributeError, TypeError):
+    emit({"error": "config_invalid"})
 '''
 
 
@@ -74,6 +98,8 @@ def ssh_arguments(profile: RemoteProfile, known_hosts: Path | None = None) -> li
     if not executable:
         raise RemoteError("ssh_unavailable")
     args = [executable]
+    if isinstance(profile, PairedSSHProfile) and not profile.ssh_config:
+        args.extend(["-F", os.devnull])
     for flag, value in [("-F", profile.ssh_config), ("-i", profile.identity_file)]:
         if value:
             path = Path(value).expanduser()
@@ -88,9 +114,19 @@ def ssh_arguments(profile: RemoteProfile, known_hosts: Path | None = None) -> li
         "-o", "ControlMaster=no", "-o", "ControlPath=none", "-o", "ConnectTimeout=10",
         "-o", "ServerAliveInterval=10", "-o", "ServerAliveCountMax=2",
         "-o", "ExitOnForwardFailure=yes", "-o", "RequestTTY=no",
+        # Interactive aliases may start tmux or another shell automatically.
+        # This connection runs only our fixed probe and forwarding transport.
+        # Older clients lack these settings and the corresponding behavior.
+        "-o", "IgnoreUnknown=StdinNull,ForkAfterAuthentication,RemoteCommand",
+        "-o", "RemoteCommand=none",
+        "-o", "ClearAllForwardings=yes", "-o", "StdinNull=no",
+        "-o", "ForkAfterAuthentication=no",
     ])
     if profile.port is not None:
         args.extend(["-p", str(profile.port)])
+    if isinstance(profile, PairedSSHProfile):
+        # Never fall back to a user's unrelated identity or agent for this grant.
+        args.extend(["-o", "IdentitiesOnly=yes", "-o", "IdentityAgent=none"])
     if known_hosts and known_hosts.is_file():
         args.extend(["-o", f"UserKnownHostsFile={known_hosts}", "-o", "GlobalKnownHostsFile=none",
                      "-o", "HostKeyAlias=nanobot-remote", "-o", "HostKeyAlgorithms=ssh-ed25519",
@@ -104,10 +140,28 @@ def ssh_error(stderr: bytes) -> str:
         return "host_key_changed"
     if "host key verification failed" in text or "no ed25519 host key is known" in text:
         return "host_key_unknown"
-    if "permission denied" in text:
-        return "ssh_auth_failed"
     if "sudo:" in text:
         return "runtime_user_denied"
+    if "unprotected private key file" in text or "bad permissions" in text:
+        return "ssh_key_permissions"
+    if "agent refused operation" in text or "signing failed" in text:
+        return "ssh_agent_refused"
+    if "bad configuration option" in text or "terminating, 1 bad configuration" in text:
+        return "ssh_config_invalid"
+    if "administratively prohibited" in text:
+        return "ssh_forwarding_denied"
+    if "open failed: connect failed" in text:
+        return "remote_unreachable"
+    if "too many authentication failures" in text:
+        return "ssh_too_many_keys"
+    if "permission denied" in text:
+        return "ssh_auth_failed"
+    if "connection refused" in text:
+        return "ssh_refused"
+    if "could not resolve hostname" in text:
+        return "ssh_host_not_found"
+    if "connection closed" in text or "connection reset" in text:
+        return "ssh_connection_closed"
     if "python3" in text and "not found" in text:
         return "python_unavailable"
     return "ssh_unreachable"
@@ -129,8 +183,11 @@ async def stop_process(process: asyncio.subprocess.Process) -> None:
             await process.wait()
 
 
-async def probe(profile: RemoteProfile, known_hosts: Path | None = None) -> dict[str, Any]:
-    remote = ["python3", "-c", _PROBE, profile.config_path]
+async def run_check(
+    profile: RemoteProfile, program: str, known_hosts: Path | None = None,
+) -> dict[str, Any]:
+    """Run a fixed read-only program with SSH's existing identity and trust policy."""
+    remote = ["python3", "-c", program, profile.config_path]
     if profile.runtime_user:
         remote = ["sudo", "-n", "-H", "-u", profile.runtime_user, "--", *remote]
     process = await asyncio.create_subprocess_exec(
@@ -143,73 +200,213 @@ async def probe(profile: RemoteProfile, known_hosts: Path | None = None) -> dict
         if process.returncode:
             raise RemoteError(ssh_error(stderr))
         try:
-            raw = json.loads(stdout)
+            records = [line[len(_PROBE_PREFIX):] for line in stdout.split(b"\n")
+                       if line.startswith(_PROBE_PREFIX)]
+            if len(records) != 1:
+                raise ValueError
+            raw = json.loads(records[0])
             if not isinstance(raw, dict):
                 raise ValueError
             data = cast(dict[str, Any], raw)
             if data.get("error"):
                 raise RemoteError(str(data["error"]))
-            if not isinstance(data.get("secret"), str) or not data["secret"]:
-                raise ValueError
-            if type(data.get("port")) is not int or not 1 <= data["port"] <= 65535:
-                raise ValueError
             return data
         except (ValueError, TypeError):
-            raise RemoteError("config_invalid") from None
+            raise RemoteError("probe_failed") from None
     except TimeoutError:
         raise RemoteError("ssh_unreachable") from None
     finally:
         await stop_process(process)
 
 
-@dataclass
+async def probe(profile: RemoteProfile, known_hosts: Path | None = None) -> dict[str, Any]:
+    data = await run_check(profile, _PROBE, known_hosts)
+    if (not isinstance(data.get("secret"), str) or not data["secret"]
+            or type(data.get("port")) is not int or not 1 <= data["port"] <= 65535):
+        raise RemoteError("probe_failed")
+    return data
+
+
+async def pairing_route(source: RemoteProfile, target_host: str) -> str:
+    """Explicitly reuse a saved route, never its identities or target settings."""
+    process = await asyncio.create_subprocess_exec(
+        *ssh_arguments(source), "-G", source.host,
+        stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.DEVNULL,
+        stdin=asyncio.subprocess.DEVNULL,
+    )
+    try:
+        output, _ = await asyncio.wait_for(process.communicate(), 10)
+        if process.returncode:
+            raise RemoteError("ssh_config_invalid")
+        values = dict(line.split(" ", 1) for line in output.decode().splitlines() if " " in line)
+        if values.get("hostname", "").lower() != target_host.lower():
+            raise RemoteError("pair_route_mismatch")
+        if values.get("proxyjump", "none") != "none":
+            raise RemoteError("pair_route_unsupported")
+        lines = ["Host *"]
+        for option in ("proxycommand", "bindaddress", "bindinterface"):
+            value = values.get(option, "none")
+            if value != "none":
+                lines.append(f"    {option} {value}")
+        return "\n".join(lines) + "\n"
+    except TimeoutError:
+        raise RemoteError("ssh_unreachable") from None
+    finally:
+        await stop_process(process)
+
+
 class Tunnel:
-    process: asyncio.subprocess.Process
-    port: int
+    """Own a private loopback transport; upstream bytes only use SSH pipes.
+
+    Pausing closes streams, not the listener: other browser tabs may still retry
+    that origin. Only final owner shutdown relinquishes the listening socket.
+    """
+
+    def __init__(self, args: list[str], port: int) -> None:
+        self.args = args
+        self.port = port
+        self.server: asyncio.Server | None = None
+        self.enabled = True
+        self.error = ""
+        self._streams: set[asyncio.Task[None]] = set()
+
+    @property
+    def active(self) -> bool:
+        return self.enabled and self.server is not None and self.server.is_serving()
+
+    def resume(self, profile: RemoteProfile, remote_port: int, known_hosts: Path) -> None:
+        self.args = transport_arguments(profile, remote_port, known_hosts)
+        self.error = ""
+        self.enabled = True
+
+    def accept(self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter) -> None:
+        if not self.active or len(self._streams) >= 32:
+            writer.close()
+            return
+        task = asyncio.create_task(self._relay(reader, writer))
+        self._streams.add(task)
+
+        def finished(task: asyncio.Task[None]) -> None:
+            self._streams.discard(task)
+            # Cancellation can happen before _relay enters its try/finally.
+            writer.close()
+
+        task.add_done_callback(finished)
+
+    async def _relay(self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter) -> None:
+        process: asyncio.subprocess.Process | None = None
+        pumps: list[asyncio.Task[None]] = []
+        stderr = bytearray()
+
+        async def copy(source: asyncio.StreamReader, destination: asyncio.StreamWriter) -> None:
+            while data := await source.read(65536):
+                destination.write(data)
+                await destination.drain()
+            if destination.can_write_eof():
+                destination.write_eof()
+
+        async def drain_errors(source: asyncio.StreamReader) -> None:
+            while data := await source.read(4096):
+                stderr.extend(data[:max(0, 8192 - len(stderr))])
+
+        try:
+            # Shield process creation so cancellation cannot lose a spawned child
+            # before we have its handle and can reap it.
+            spawn = asyncio.create_task(asyncio.create_subprocess_exec(
+                *self.args, stdin=asyncio.subprocess.PIPE,
+                stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE,
+            ))
+            try:
+                process = await asyncio.shield(spawn)
+            except asyncio.CancelledError:
+                process = await spawn
+                raise
+            assert process is not None
+            assert process.stdin is not None and process.stdout is not None and process.stderr is not None
+            pumps = [asyncio.create_task(copy(reader, process.stdin)),
+                     asyncio.create_task(copy(process.stdout, writer)),
+                     asyncio.create_task(drain_errors(process.stderr))]
+            done, _ = await asyncio.wait(pumps[:2], return_when=asyncio.FIRST_COMPLETED)
+            for task in done:
+                await task
+            # Preserve a client's half-close while draining the final response.
+            # Conversely, EOF from SSH must wake an idle keepalive client.
+            await pumps[1]
+            pumps[0].cancel()
+            process.stdin.close()
+            await asyncio.wait_for(process.wait(), 3)
+            await pumps[2]
+            if process.returncode:
+                self.error = ssh_error(bytes(stderr))
+        except (OSError, ConnectionError):
+            self.error = "ssh_unreachable"
+        finally:
+            for task in pumps:
+                task.cancel()
+            await asyncio.gather(*pumps, return_exceptions=True)
+            if process is not None:
+                await stop_process(process)
+            writer.close()
+            with contextlib.suppress(OSError):
+                await writer.wait_closed()
+
+    async def pause(self) -> None:
+        self.enabled = False
+        streams = list(self._streams)
+        for task in streams:
+            task.cancel()
+        await asyncio.gather(*streams, return_exceptions=True)
 
     async def close(self) -> None:
-        await stop_process(self.process)
+        await self.pause()
+        if self.server is not None:
+            self.server.close()
+            await self.server.wait_closed()
+
+
+def _listen(local_port: int, excluded_ports: set[int]) -> socket.socket:
+    # Never release the chosen socket between validation and use. Windows reuse
+    # has different semantics; exclusive binding rejects existing listeners.
+    rejected: list[socket.socket] = []
+    try:
+        for _ in range(128):
+            listener = socket.socket()
+            try:
+                if hasattr(socket, "SO_EXCLUSIVEADDRUSE"):
+                    listener.setsockopt(socket.SOL_SOCKET, socket.SO_EXCLUSIVEADDRUSE, 1)
+                else:
+                    listener.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+                listener.bind(("127.0.0.1", local_port))
+                listener.listen()
+                if not local_port and listener.getsockname()[1] in excluded_ports:
+                    rejected.append(listener)
+                    continue
+                listener.setblocking(False)
+                return listener
+            except BaseException:
+                listener.close()
+                raise
+        raise RemoteError("local_port_in_use")
+    except OSError:
+        raise RemoteError("local_port_in_use") from None
+    finally:
+        for listener in rejected:
+            listener.close()
 
 
 async def open_tunnel(
     profile: RemoteProfile, remote_port: int, known_hosts: Path | None = None,
     local_port: int = 0,
+    *, excluded_ports: set[int] | None = None,
 ) -> Tunnel:
-    # Reserve a loopback candidate. SSH remains responsible for binding and
-    # ExitOnForwardFailure ensures a collision cannot connect us to another app.
-    with socket.socket() as candidate:
-        try:
-            # Match OpenSSH's listener policy: a just-closed tunnel can leave
-            # TIME_WAIT connections without another program owning the port.
-            candidate.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-            candidate.bind(("127.0.0.1", local_port))
-            candidate.listen(1)
-        except OSError:
-            raise RemoteError("local_port_in_use") from None
-        port = int(candidate.getsockname()[1])
-    process = await asyncio.create_subprocess_exec(
-        *ssh_arguments(profile, known_hosts), "-N", "-L", f"127.0.0.1:{port}:127.0.0.1:{remote_port}",
-        profile.host, stdin=asyncio.subprocess.DEVNULL,
-        stdout=asyncio.subprocess.DEVNULL, stderr=asyncio.subprocess.PIPE,
-    )
-    tunnel = Tunnel(process, port)
+    args = transport_arguments(profile, remote_port, known_hosts)
+    listener = _listen(local_port, excluded_ports or set())
+    tunnel = Tunnel(args, int(listener.getsockname()[1]))
     try:
-        for _ in range(100):
-            if process.returncode is not None:
-                stderr = await process.stderr.read() if process.stderr else b""
-                raise RemoteError(ssh_error(stderr))
-            try:
-                reader, writer = await asyncio.wait_for(
-                    asyncio.open_connection("127.0.0.1", port), 0.2,
-                )
-                del reader
-                writer.close()
-                await writer.wait_closed()
-                return tunnel
-            except (OSError, TimeoutError):
-                await asyncio.sleep(0.1)
-        raise RemoteError("ssh_unreachable")
+        tunnel.server = await asyncio.start_server(tunnel.accept, sock=listener)
+        return tunnel
     except BaseException:
+        listener.close()
         await tunnel.close()
         raise
 

@@ -165,6 +165,13 @@ class _WebUIThreadDiagnostics:
 
 _WEBUI_MUTATION_PATHS = {
     "remote.discover": "/api/remote-instances/discover",
+    "remote.pair_start": "/api/remote-instances/pair_start",
+    "remote.pair_preview": "/api/remote-instances/pair_preview",
+    "remote.pair_finish": "/api/remote-instances/pair_finish",
+    "remote.pair_cancel": "/api/remote-instances/pair_cancel",
+    "remote.pair_route": "/api/remote-instances/pair_route",
+    "remote.inspect": "/api/remote-instances/inspect",
+    "remote.pick_file": "/api/remote-instances/pick_file",
     "remote.save": "/api/remote-instances/save",
     "remote.connect": "/api/remote-instances/connect",
     "remote.disconnect": "/api/remote-instances/disconnect",

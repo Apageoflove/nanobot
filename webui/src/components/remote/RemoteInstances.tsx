@@ -1,11 +1,12 @@
-import { createContext, useContext, useEffect, useLayoutEffect, useRef, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useLayoutEffect, useRef, useSyncExternalStore, type ReactNode } from "react";
 import { Loader2, PlugZap } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
-import type { RemoteDirectory } from "@/lib/remote-instances";
+import { needsRemoteSetup, type RemoteDirectory } from "@/lib/remote-instances";
 import { useHostSessions } from "./useHostSessions";
 import { HostNavigationContext, HostSwitcher, RemoteHostMenu, type HostPicker } from "./HostSwitcher";
 import { useSidebarHostBridge } from "./useSidebarHostBridge";
+import { readPairReturn, subscribePairReturn } from "@/lib/remote-pair-return";
 
 const RemoteContext = createContext<{
   available: boolean;
@@ -16,6 +17,7 @@ const RemoteContext = createContext<{
   refresh: () => Promise<RemoteDirectory>;
   connect: (id: string, stillWanted?: () => boolean) => Promise<void>;
   disconnect: (id: string) => Promise<void>;
+  cancel: () => void;
 } | null>(null);
 export function useRemoteConnections() { return useContext(RemoteContext); }
 
@@ -23,6 +25,9 @@ export function useRemoteConnections() { return useContext(RemoteContext); }
 export function RemoteInstances({ children }: { children: ReactNode }) {
   const { t } = useTranslation();
   const hosts = useHostSessions();
+  const returnedPair = useSyncExternalStore(subscribePairReturn, readPairReturn);
+  const returnLocal = hosts.local;
+  useEffect(() => { if (returnedPair) returnLocal(); }, [returnedPair, returnLocal]);
   const { selected, pending, frames, directory, error } = hosts;
   const localPanel = useRef<HTMLDivElement>(null);
   const lastLocalFocus = useRef<HTMLElement | null>(null);
@@ -34,24 +39,33 @@ export function RemoteInstances({ children }: { children: ReactNode }) {
   };
   const message = error ? t(`remote.errors.${error}`, { defaultValue: t("remote.errors.unknown") }) : "";
   const bridge = useSidebarHostBridge(frames, selected?.id, frameNodes, restoreLocalFocus, { pendingName: pending?.name, error: message });
+  useEffect(() => {
+    // A verified remote app can be interactive before optional images/fonts
+    // finish loading. Older bundles still use the iframe load fallback.
+    for (const id of bridge.readyIds) hosts.loaded(id);
+  }, [bridge.readyIds, hosts.loaded]);
   const restoreFocus = () => {
     if (activeHostId.current) bridge.focus(activeHostId.current);
     else restoreLocalFocus();
   };
   const available = directory?.available === true || hosts.directoryError;
   const activeFrame = frames.find((frame) => frame.connection.id === selected?.id);
-  const offline = !!selected && (activeFrame?.offline || (!activeFrame && !pending && !!error));
+  const offline = !!selected && (activeFrame?.offline || (!activeFrame && pending?.id !== selected.id));
+  const recoveryCode = (hosts.errorId === selected?.id ? error : "") || activeFrame?.error || "";
+  const recoveryMessage = recoveryCode ? t(`remote.errors.${recoveryCode}`, { defaultValue: t("remote.errors.unknown") }) : t("remote.noFallback");
+  const manage = () => { hosts.local(); window.location.hash = "/remote"; };
   const switchHost = (id: string) => {
-    void hosts.connect(id).catch((reason: unknown) => hosts.setError(reason instanceof Error ? reason.message : "unknown"));
+    // The session module owns attempt-scoped errors, including cancelled work.
+    void hosts.connect(id).catch(() => {});
   };
   const picker: HostPicker = {
     kind: "shell", name: selected?.name || t("remote.localShort"), hostname: selected?.hostname || directory?.machine_name || "nanobot",
-    localName: directory?.machine_name || "nanobot", currentId: selected?.id || null,
+    localName: directory?.machine_name || "nanobot", currentId: selected?.id || null, recentIds: hosts.recentIds,
     profiles: (directory?.profiles || []).map(({ id, name, host }) => ({ id, name, host,
       ready: frames.some((frame) => frame.connection.id === id && !frame.offline && frame.loaded) })),
     pending, error: message, offline: !!offline, select: (id) => { if (id) switchHost(id); else hosts.local(); },
-    manage: () => { hosts.local(); window.location.hash = "/remote"; },
-    cancel: hosts.cancel, clearError: () => hosts.setError(""), restoreFocus,
+    manage,
+    cancel: hosts.cancel, clearError: hosts.clearError, restoreFocus,
   };
   useEffect(() => { if (selected) document.title = `${selected.name} · nanobot`; }, [selected]);
   useEffect(() => {
@@ -76,7 +90,7 @@ export function RemoteInstances({ children }: { children: ReactNode }) {
 
   return <RemoteContext.Provider value={{ available, localActive: !selected, directory,
     openHostIds: frames.map((frame) => frame.connection.id),
-    directoryError: hosts.directoryError, refresh: hosts.refresh, connect: hosts.connect, disconnect: hosts.disconnect }}>
+    directoryError: hosts.directoryError, refresh: hosts.refresh, connect: hosts.connect, disconnect: hosts.disconnect, cancel: hosts.cancel }}>
     <HostNavigationContext.Provider value={bridge.embedded || (available || selected ? picker : null)}>
       <div className="flex h-full min-h-0 flex-col bg-background">
         <div className="relative min-h-0 flex-1 overflow-hidden">
@@ -87,7 +101,7 @@ export function RemoteInstances({ children }: { children: ReactNode }) {
           </div>
           {frames.map((frame) => {
             const active = selected?.id === frame.connection.id;
-            return <div key={`${frame.connection.id}:${frame.connection.gateway_id}`} data-host-view={frame.connection.id} aria-hidden={!active || offline}
+            return <div key={`${frame.connection.id}:${frame.connection.gateway_id}:${frame.connection.view_id || ""}`} data-host-view={frame.connection.id} aria-hidden={!active || offline}
               {...(!active || offline ? { inert: "" } : {})} style={{ visibility: active ? "visible" : "hidden" }}
               className={`absolute inset-0 transition-opacity duration-150 motion-reduce:transition-none ${active ? "visible opacity-100" : "invisible pointer-events-none opacity-0"}`}>
               <iframe ref={(node) => { if (node) frameNodes.current.set(frame.connection.id, node); else frameNodes.current.delete(frame.connection.id); }}
@@ -99,10 +113,13 @@ export function RemoteInstances({ children }: { children: ReactNode }) {
           })}
           {selected && (offline || !activeFrame?.loaded) && <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-background px-6 text-center">
             {offline ? <PlugZap className="h-7 w-7 text-muted-foreground" /> : <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />}
+            <p className="max-w-full break-words text-xs text-muted-foreground">{selected.name} · {selected.hostname}</p>
             <p className="font-medium">{t(offline ? "remote.offline" : "remote.opening")}</p>
-            <p className="max-w-sm text-sm text-muted-foreground">{message || t("remote.noFallback")}</p>
-            <div className="flex items-center gap-2">
-              {offline && <Button disabled={!!pending} onClick={() => switchHost(selected.id)}>{t("remote.reconnect")}</Button>}
+            <p className="max-w-sm text-sm text-muted-foreground">{recoveryMessage}</p>
+            <div className="flex flex-wrap items-center justify-center gap-2">
+              {offline && (needsRemoteSetup(recoveryCode) ? <Button onClick={manage}>{t("remote.manageConnections")}</Button> : <Button disabled={!!pending} aria-busy={!!pending} onClick={() => switchHost(selected.id)}>
+                {pending && <Loader2 aria-hidden className="mr-2 h-4 w-4 animate-spin motion-reduce:animate-none" />}{t(pending ? "remote.connecting" : "remote.reconnect")}
+              </Button>)}
               <Button variant="ghost" onClick={hosts.local}>{t("remote.returnLocal")}</Button>
             </div>
           </div>}

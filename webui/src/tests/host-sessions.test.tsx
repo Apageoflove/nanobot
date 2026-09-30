@@ -40,6 +40,75 @@ beforeEach(() => {
 afterEach(() => { cleanup(); vi.useRealTimers(); vi.restoreAllMocks(); });
 
 describe("host session lifecycle", () => {
+  it("clears a failed reconnect only after that host's loaded view recovers", async () => {
+    const { result } = renderHook(useHostSessions);
+    await ready(result, 0);
+    mocks.read.mockResolvedValue({ ...directory, profiles: directory.profiles.map((p) => ({ ...p, connected: false })) });
+    await act(async () => { await vi.advanceTimersByTimeAsync(10_000); });
+    mocks.request.mockRejectedValueOnce(new Error("ssh_unreachable"));
+    await act(async () => { await expect(result.current.connect(ids[0])).rejects.toThrow("ssh_unreachable"); });
+    expect(result.current.error).toBe("ssh_unreachable");
+    mocks.read.mockResolvedValue(directory);
+    await act(async () => { await vi.advanceTimersByTimeAsync(5_000); });
+    expect(result.current.frames[0].offline).toBe(false);
+    expect(result.current.error).toBe("");
+  });
+
+  it("does not clear a failed destination because the active host is healthy", async () => {
+    const { result } = renderHook(useHostSessions);
+    await ready(result, 0);
+    mocks.request.mockRejectedValueOnce(new Error("ssh_unreachable"));
+    await act(async () => { await expect(result.current.connect(ids[1])).rejects.toThrow("ssh_unreachable"); });
+    await act(async () => { await vi.advanceTimersByTimeAsync(5_000); });
+    expect(result.current.error).toBe("ssh_unreachable");
+    expect(result.current.selected?.id).toBe(ids[0]);
+  });
+
+  it("ignores a stale health failure that arrives after reconnect succeeds", async () => {
+    const { result } = renderHook(useHostSessions);
+    await ready(result, 0);
+    mocks.read.mockResolvedValue({ ...directory, profiles: [] });
+    await act(async () => { await vi.advanceTimersByTimeAsync(10_000); });
+    const stale = deferred<typeof directory>();
+    mocks.read.mockReturnValueOnce(stale.promise);
+    await act(async () => { await vi.advanceTimersByTimeAsync(5_000); });
+    mocks.read.mockResolvedValue(directory);
+    await act(async () => { await result.current.connect(ids[0]); });
+    await act(async () => { stale.resolve({ ...directory, profiles: [] }); });
+    expect(result.current.frames[0].failures).toBe(0);
+    expect(result.current.directory?.profiles).toHaveLength(4);
+  });
+
+  it("keeps an old gateway view offline when another tab connects a new gateway", async () => {
+    const { result } = renderHook(useHostSessions);
+    await ready(result, 0);
+    mocks.read.mockResolvedValue({ ...directory, profiles: directory.profiles.map((p) =>
+      p.id === ids[0] ? { ...p, gateway_id: "restarted-gateway" } : p) });
+    await act(async () => { await vi.advanceTimersByTimeAsync(10_000); });
+    expect(result.current.frames[0].offline).toBe(true);
+    expect(result.current.selected?.id).toBe(ids[0]);
+  });
+
+  it("does not revive an old proxy view after the local gateway restarts", async () => {
+    const { result } = renderHook(useHostSessions);
+    await ready(result, 0);
+    mocks.read.mockResolvedValue({ ...directory, profiles: directory.profiles.map((p) =>
+      p.id === ids[0] ? { ...p, view_id: "new-local-proxy-session" } : p) });
+    await act(async () => { await vi.advanceTimersByTimeAsync(10_000); });
+    expect(result.current.frames[0].offline).toBe(true);
+    expect(result.current.frames[0].error).toBe("instance_changed");
+  });
+
+  it("does not report a successful disconnect as failed when refreshing the list fails", async () => {
+    const { result } = renderHook(useHostSessions);
+    await ready(result, 0);
+    mocks.read.mockRejectedValue(new Error("directory_unavailable"));
+    await act(async () => { await expect(result.current.disconnect(ids[0])).resolves.toBeUndefined(); });
+    expect(result.current.selected).toBeNull();
+    expect(result.current.frames).toHaveLength(0);
+    expect(result.current.directoryError).toBe(true);
+  });
+
   it("keeps the current host until the destination view loads, then switches warm without RPC", async () => {
     const { result } = renderHook(useHostSessions);
     await ready(result, 0);
@@ -115,7 +184,10 @@ describe("host session lifecycle", () => {
     await ready(result, 0);
     const { completion } = await start(result, 1);
     const rejected = expect(completion).rejects.toThrow("view_load_failed");
-    await act(async () => { await vi.advanceTimersByTimeAsync(25_000); await rejected; });
+    await act(async () => { await vi.advanceTimersByTimeAsync(59_999); });
+    expect(result.current.pending?.id).toBe(ids[1]);
+    expect(result.current.selected?.id).toBe(ids[0]);
+    await act(async () => { await vi.advanceTimersByTimeAsync(1); await rejected; });
     expect(result.current.selected?.id).toBe(ids[0]);
     expect(result.current.frames).toHaveLength(1);
     await ready(result, 1);

@@ -75,7 +75,7 @@ def test_unresolvable_includes_and_invalid_lines_do_not_hide_other_hosts(ssh_hom
     assert result["incomplete"]
 
 
-@pytest.mark.parametrize("contents", [b"\xff", b"x" * 262145])
+@pytest.mark.parametrize("contents", [b"\xff", b"x" * 262145], ids=["invalid-utf8", "oversized"])
 def test_unreadable_or_oversized_custom_config_is_an_explicit_error(ssh_home, contents):
     path = ssh_home / "config"
     path.write_bytes(contents)
@@ -116,7 +116,7 @@ def test_invalid_paths_rejected_before_reading(path):
 @pytest.mark.parametrize(("override", "expected"), [(None, "2222"), (2200, "2200")])
 def test_system_ssh_inherits_config_port_user_and_identity(ssh_home, override, expected):
     config = ssh_home / "config"
-    config.write_text("Host example-test\n HostName 192.0.2.10\n User tester\n Port 2222\n IdentityFile /tmp/test-key\n")
+    config.write_text("Host example-test\n HostName 192.0.2.10\n User tester\n Port 2222\n IdentityFile /tmp/test-key\n RemoteCommand tmux attach\n RequestTTY force\n")
     profile = RemoteProfile(name="Test", host="example-test", ssh_config=str(config), port=override)
     # This controlled fixture has no Match exec; -G makes no network connections.
     result = subprocess.run([*ssh_arguments(profile), "-G", profile.host],
@@ -125,6 +125,8 @@ def test_system_ssh_inherits_config_port_user_and_identity(ssh_home, override, e
     assert settings["port"] == expected
     assert settings["user"] == "tester"
     assert settings["identityfile"] == "/tmp/test-key"
+    assert settings.get("remotecommand", "none") == "none"
+    assert settings["requesttty"] == "false"
 
 
 async def test_manager_discovery_does_not_save_profiles_or_connect(ssh_home):

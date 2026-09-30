@@ -1154,6 +1154,10 @@ function Shell({
   const [sidebarWidth, setSidebarWidth] = useState(readSidebarWidth);
   const [sidebarDragging, setSidebarDragging] = useState(false);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+  useEffect(() => {
+    // The drawer portals outside the local host panel; don't leave it over a remote view.
+    if (!localActive) setMobileSidebarOpen(false);
+  }, [localActive]);
   const mobileSidebarRef = useRef<HTMLDivElement>(null);
   const [sessionSearchOpen, setSessionSearchOpen] = useState(false);
   const mobileWorkbench = useMediaQuery("(max-width: 767px)");
@@ -1287,6 +1291,7 @@ function Shell({
   useEffect(() => {
     const applyRoute = () => {
       const route = readShellRoute();
+      if (route.view === "remote") setMobileSidebarOpen(false);
       if (currentShellRouteRef.current.view === "settings" && route.view !== "settings" && settingsExitGuardRef.current) {
         writeShellRoute(currentShellRouteRef.current, true);
         settingsExitGuardRef.current(() => {
@@ -2131,12 +2136,6 @@ function Shell({
     setMobileSidebarOpen(false);
   }, [activeKey, navigate]);
 
-  const onOpenRemoteConnections = useCallback(() => {
-    setSessionSearchOpen(false);
-    navigate({ view: "remote", activeKey, settingsSection: "overview" });
-    setMobileSidebarOpen(false);
-  }, [activeKey, navigate]);
-
   const onOpenSkills = useCallback(() => {
     setSessionSearchOpen(false);
     navigate({ view: "skills", activeKey, settingsSection: "skills" });
@@ -2733,11 +2732,10 @@ function Shell({
     onOpenApps,
     onOpenAutomations,
     onOpenChannels,
-    onOpenRemoteConnections,
     onOpenSkills,
     onSettingsIntent,
     onOpenSearch: onOpenSessionSearch,
-    activeUtility: view === "apps" || view === "automations" || view === "skills" || view === "channels" || view === "remote" ? view : null,
+    activeUtility: view === "apps" || view === "automations" || view === "skills" || view === "channels" ? view : null,
     onToggleArchived,
     pinnedKeys: sidebarPinnedTabKeys,
     archivedKeys: sidebarArchivedTabKeys,

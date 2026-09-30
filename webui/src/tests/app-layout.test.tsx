@@ -1,6 +1,7 @@
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import type { Window as HappyWindow } from "happy-dom";
 
 import i18n from "@/i18n";
 import type {
@@ -10,6 +11,8 @@ import type {
   SidebarStatePayload,
   WorkspaceScopePayload,
 } from "@/lib/types";
+
+(window as unknown as HappyWindow).happyDOM.settings.disableIframePageLoading = true;
 
 const connectSpy = vi.fn();
 const refreshSpy = vi.fn();
@@ -318,6 +321,7 @@ describe("App layout", () => {
     sessionUpdateHandlers.clear();
     sidebarStateUpdateHandlers.clear();
     window.history.replaceState(null, "", "/");
+    sessionStorage.removeItem("nanobot.remote-instance");
     Reflect.deleteProperty(window, "nanobotHost");
     setNavigatorPlatform("Linux x86_64");
     localStorage.removeItem("nanobot-webui.sidebar");
@@ -688,16 +692,19 @@ describe("App layout", () => {
     render(<App />);
     await waitFor(() => expect(connectSpy).toHaveBeenCalled());
     const sidebar = screen.getByRole("navigation", { name: "Sidebar navigation" });
-    const remote = await within(sidebar).findByRole("button", { name: "Remote connections" });
-    fireEvent.click(remote);
-    fireEvent.click(await screen.findByRole("button", { name: "Connect to remote nanobot…" }));
-    const host = await screen.findByRole("textbox", { name: "SSH address" });
-    expect(screen.getByRole("main")).toContainElement(host);
+    expect(within(sidebar).queryByRole("button", { name: "Remote connections" })).not.toBeInTheDocument();
+    fireEvent.pointerDown(await within(sidebar).findByRole("button", { name: "Switch host" }), { button: 0, ctrlKey: false });
+    fireEvent.click(await screen.findByRole("menuitem", { name: "Manage connections…" }));
+    expect(await screen.findByRole("heading", { name: "Remote connections" })).toBeVisible();
     expect(sidebar).toBeVisible();
-    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
-    expect(remote).toHaveAttribute("aria-current", "page");
+    fireEvent.click(await screen.findByRole("button", { name: "Add server" }));
+    fireEvent.pointerDown(screen.getByRole("button", { name: "Other ways" }), { button: 0, ctrlKey: false });
+    fireEvent.click(screen.getByRole("menuitem", { name: "Use existing SSH settings" }));
+    const host = await screen.findByRole("textbox", { name: "SSH address" });
+    expect(screen.getByRole("dialog", { name: "Connect to a server" })).toContainElement(host);
     expect(window.location.hash).toBe("#/remote");
     expect(document.title).toBe("Remote connections · nanobot");
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
     fireEvent.click(within(sidebar).getByRole("button", { name: "New topic" }));
     expect(window.location.hash).toBe("#/new");
     expect(screen.queryByRole("textbox", { name: "SSH address" })).not.toBeInTheDocument();
@@ -705,8 +712,64 @@ describe("App layout", () => {
       window.history.replaceState(null, "", "#/remote");
       window.dispatchEvent(new PopStateEvent("popstate"));
     });
-    expect(await screen.findByRole("region", { name: "From your SSH config" })).toBeVisible();
-    expect(remote).toHaveAttribute("aria-current", "page");
+    expect(await screen.findByRole("button", { name: "Add server" })).toBeVisible();
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(within(sidebar).queryByRole("button", { name: "Remote connections" })).not.toBeInTheDocument();
+  });
+
+  it("closes the mobile sidebar when managing connections from its host menu", async () => {
+    const user = userEvent.setup();
+    requestMutationSpy.mockResolvedValue({ hosts: [], files: [], incomplete: false });
+    vi.stubGlobal("matchMedia", vi.fn().mockImplementation((query: string) => ({
+      matches: !query.includes("1024px"), media: query, onchange: null,
+      addListener: vi.fn(), removeListener: vi.fn(), addEventListener: vi.fn(),
+      removeEventListener: vi.fn(), dispatchEvent: vi.fn(),
+    })));
+    mockFetchRoutes({
+      "/api/settings": baseSettingsPayload(),
+      "/api/remote-instances": { available: true, profiles: [] },
+    });
+    render(<App />);
+    await waitFor(() => expect(connectSpy).toHaveBeenCalled());
+    await user.click(await screen.findByRole("button", { name: "Toggle sidebar" }));
+    const sheet = await screen.findByRole("dialog");
+    fireEvent.pointerDown(await within(sheet).findByRole("button", { name: "Switch host" }), { button: 0, ctrlKey: false });
+    fireEvent.click(await screen.findByRole("menuitem", { name: "Manage connections…" }));
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+    expect(await screen.findByRole("heading", { name: "Remote connections" })).toBeVisible();
+    expect(window.location.hash).toBe("#/remote");
+    expect(screen.queryByRole("button", { name: "Remote connections" })).not.toBeInTheDocument();
+    await waitFor(() => expect(document.body.style.pointerEvents).not.toBe("none"));
+    await user.click(screen.getByRole("button", { name: "Add server" }));
+    expect(await screen.findByRole("dialog", { name: "Add server" })).toBeVisible();
+  });
+
+  it("releases the mobile sidebar modal when switching to a server", async () => {
+    const user = userEvent.setup();
+    vi.stubGlobal("matchMedia", vi.fn().mockImplementation((query: string) => ({
+      matches: !query.includes("1024px"), media: query, onchange: null,
+      addListener: vi.fn(), removeListener: vi.fn(), addEventListener: vi.fn(),
+      removeEventListener: vi.fn(), dispatchEvent: vi.fn(),
+    })));
+    const profile = { id: "3b968d52-081d-4898-9970-ff0a1fc93817", name: "Team server",
+      host: "team", port: null, ssh_config: "", identity_file: "",
+      config_path: "~/.nanobot/config.json", runtime_user: "", connected: false };
+    requestMutationSpy.mockResolvedValue({ ...profile, hostname: "team-host", gateway_id: "remote-gateway",
+      url: "http://127.0.0.1:23456/#/?bootstrapSecret=test-only" });
+    mockFetchRoutes({
+      "/api/settings": baseSettingsPayload(),
+      "/api/remote-instances": { available: true, profiles: [profile] },
+    });
+    render(<App />);
+    await user.click(await screen.findByRole("button", { name: "Toggle sidebar" }));
+    const sheet = await screen.findByRole("dialog");
+    await user.click(await within(sheet).findByRole("button", { name: "Switch host" }));
+    await user.click(await screen.findByRole("menuitem", { name: "Team server team" }));
+    const frame = await screen.findByTitle("nanobot on Team server");
+    fireEvent.load(frame);
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+    await waitFor(() => expect(document.body.style.pointerEvents).not.toBe("none"));
+    expect(frame).toBeVisible();
   });
 
   it("opens a remote setup deep link after reloading without opening Settings", async () => {
@@ -717,7 +780,8 @@ describe("App layout", () => {
       "/api/remote-instances": { available: true, profiles: [] },
     });
     render(<App />);
-    expect(await screen.findByRole("region", { name: "From your SSH config" })).toBeVisible();
+    expect(await screen.findByRole("button", { name: "Add server" })).toBeVisible();
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
     expect(screen.getByRole("navigation", { name: "Sidebar navigation" })).toBeVisible();
     expect(screen.queryByRole("navigation", { name: "Settings sections" })).not.toBeInTheDocument();
     expect(window.location.hash).toBe("#/remote");

@@ -18,13 +18,18 @@ from pydantic import Field
 
 from nanobot.utils.helpers import _write_text_atomic  # pyright: ignore[reportPrivateUsage]
 from nanobot.webui import remote_ssh
+from nanobot.webui.remote_proxy import RemoteProxy
 from nanobot.webui.remote_ssh import RemoteError, RemoteProfile, Tunnel
+
+_HEALTH_TIMEOUT_SECONDS = 12
 
 
 class _SavedProfile(RemoteProfile):
     # Retain an origin per server so browser preferences/caches cannot drift
     # between servers on every reconnect. Not an editable API field.
     local_port: int = Field(default=0, ge=0, le=65535)
+    proxy_origin: bool = False
+    pair_id: str = ""
 
 
 @dataclass
@@ -34,7 +39,9 @@ class Connection:
     hostname: str
     config_path: str
     gateway_id: str
+    proxy: RemoteProxy
     error: str = ""
+    paired: bool = False
 
 
 class RemoteInstances:
@@ -43,11 +50,19 @@ class RemoteInstances:
     def __init__(self, directory: Path, *, local_gateway_id: str = "") -> None:
         self.path = directory / "remote-instances.json"
         self.local_gateway_id = local_gateway_id
+        # Public identity, not an authentication capability. A new local manager
+        # cannot renew a cached iframe's old proxy credentials after restart.
+        self._view_session = uuid.uuid4().hex
         self.connections: dict[str, Connection] = {}
+        self._proxies: dict[int, RemoteProxy] = {}
         self._lock = asyncio.Lock()
+        self._picker_lock = asyncio.Lock()
         self._unverified: dict[str, tuple[str, str, float]] = {}
         self._unknown_hosts: set[str] = set()
         self._closed = False
+        from nanobot.webui.remote_pairing import PairStore
+
+        self.pairing = PairStore(directory)
 
     def _known_hosts(self, key: str) -> Path:
         return self.path.parent / "remote-hosts" / key
@@ -75,39 +90,108 @@ class RemoteInstances:
         ))
         self.path.chmod(0o600)
 
+    def _remember_origins(self, profiles: dict[str, _SavedProfile], port: int = 0) -> set[int]:
+        # Browser storage outlives edits, Forget and gateway restarts. Keep a
+        # small append-only port ledger, including pre-ledger saved profiles,
+        # so a new target never inherits a retired target's browser origin.
+        path = self.path.with_name("remote-origin-ports.json")
+        try:
+            raw: object = json.loads(path.read_text()) if path.exists() else []
+            if not isinstance(raw, list):
+                raise ValueError
+            ports: set[int] = set()
+            for value in cast(list[object], raw):
+                if type(value) is not int or not 1 <= value <= 65535:
+                    raise ValueError
+                ports.add(value)
+        except (ValueError, TypeError, OSError):
+            raise RemoteError("profile_store_invalid") from None
+        ports.update(profile.local_port for profile in profiles.values() if profile.local_port)
+        if port:
+            ports.add(port)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        _write_text_atomic(path, json.dumps(sorted(ports)))
+        path.chmod(0o600)
+        return ports
+
     def snapshot(self) -> dict[str, Any]:
-        return {"available": True, "machine_name": socket.gethostname(), "profiles": [
-            {"id": key, **profile.model_dump(exclude={"local_port"}),
-             "connected": key in self.connections
-             and self.connections[key].tunnel.process.returncode is None
-             and not self.connections[key].error}
-            for key, profile in self._read().items()
-        ]}
+        profiles: list[dict[str, Any]] = []
+        for key, profile in self._read().items():
+            connection = self.connections.get(key)
+            error = (connection.error or ("" if connection.tunnel.active else "ssh_unreachable")) if connection else "disconnected"
+            item = {"id": key, **profile.model_dump(exclude={"local_port", "proxy_origin", "pair_id"}),
+                    "connected": connection is not None and not error,
+                    "connection_error": error}
+            if connection:
+                item["gateway_id"] = connection.gateway_id
+                item["view_id"] = self._view_session
+            if profile.pair_id:
+                item.update(paired=True, revoke_command=
+                            f"nanobot remote revoke {profile.pair_id} --ssh-user {profile.host.split('@')[0]}")
+                expiry = self.pairing.authorization_until(profile.pair_id)
+                if expiry is not None:
+                    item["authorized_until"] = expiry
+            profiles.append(item)
+        return {"available": True, "machine_name": socket.gethostname(), "profiles": profiles}
 
     async def health(self) -> dict[str, Any]:
-        async def check(connection: Connection) -> None:
-            if connection.tunnel.process.returncode is not None:
-                connection.error = "ssh_unreachable"
-                return
-            try:
-                async with httpx.AsyncClient(timeout=8, trust_env=False) as client:
-                    response = await client.get(
-                        f"http://127.0.0.1:{connection.tunnel.port}/webui/terminal",
-                        headers={"X-Nanobot-Auth": connection.secret},
-                    )
-                if response.status_code != 200:
-                    connection.error = "remote_unreachable"
-                elif response.json().get("gatewayId") != connection.gateway_id:
+        # Hold a lifetime lease through every credential-bearing request. Final
+        # shutdown cannot release the listeners halfway through a health check.
+        try:
+            # Includes lock contention and all response reads, not just each
+            # socket read. Return the directory before the browser's 20s budget.
+            async with asyncio.timeout(_HEALTH_TIMEOUT_SECONDS):
+                async with self._lock:
+                    await asyncio.gather(*(self._check(item) for item in self.connections.values()))
+        except TimeoutError:
+            pass
+        return self.snapshot()
+
+    async def _check(self, connection: Connection) -> None:
+        if not connection.tunnel.active:
+            connection.error = "ssh_unreachable"
+            return
+        try:
+            async with httpx.AsyncClient(timeout=20, trust_env=False) as client:
+                response = await client.get(
+                    f"http://127.0.0.1:{connection.tunnel.port}/webui/terminal",
+                    headers={"X-Nanobot-Auth": connection.secret},
+                )
+            if response.status_code in {401, 403}:
+                connection.error = "remote_auth_failed"
+            elif response.status_code != 200:
+                connection.error = "remote_unreachable"
+            else:
+                raw_identity = response.json()
+                identity = cast(dict[str, Any], raw_identity) if isinstance(raw_identity, dict) else {}
+                if (type(identity.get("protocolVersion")) is not int
+                        or identity.get("protocolVersion") != 1 or not isinstance(identity.get("gatewayId"), str)):
+                    connection.error = "incompatible_gateway"
+                elif identity["gatewayId"] != connection.gateway_id:
                     connection.error = "instance_changed"
                 else:
                     connection.error = ""
-            except (httpx.HTTPError, ValueError, AttributeError):
-                connection.error = "remote_unreachable"
-
-        await asyncio.gather(*(check(item) for item in tuple(self.connections.values())))
-        return self.snapshot()
+        except (httpx.HTTPError, ValueError, AttributeError):
+            connection.error = connection.tunnel.error or "remote_unreachable"
+            if connection.paired and connection.error == "ssh_auth_failed":
+                connection.error = "pair_authorization_rejected"
+        except asyncio.CancelledError:
+            connection.error = "remote_unreachable"
+            raise
 
     async def action(self, action: str, payload: dict[str, Any]) -> dict[str, Any]:
+        if action == "pick_file":
+            from nanobot.webui.native_folder_picker import NativeFolderPickerError, pick_native_file
+
+            if self._closed or self._picker_lock.locked():
+                raise RemoteError("file_picker_unavailable")
+            # The route is authenticated and loopback-only. No caller-provided
+            # command, file content or initial directory enters the OS dialog.
+            async with self._picker_lock:
+                try:
+                    return {"path": await pick_native_file()}
+                except NativeFolderPickerError:
+                    raise RemoteError("file_picker_unavailable") from None
         if action == "discover":
             from nanobot.webui.ssh_config import discover_hosts
 
@@ -121,31 +205,114 @@ class RemoteInstances:
                 raise RemoteError("local_io_error")
             profiles = self._read()
             key = str(payload.get("id", ""))
+            if action == "pair_start":
+                return_origin = payload.get("return_origin", "")
+                if not isinstance(return_origin, str):
+                    raise RemoteError("pair_invalid")
+                return self.pairing.start(return_origin)
+            if action == "pair_cancel":
+                self.pairing.cancel(key)
+                return {"cancelled": True}
+            if action in {"pair_preview", "pair_finish"}:
+                code = payload.get("code", "")
+                if not isinstance(code, str):
+                    raise RemoteError("pair_invalid")
+                if action == "pair_preview":
+                    return self.pairing.preview(key, code)
+                if len(profiles) >= 20 and key not in profiles:
+                    raise RemoteError("profile_limit")
+                # Completion is idempotent. No browser-provided host/path/key is
+                # trusted as a substitute for the encrypted server receipt.
+                if key in profiles:
+                    return {"id": key, **self.snapshot()}
+                receipt = self.pairing.finish(key, code)
+                profile = self.pairing.profile(receipt)
+                known = self._known_hosts(key)
+                known.parent.mkdir(parents=True, exist_ok=True)
+                _write_text_atomic(known, "nanobot-remote " + receipt.host_key + "\n")
+                known.chmod(0o600)
+                profiles[key] = _SavedProfile(**profile.model_dump(), pair_id=key)
+                self._write(profiles)
+                return {"id": key, **self.snapshot()}
             if action == "save":
                 profile = RemoteProfile.model_validate(payload.get("profile"))
                 if key and key not in profiles:
                     raise RemoteError("profile_not_found")
+                if key and profiles[key].pair_id:
+                    raise RemoteError("pair_managed")
+                if key and profiles[key].model_dump(include=set(RemoteProfile.model_fields)) == profile.model_dump():
+                    # Retrying a slow browser load must not count as editing a
+                    # live SSH connection. Real changes still require disconnect.
+                    return {"id": key, **self.snapshot()}
+                if not key:
+                    destination = profile.model_dump(exclude={"name"})
+                    for saved_key, saved in profiles.items():
+                        if saved.model_dump(include=set(destination)) == destination:
+                            # Reopening Add after a failed attempt should reuse
+                            # its entry, without renaming it or closing live views.
+                            return {"id": saved_key, **self.snapshot()}
                 if not key and len(profiles) >= 20:
                     raise RemoteError("profile_limit")
                 key = key or str(uuid.uuid4())
-                if key in self.connections:
-                    raise RemoteError("disconnect_before_edit")
+                connection = self.connections.get(key)
+                if connection:
+                    if connection.tunnel.active and not connection.error:
+                        raise RemoteError("disconnect_before_edit")
+                    # A fresh tab offers Edit for an offline profile. Release its
+                    # failed tunnel here instead of demanding a hidden Disconnect.
+                    await connection.proxy.pause()
+                    del self.connections[key]
                 target_changed = key in profiles and any(
                     getattr(profiles[key], field) != getattr(profile, field)
                     for field in ("host", "port", "ssh_config")
                 )
+                instance_changed = target_changed or (key in profiles and any(
+                    getattr(profiles[key], field) != getattr(profile, field)
+                    for field in ("config_path", "runtime_user", "identity_file")
+                ))
+                if instance_changed:
+                    self._remember_origins(profiles)
+                local_port = profiles[key].local_port if key in profiles and not instance_changed else 0
+                proxy_origin = bool(local_port and profiles[key].proxy_origin)
+                profiles[key] = _SavedProfile(**profile.model_dump(), local_port=local_port,
+                                             proxy_origin=proxy_origin)
+                self._write(profiles)
                 if target_changed:
                     self._known_hosts(key).unlink(missing_ok=True)
                     self._unverified.pop(key, None)
                     self._unknown_hosts.discard(key)
-                local_port = profiles[key].local_port if key in profiles and not target_changed else 0
-                profiles[key] = _SavedProfile(**profile.model_dump(), local_port=local_port)
-                self._write(profiles)
                 return {"id": key, **self.snapshot()}
             if key not in profiles:
                 raise RemoteError("profile_not_found")
-            if action == "connect":
+            if action == "pair_route":
+                profile = profiles[key]
+                if not profile.pair_id:
+                    raise RemoteError("pair_invalid")
+                existing = self.connections.get(key)
+                if existing and existing.tunnel.active and not existing.error:
+                    raise RemoteError("disconnect_before_edit")
+                route_id = str(payload.get("route_id", ""))
+                if route_id:
+                    source = profiles.get(route_id)
+                    if source is None or source.pair_id:
+                        raise RemoteError("profile_not_found")
+                    config = await remote_ssh.pairing_route(source, profile.host.split("@")[-1])
+                    path = self.pairing.path(profile.pair_id) / "ssh_route"
+                    _write_text_atomic(path, config)
+                    path.chmod(0o600)
+                    profile.ssh_config = str(path)
+                else:
+                    profile.ssh_config = ""
+                self._write(profiles)
+                return self.snapshot()
+            if action in {"connect", "inspect"}:
                 try:
+                    if action == "inspect":
+                        if profiles[key].pair_id:
+                            raise RemoteError("pair_managed")
+                        from nanobot.webui.remote_discovery import inspect
+
+                        return await inspect(profiles[key], self._known_hosts(key))
                     return await self._connect(key, profiles[key])
                 except RemoteError as exc:
                     if str(exc) == "host_key_unknown":
@@ -175,8 +342,11 @@ class RemoteInstances:
             if action in {"disconnect", "remove"}:
                 connection = self.connections.pop(key, None)
                 if connection:
-                    await connection.tunnel.close()
+                    await connection.proxy.pause()
                 if action == "remove":
+                    self._remember_origins(profiles)
+                    if profiles[key].pair_id:
+                        self.pairing.forget(profiles[key].pair_id)
                     del profiles[key]
                     self._write(profiles)
                     self._known_hosts(key).unlink(missing_ok=True)
@@ -188,25 +358,41 @@ class RemoteInstances:
     def _launch(self, key: str, profile: RemoteProfile, connection: Connection) -> dict[str, Any]:
         return {"id": key, "name": profile.name, "host": profile.host,
                 "hostname": connection.hostname, "config_path": connection.config_path,
-                "url": f"http://127.0.0.1:{connection.tunnel.port}/#/?bootstrapSecret={quote(connection.secret, safe='')}",
-                "gateway_id": connection.gateway_id}
+                "url": f"{connection.proxy.origin}/#/?bootstrapSecret={quote(connection.proxy.secret, safe='')}",
+                "gateway_id": connection.gateway_id, "view_id": self._view_session}
 
     async def _connect(self, key: str, profile: _SavedProfile) -> dict[str, Any]:
         existing = self.connections.get(key)
         if existing:
-            await self.health()
+            await self._check(existing)
             if not existing.error:
                 return self._launch(key, profile, existing)
-            await existing.tunnel.close()
+            await existing.proxy.pause()
             del self.connections[key]
         if len(self.connections) >= 4:
             raise RemoteError("connection_limit")
         known_hosts = self._known_hosts(key)
-        data = await remote_ssh.probe(profile, known_hosts)
-        tunnel = await remote_ssh.open_tunnel(profile, data["port"], known_hosts, profile.local_port)
+        transport: RemoteProfile = profile
+        if profile.pair_id:
+            data = self.pairing.connection(profile.pair_id)
+            transport = remote_ssh.PairedSSHProfile(**profile.model_dump(include=set(RemoteProfile.model_fields)))
+        else:
+            data = await remote_ssh.probe(profile, known_hosts)
+        used_ports = self._remember_origins(self._read())
+        # Retire browser origins from the earlier transparent tunnel. Those
+        # origins may still contain remote secrets in old tabs/localStorage.
+        local_port = profile.local_port if profile.proxy_origin else 0
+        proxy = self._proxies.get(local_port)
+        if proxy is not None:
+            tunnel = proxy.tunnel
+            tunnel.resume(transport, data["port"], known_hosts)
+        else:
+            tunnel = await remote_ssh.open_tunnel(
+                transport, data["port"], known_hosts, excluded_ports=used_ports,
+            )
         base = f"http://127.0.0.1:{tunnel.port}"
         try:
-            async with httpx.AsyncClient(timeout=8, trust_env=False, follow_redirects=False) as client:
+            async with httpx.AsyncClient(timeout=20, trust_env=False, follow_redirects=False) as client:
                 response = await client.get(
                     f"{base}/webui/terminal", headers={"X-Nanobot-Auth": data["secret"]},
                 )
@@ -218,28 +404,58 @@ class RemoteInstances:
                 if not isinstance(raw_identity, dict):
                     raise RemoteError("incompatible_gateway")
                 identity = cast(dict[str, Any], raw_identity)
-                if (identity.get("protocolVersion") != 1
+                if (type(identity.get("protocolVersion")) is not int or identity.get("protocolVersion") != 1
                         or not isinstance(identity.get("gatewayId"), str)):
                     raise RemoteError("incompatible_gateway")
                 if identity["gatewayId"] == self.local_gateway_id:
                     raise RemoteError("same_instance")
+                # SSH aliases identify routes, not nanobot instances. Don't open
+                # two independent browser views of the same live gateway.
+                if any(item.gateway_id == identity["gatewayId"]
+                       for item in self.connections.values()):
+                    raise RemoteError("duplicate_instance")
                 # Require the installed WebUI too, not just a port answering HTTP.
                 page = await client.get(base + "/")
                 if page.status_code != 200 or "text/html" not in page.headers.get("content-type", ""):
                     raise RemoteError("webui_unavailable")
+            issue_path = data.get("token_issue_path", "")
+            if not isinstance(issue_path, str):
+                raise RemoteError("incompatible_gateway")
+            if proxy is None:
+                proxy = await RemoteProxy.open(
+                    tunnel, data["secret"], identity["gatewayId"], issue_path,
+                    local_port=local_port, excluded_ports=used_ports,
+                )
+            else:
+                proxy.resume(data["secret"], identity["gatewayId"], issue_path)
             connection = Connection(
                 tunnel, data["secret"], str(data.get("hostname", profile.host)),
-                str(data.get("config_path", profile.config_path)), identity["gatewayId"],
+                str(data.get("config_path", profile.config_path)), identity["gatewayId"], proxy,
+                paired=bool(profile.pair_id),
             )
             profiles = self._read()
-            profiles[key].local_port = tunnel.port
+            self._remember_origins(profiles, proxy.port)
+            profiles[key].local_port = proxy.port
+            profiles[key].proxy_origin = True
             self._write(profiles)
+            self._proxies[proxy.port] = proxy
             self.connections[key] = connection
             return self._launch(key, profile, connection)
         except BaseException as exc:
-            await tunnel.close()
+            if proxy is not None and proxy.port in self._proxies:
+                await proxy.pause()
+            else:
+                # No launch URL has been returned for this new origin. All
+                # internal HTTP requests have finished; retaining it would leak
+                # a listener on every failed attempt with local_port still zero.
+                if proxy is not None:
+                    await proxy.close()
+                else:
+                    await tunnel.close()
             if isinstance(exc, httpx.HTTPError):
-                raise RemoteError("remote_unreachable") from None
+                if profile.pair_id and tunnel.error == "ssh_auth_failed":
+                    raise RemoteError("pair_authorization_rejected") from None
+                raise RemoteError(tunnel.error or "remote_unreachable") from None
             if isinstance(exc, ValueError):
                 raise RemoteError("incompatible_gateway") from None
             raise
@@ -247,5 +463,6 @@ class RemoteInstances:
     async def close(self) -> None:
         self._closed = True
         async with self._lock:
-            connections, self.connections = self.connections, {}
-            await asyncio.gather(*(item.tunnel.close() for item in connections.values()))
+            proxies, self._proxies = self._proxies, {}
+            self.connections.clear()
+            await asyncio.gather(*(proxy.close() for proxy in proxies.values()))

@@ -11,6 +11,17 @@ export interface RemoteProfile {
   config_path: string;
   runtime_user: string;
   connected: boolean;
+  gateway_id?: string;
+  view_id?: string;
+  connection_error?: string;
+  paired?: boolean;
+  revoke_command?: string;
+  authorized_until?: number;
+}
+
+/** Persistent setup problems need a repair path, not an endless Retry button. */
+export function needsRemoteSetup(code: string): boolean {
+  return /^(pair_|host_key_|ssh_auth_failed$|ssh_agent_refused$|ssh_key_permissions$|ssh_config_|local_file_not_found$|remote_auth_failed$|incompatible_gateway$|webui_disabled$|profile_not_found$)/.test(code);
 }
 
 export interface RemoteDirectory {
@@ -32,7 +43,20 @@ export interface RemoteConnection {
   hostname: string;
   config_path: string;
   gateway_id: string;
+  view_id?: string;
   url: string;
+}
+
+export interface RemoteLocation {
+  config_path: string;
+  runtime_user: string;
+  service: string;
+}
+
+export interface RemoteInspection {
+  hostname: string;
+  candidates: RemoteLocation[];
+  incomplete: boolean;
 }
 
 export async function readRemoteInstances(token: string): Promise<RemoteDirectory> {
@@ -47,7 +71,7 @@ export async function readRemoteInstances(token: string): Promise<RemoteDirector
 export function remoteAction<T>(
   client: WebUIMutationTransport, action: string, payload: Record<string, unknown>,
 ): Promise<T> {
-  return client.requestMutation<T>(`remote.${action}`, payload, 65_000);
+  return client.requestMutation<T>(`remote.${action}`, payload, action === "pick_file" ? 310_000 : 65_000);
 }
 
 /** Never let a server response navigate the shell to an arbitrary origin. */
@@ -62,6 +86,23 @@ export function validateRemoteConnection(connection: RemoteConnection): RemoteCo
 
 export type SelectedRemote = Pick<RemoteConnection, "id" | "name" | "hostname">;
 const SELECTED_REMOTE = "nanobot.remote-instance";
+const RECENT_REMOTES = "nanobot.recent-remote-instances";
+
+/** Only profile IDs are persisted, never connection URLs or credentials. */
+export function readRecentRemotes(): string[] {
+  try {
+    const value: unknown = JSON.parse(window.localStorage.getItem(RECENT_REMOTES) || "[]");
+    return Array.isArray(value) ? [...new Set(value.filter((id): id is string =>
+      typeof id === "string" && /^[a-f0-9-]{36}$/.test(id)))].slice(0, 20) : [];
+  } catch { return []; }
+}
+
+export function rememberRecentRemote(id: string, previous: string[]): string[] {
+  const next = [id, ...previous.filter((item) => item !== id)].slice(0, 20);
+  try { window.localStorage.setItem(RECENT_REMOTES, JSON.stringify(next)); }
+  catch { /* Switching still works when browser storage is disabled. */ }
+  return next;
+}
 
 export function readSelectedRemote(): SelectedRemote | null {
   try {
