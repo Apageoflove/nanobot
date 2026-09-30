@@ -95,7 +95,7 @@ describe("remote instance UX", () => {
     fireEvent.click(await screen.findByRole("button", { name: "Team server ubuntu@example.test" }));
     expect(await screen.findByText("Connecting to Team server…")).toBeVisible();
     fireEvent.click(screen.getByRole("button", { name: "Cancel switch" }));
-    expect(screen.getByRole("button", { name: "Add server" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Connect to remote nanobot" })).toBeEnabled();
     await act(async () => finish(connection));
     expect(readSelectedRemote()).toBeNull();
     expect(screen.queryByTitle("nanobot on Team server")).toBeNull();
@@ -168,7 +168,7 @@ describe("remote instance UX", () => {
       hosts: ssh_config ? [{ host: "cloud-team", source: ssh_config, ssh_config }] : [],
     }));
     view(); await openDirectory();
-    fireEvent.click(screen.getByRole("button", { name: "Add server" }));
+    fireEvent.click(screen.getByRole("button", { name: "Connect to remote nanobot" }));
     chooseExistingSSH();
     fireEvent.change(screen.getByRole("textbox", { name: "SSH address" }), { target: { value: "ubuntu@203.0.113.1" } });
     fireEvent.click(screen.getByRole("button", { name: "Connection options" }));
@@ -184,7 +184,7 @@ describe("remote instance UX", () => {
   it("keeps an existing private key path when file selection is cancelled", async () => {
     mocks.request.mockResolvedValue({ path: null });
     view(); await openDirectory();
-    fireEvent.click(screen.getByRole("button", { name: "Add server" }));
+    fireEvent.click(screen.getByRole("button", { name: "Connect to remote nanobot" }));
     chooseExistingSSH();
     fireEvent.click(screen.getByRole("button", { name: "Connection options" }));
     fireEvent.change(screen.getByRole("textbox", { name: "Private key path (optional)" }), { target: { value: "/local/ssh-key" } });
@@ -197,14 +197,14 @@ describe("remote instance UX", () => {
     let finish!: (value: unknown) => void;
     mocks.request.mockImplementation(() => new Promise((resolve) => { finish = resolve; }));
     view(); await openDirectory();
-    fireEvent.click(screen.getByRole("button", { name: "Add server" }));
+    fireEvent.click(screen.getByRole("button", { name: "Connect to remote nanobot" }));
     chooseExistingSSH();
     fireEvent.click(screen.getByRole("button", { name: "Connection options" }));
     fireEvent.click(screen.getByRole("button", { name: "Choose file: Private key path (optional)" }));
     expect(screen.getByRole("button", { name: "Connect" })).toBeDisabled();
     expect(screen.getByText("Choose a file in the system dialog…")).toBeVisible();
     fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
-    fireEvent.click(screen.getByRole("button", { name: "Add server" }));
+    fireEvent.click(screen.getByRole("button", { name: "Connect to remote nanobot" }));
     chooseExistingSSH();
     fireEvent.click(screen.getByRole("button", { name: "Connection options" }));
     await act(async () => finish({ path: "/old/choice" }));
@@ -213,7 +213,7 @@ describe("remote instance UX", () => {
 
   async function addAndInspect() {
     view(); await openDirectory();
-    fireEvent.click(screen.getByRole("button", { name: "Add server" }));
+    fireEvent.click(screen.getByRole("button", { name: "Connect to remote nanobot" }));
     chooseExistingSSH();
     fireEvent.change(screen.getByRole("textbox", { name: "SSH address" }), { target: { value: profile.host } });
     fireEvent.click(screen.getByRole("button", { name: "Connect" }));
@@ -357,7 +357,7 @@ describe("remote instance UX", () => {
     expect(screen.getByRole("navigation", { name: "Sidebar navigation" })).toBeVisible();
     expect(screen.getByText("Local nanobot")).toBeInTheDocument();
     expect(screen.getByText("Currently using")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Add server" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Connect to remote nanobot" })).toBeInTheDocument();
   });
 
   it("keeps the connection action accessible when the sidebar is collapsed", async () => {
@@ -399,7 +399,7 @@ describe("remote instance UX", () => {
     view();
     await openDirectory();
     expect(screen.getByText("本地 nanobot")).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "添加服务器" }));
+    fireEvent.click(screen.getByRole("button", { name: "连接远程 nanobot" }));
     chooseExistingSSH();
     expect(screen.getByRole("heading", { name: "连接服务器" })).toBeInTheDocument();
     expect(screen.getByRole("dialog", { name: "连接服务器" })).toBeVisible();
@@ -530,7 +530,7 @@ describe("remote instance UX", () => {
       if (action === "remote.save") return { id: profile.id };
       throw new Error("ssh_auth_failed");
     });
-    view(); await openDirectory(); fireEvent.click(screen.getByRole("button", { name: "Add server" }));
+    view(); await openDirectory(); fireEvent.click(screen.getByRole("button", { name: "Connect to remote nanobot" }));
     chooseExistingSSH();
     fireEvent.change(screen.getByRole("textbox", { name: "SSH address" }), { target: { value: "ubuntu@example.test" } });
     fireEvent.click(screen.getByRole("button", { name: "Connect" }));
@@ -579,7 +579,7 @@ describe("remote instance UX", () => {
 
   it("imports a pasted SSH command into the existing connection options", async () => {
     view(); await openDirectory();
-    fireEvent.click(screen.getByRole("button", { name: "Add server" }));
+    fireEvent.click(screen.getByRole("button", { name: "Connect to remote nanobot" }));
     chooseExistingSSH();
     const address = screen.getByRole("textbox", { name: "SSH address" });
     fireEvent.change(address, { target: { value: 'ssh -p2222 -i "~/.ssh/team key" -l ubuntu example.test' } });
@@ -602,7 +602,7 @@ describe("remote instance UX", () => {
       if (action === "remote.save") return { id: profile.id };
       throw new Error("ssh_agent_refused");
     });
-    view(); await openDirectory(); fireEvent.click(screen.getByRole("button", { name: "Add server" }));
+    view(); await openDirectory(); fireEvent.click(screen.getByRole("button", { name: "Connect to remote nanobot" }));
     chooseExistingSSH();
     const address = screen.getByRole("textbox", { name: "SSH address" });
     fireEvent.change(address, { target: { value: "ssh -p 2222 ubuntu@example.test" } });
@@ -617,7 +617,7 @@ describe("remote instance UX", () => {
   });
 
   it("doesn't save or execute a command with unsupported flags", async () => {
-    view(); await openDirectory(); fireEvent.click(screen.getByRole("button", { name: "Add server" }));
+    view(); await openDirectory(); fireEvent.click(screen.getByRole("button", { name: "Connect to remote nanobot" }));
     chooseExistingSSH();
     const address = screen.getByRole("textbox", { name: "SSH address" });
     fireEvent.change(address, { target: { value: "ssh -o ProxyCommand=unsafe team" } });
@@ -629,7 +629,7 @@ describe("remote instance UX", () => {
 
   it("closes a successful add dialog so returning local shows the directory", async () => {
     view(); await openDirectory();
-    fireEvent.click(screen.getByRole("button", { name: "Add server" }));
+    fireEvent.click(screen.getByRole("button", { name: "Connect to remote nanobot" }));
     chooseExistingSSH();
     fireEvent.change(screen.getByRole("textbox", { name: "SSH address" }), { target: { value: profile.host } });
     fireEvent.click(screen.getByRole("button", { name: "Connect" }));
@@ -644,7 +644,7 @@ describe("remote instance UX", () => {
     mocks.request.mockImplementation(async (action: string) => action === "remote.save" ? { id: profile.id }
       : new Promise<RemoteConnection>((resolve) => { finish = resolve; }));
     view(); await openDirectory();
-    fireEvent.click(screen.getByRole("button", { name: "Add server" }));
+    fireEvent.click(screen.getByRole("button", { name: "Connect to remote nanobot" }));
     chooseExistingSSH();
     fireEvent.change(screen.getByRole("textbox", { name: "SSH address" }), { target: { value: profile.host } });
     fireEvent.click(screen.getByRole("button", { name: "Connect" }));
@@ -665,7 +665,7 @@ describe("remote instance UX", () => {
       return {};
     });
     view(); await openDirectory();
-    fireEvent.click(screen.getByRole("button", { name: "Add server" }));
+    fireEvent.click(screen.getByRole("button", { name: "Connect to remote nanobot" }));
     chooseExistingSSH();
     fireEvent.change(screen.getByRole("textbox", { name: "SSH address" }), { target: { value: profile.host } });
     fireEvent.click(screen.getByRole("button", { name: "Connect" }));
@@ -686,7 +686,7 @@ describe("remote instance UX", () => {
       return new Promise<{ fingerprint: string; challenge: string }>((resolve) => { finish = resolve; });
     });
     view(); await openDirectory();
-    fireEvent.click(screen.getByRole("button", { name: "Add server" }));
+    fireEvent.click(screen.getByRole("button", { name: "Connect to remote nanobot" }));
     chooseExistingSSH();
     fireEvent.change(screen.getByRole("textbox", { name: "SSH address" }), { target: { value: profile.host } });
     fireEvent.click(screen.getByRole("button", { name: "Connect" }));
@@ -710,25 +710,25 @@ describe("remote instance UX", () => {
     expect(mocks.read).not.toHaveBeenCalled();
     expect(mocks.discover).not.toHaveBeenCalled();
     expect(screen.queryByRole("button", { name: "Remote connections" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Add server" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Connect to remote nanobot" })).not.toBeInTheDocument();
   });
 
   it("keeps the directory quiet and offers one focused add-server dialog", async () => {
     mocks.read.mockResolvedValue({ available: true, profiles: [] });
     view(); await openDirectory();
     expect(mocks.discover).not.toHaveBeenCalled();
-    fireEvent.click(screen.getByRole("button", { name: "Add server" }));
+    fireEvent.click(screen.getByRole("button", { name: "Connect to remote nanobot" }));
     chooseExistingSSH();
     const host = screen.getByRole("textbox", { name: "SSH address" });
     const dialog = screen.getByRole("dialog", { name: "Connect to a server" });
     expect(dialog).toContainElement(host);
     expect(host).toHaveFocus();
     expect(within(dialog).getAllByRole("textbox")).toHaveLength(1);
-    expect(screen.getByRole("button", { name: "Add server", hidden: true })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Connect to remote nanobot", hidden: true })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Connect" })).toBeDisabled();
     fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
     await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
-    expect(screen.getByRole("button", { name: "Add server" })).toHaveFocus();
+    expect(screen.getByRole("button", { name: "Connect to remote nanobot" })).toHaveFocus();
     expect(screen.getByRole("heading", { name: "Remote connections" })).toBeVisible();
   });
 
@@ -749,7 +749,7 @@ describe("remote instance UX", () => {
     mocks.read.mockResolvedValue({ available: true, profiles: [] });
     mocks.request.mockImplementation(() => new Promise<{ id: string }>((resolve) => { finish = resolve; }));
     view(); await openDirectory();
-    fireEvent.click(screen.getByRole("button", { name: "Add server" }));
+    fireEvent.click(screen.getByRole("button", { name: "Connect to remote nanobot" }));
     chooseExistingSSH();
     fireEvent.change(screen.getByRole("textbox", { name: "SSH address" }), { target: { value: "ubuntu@example.test" } });
     fireEvent.click(screen.getByRole("button", { name: "Connect" }));
@@ -799,7 +799,7 @@ describe("remote instance UX", () => {
       { host: "staging", source: "/home/test/.ssh/hosts", ssh_config: "" },
     ], files: ["/home/test/.ssh/config"], incomplete: false });
     view(); await openDirectory();
-    fireEvent.click(screen.getByRole("button", { name: "Add server" }));
+    fireEvent.click(screen.getByRole("button", { name: "Connect to remote nanobot" }));
     chooseExistingSSH();
     await screen.findByRole("button", { name: "Use team-sg" });
     expect(mocks.request).not.toHaveBeenCalled();
@@ -822,7 +822,7 @@ describe("remote instance UX", () => {
 
   it("reads a custom SSH config and carries that path to the selected profile", async () => {
     view(); await openDirectory();
-    fireEvent.click(screen.getByRole("button", { name: "Add server" }));
+    fireEvent.click(screen.getByRole("button", { name: "Connect to remote nanobot" }));
     chooseExistingSSH();
     fireEvent.click(screen.getByRole("button", { name: "Connection options" }));
     mocks.discover.mockResolvedValue({ hosts: [{ host: "team", source: "/team/ssh_config", ssh_config: "/team/ssh_config" }], files: ["/team/ssh_config"], incomplete: false });
@@ -840,7 +840,7 @@ describe("remote instance UX", () => {
   it("keeps manual entry available for an invalid discovery response", async () => {
     mocks.discover.mockResolvedValue({ hosts: [{}], files: [], incomplete: false });
     view(); await openDirectory();
-    fireEvent.click(screen.getByRole("button", { name: "Add server" }));
+    fireEvent.click(screen.getByRole("button", { name: "Connect to remote nanobot" }));
     chooseExistingSSH();
     await screen.findByRole("alert");
     expect(screen.getByRole("textbox", { name: "SSH address" })).toBeVisible();
@@ -853,7 +853,7 @@ describe("remote instance UX", () => {
       ? Promise.resolve({ hosts: [{ host: "custom-team", source: ssh_config, ssh_config }], files: [ssh_config], incomplete: false })
       : new Promise((resolve) => { finishOld = resolve; }));
     view(); await openDirectory();
-    fireEvent.click(screen.getByRole("button", { name: "Add server" }));
+    fireEvent.click(screen.getByRole("button", { name: "Connect to remote nanobot" }));
     chooseExistingSSH();
     await waitFor(() => expect(finishOld).toBeDefined());
     fireEvent.click(screen.getByRole("button", { name: "Connection options" }));
@@ -868,7 +868,7 @@ describe("remote instance UX", () => {
   it("keeps manual setup available when discovery fails and does not clear cached hosts", async () => {
     mocks.discover.mockResolvedValue({ hosts: [{ host: "team", source: "/config", ssh_config: "/config" }], files: ["/config"], incomplete: false });
     view(); await openDirectory();
-    fireEvent.click(screen.getByRole("button", { name: "Add server" }));
+    fireEvent.click(screen.getByRole("button", { name: "Connect to remote nanobot" }));
     chooseExistingSSH();
     await screen.findByRole("button", { name: "Use team" });
     mocks.discover.mockRejectedValue(new Error("ssh_config_unreadable"));

@@ -133,31 +133,26 @@ export function QuickPairSetup({ returned, onSSH, onClose }: { returned?: PairRe
   const description = preview || reviewingReturn ? "remote.pair.confirmLinkDescription" : restartAvailable ? "remote.pair.introHint"
     : manual ? "remote.pair.codeHint" : copied ? "remote.pair.afterCopyHint" : "remote.pair.introHint";
   const showCopied = copied && !manual && !preview && !restartAvailable;
+  const showIllustration = !preview && !manual && !reviewingReturn && !restartAvailable;
   const showBusy = pending && busyVisible;
   const actionLabel = restartAvailable ? "remote.pair.restart" : reviewingReturn ? error ? "remote.retry" : "remote.pair.review" : preview ? saved ? "remote.retry" : "remote.connect"
     : manual ? "remote.pair.review" : copied ? "remote.pair.copyAgain" : "remote.pair.copy";
   const busyLabel = waitingForLocal ? "remote.pair.waitingForLocal" : preview ? "remote.connecting" : !restartAvailable && (manual || returned)
     ? "remote.pair.checkingLink" : "remote.pair.preparing";
 
-  return <>
-    <DialogHeader className="shrink-0 pr-5 text-left">
-      <div aria-live="polite" aria-atomic="true" className="space-y-1.5">
-        <DialogTitle className="flex min-h-5 items-center gap-2">
-          {showCopied && <Check aria-hidden="true" className="h-5 w-5 shrink-0 motion-safe:animate-in motion-safe:fade-in duration-150" />}
-          {t(title)}
-        </DialogTitle>
-        <div className="grid">
-          <DialogDescription className="col-start-1 row-start-1">{t(description)}</DialogDescription>
-          {/* Reserve the longer instruction in either state, including translated text.
-              It is only a layout spacer, never a second screen-reader announcement. */}
-          {!preview && !manual && !reviewingReturn && <p aria-hidden="true" className="invisible pointer-events-none col-start-1 row-start-1 select-none text-sm">
-            {t(showCopied ? "remote.pair.introHint" : "remote.pair.afterCopyHint")}
-          </p>}
+  return <div className="flex min-h-0 flex-col">
+    <div className="-mx-1 min-h-0 overflow-y-auto overscroll-contain px-1">
+      <DialogHeader className={showIllustration ? "space-y-0 text-center sm:text-center" : "pr-5 text-left"}>
+        {showIllustration && <RemoteConnectionIllustration />}
+        <div aria-live="polite" aria-atomic="true" className="space-y-1.5">
+          <DialogTitle className={showIllustration ? "flex min-h-5 items-center justify-center gap-2 text-xl leading-snug tracking-normal" : "flex min-h-5 items-center gap-2"}>
+            {showCopied && <Check aria-hidden="true" className="h-5 w-5 shrink-0 motion-safe:animate-in motion-safe:fade-in duration-150" />}
+            {t(title)}
+          </DialogTitle>
+          <DialogDescription>{t(description)}</DialogDescription>
         </div>
-      </div>
-    </DialogHeader>
-    <div className="-mx-1 min-h-0 space-y-4 overflow-y-auto overscroll-contain px-1">
-      {preview ? <div className="space-y-4">
+      </DialogHeader>
+      {preview ? <div className="space-y-4 pt-4">
         <div className="rounded-2xl bg-muted/50 p-4">
           <p className="font-medium">{preview.hostname}</p>
           <p className="mt-1 break-all text-xs text-muted-foreground">{preview.host}</p>
@@ -174,16 +169,16 @@ export function QuickPairSetup({ returned, onSSH, onClose }: { returned?: PairRe
             summary={<><ChevronDown aria-hidden className="h-3.5 w-3.5 shrink-0 transition-transform group-data-[state=open]/disclosure:rotate-180 motion-reduce:transition-none" />{t("remote.pair.route")}</>}><PairRouteSettings id={saved} /></Disclosure>
         </div>}
       </div> : restartAvailable ? null : <>
-        {manual && <div className="space-y-2"><label htmlFor={codeId} className="sr-only">{t("remote.pair.code")}</label>
+        {manual && <div className="space-y-2 pt-4"><label htmlFor={codeId} className="sr-only">{t("remote.pair.code")}</label>
           <Textarea ref={manualInput} id={codeId} value={code} onChange={(event) => { setCode(event.target.value); setError(""); }} placeholder="nbpc1.…" autoComplete="off" spellCheck={false} disabled={busy || expired} className="min-h-20 resize-none break-all font-mono text-xs" />
         </div>}
         <div>
-          <DisclosureContent id={panelId} open={panel === "command" && !!request?.command}>
+          <DisclosureContent id={panelId} open={panel === "command" && !!request?.command} className="pt-4">
             <div className="rounded-2xl bg-muted/50 p-3">
               <code className="block max-h-32 select-text overflow-y-auto break-all text-[11px] leading-5" aria-label={t("remote.pair.command")}>{request?.command}</code>
             </div>
           </DisclosureContent>
-          <DisclosureContent open={panel === "help"}>
+          <DisclosureContent open={panel === "help"} className="pt-4">
             <div className="space-y-2 rounded-2xl bg-muted/50 p-3 text-xs leading-5 text-muted-foreground">
               <p className="font-medium text-foreground">{t("remote.pair.helpTitle")}</p>
               <p>{t("remote.pair.requirements")}</p>
@@ -193,10 +188,10 @@ export function QuickPairSetup({ returned, onSSH, onClose }: { returned?: PairRe
           </DisclosureContent>
         </div>
       </>}
-      {expired && !saved && <p role="status" className="text-xs leading-5 text-muted-foreground">{t("remote.pair.expired")}</p>}
-      {error && <p role="alert" className="flex items-start gap-2 text-[13px] leading-5 text-foreground"><AlertCircle aria-hidden="true" className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />{t(error, { defaultValue: t("remote.errors.unknown") })}</p>}
+      {expired && !saved && <p role="status" className="mt-4 text-xs leading-5 text-muted-foreground">{t("remote.pair.expired")}</p>}
+      {error && <p role="alert" className="mt-4 flex items-start gap-2 text-[13px] leading-5 text-foreground"><AlertCircle aria-hidden="true" className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />{t(error, { defaultValue: t("remote.errors.unknown") })}</p>}
     </div>
-    <div className={preview ? "flex shrink-0 flex-col-reverse gap-2 pt-1 sm:flex-row sm:items-center sm:justify-between" : "flex shrink-0 flex-col gap-2 pt-1"}>
+    <div className={preview ? "flex shrink-0 flex-col-reverse gap-2 pt-5 sm:flex-row sm:items-center sm:justify-between" : "flex shrink-0 flex-col gap-2 pt-5"}>
       {preview && (!saved ? <Button variant="ghost" disabled={busy} onClick={() => { setPreview(null); setError(""); if (!request?.command) setManual(true); }}><ArrowLeft className="mr-1 h-4 w-4" />{t("remote.back")}</Button>
           : <Button variant="ghost" onClick={() => { connections?.cancel(); onClose(); }}>{t("common.cancel")}</Button>
       )}
@@ -220,5 +215,23 @@ export function QuickPairSetup({ returned, onSSH, onClose }: { returned?: PairRe
         </DropdownMenu>
       </div>}
     </div>
-  </>;
+  </div>;
+}
+
+/** Decorative overview, not a live connection-status indicator. */
+function RemoteConnectionIllustration() {
+  return <svg viewBox="0 0 208 88" width="184" height="78" aria-hidden="true" focusable="false" className="mx-auto mb-4 shrink-0 text-foreground/70" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M78 51 C111 65 114 28 146 36" className="text-muted-foreground/50" strokeWidth="2.5" />
+    <rect x="10" y="25" width="68" height="43" rx="3" />
+    <path d="M4 68 H84 V70 A5 5 0 0 1 79 75 H9 A5 5 0 0 1 4 70 Z" />
+    <g className="text-muted-foreground">
+      <rect x="27" y="34" width="34" height="26" rx="2" />
+      <path d="M32 39 h.01 M36 39 h.01 M40 39 h.01" strokeWidth="2.5" />
+    </g>
+    <rect x="146" y="10" width="50" height="70" rx="3" />
+    <image href="/brand/nanobot_mark.svg" x="155" y="17" width="32" height="32" />
+    <path d="M146 53 H196 M146 66 H196 M152 60 H177 M152 73 H177 M152 80 V83 H158 V80 M184 80 V83 H190 V80" />
+    <circle cx="188" cy="60" r="1.8" />
+    <circle cx="188" cy="73" r="1.8" />
+  </svg>;
 }

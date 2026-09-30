@@ -697,7 +697,7 @@ describe("App layout", () => {
     fireEvent.click(await screen.findByRole("menuitem", { name: "Manage connections…" }));
     expect(await screen.findByRole("heading", { name: "Remote connections" })).toBeVisible();
     expect(sidebar).toBeVisible();
-    fireEvent.click(await screen.findByRole("button", { name: "Add server" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Connect to remote nanobot" }));
     fireEvent.pointerDown(screen.getByRole("button", { name: "Other ways" }), { button: 0, ctrlKey: false });
     fireEvent.click(screen.getByRole("menuitem", { name: "Use existing SSH settings" }));
     const host = await screen.findByRole("textbox", { name: "SSH address" });
@@ -712,7 +712,7 @@ describe("App layout", () => {
       window.history.replaceState(null, "", "#/remote");
       window.dispatchEvent(new PopStateEvent("popstate"));
     });
-    expect(await screen.findByRole("button", { name: "Add server" })).toBeVisible();
+    expect(await screen.findByRole("button", { name: "Connect to remote nanobot" })).toBeVisible();
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
     expect(within(sidebar).queryByRole("button", { name: "Remote connections" })).not.toBeInTheDocument();
   });
@@ -740,8 +740,8 @@ describe("App layout", () => {
     expect(window.location.hash).toBe("#/remote");
     expect(screen.queryByRole("button", { name: "Remote connections" })).not.toBeInTheDocument();
     await waitFor(() => expect(document.body.style.pointerEvents).not.toBe("none"));
-    await user.click(screen.getByRole("button", { name: "Add server" }));
-    expect(await screen.findByRole("dialog", { name: "Add server" })).toBeVisible();
+    await user.click(screen.getByRole("button", { name: "Connect to remote nanobot" }));
+    expect(await screen.findByRole("dialog", { name: "Connect to remote nanobot" })).toBeVisible();
   });
 
   it("releases the mobile sidebar modal when switching to a server", async () => {
@@ -780,7 +780,7 @@ describe("App layout", () => {
       "/api/remote-instances": { available: true, profiles: [] },
     });
     render(<App />);
-    expect(await screen.findByRole("button", { name: "Add server" })).toBeVisible();
+    expect(await screen.findByRole("button", { name: "Connect to remote nanobot" })).toBeVisible();
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
     expect(screen.getByRole("navigation", { name: "Sidebar navigation" })).toBeVisible();
     expect(screen.queryByRole("navigation", { name: "Settings sections" })).not.toBeInTheDocument();

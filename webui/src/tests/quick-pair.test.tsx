@@ -65,6 +65,35 @@ async function reviewed() {
 }
 
 describe("quick pairing", () => {
+  it("introduces remote access with the original logo and no duplicate instruction spacer", async () => {
+    view();
+    await waitFor(() => expect(screen.getByRole("button", { name: "Copy command" })).toBeEnabled());
+    const dialog = screen.getByRole("dialog");
+    expect(dialog).toHaveAccessibleName("Connect to remote nanobot");
+    expect(dialog).toHaveAccessibleDescription(i18n.t("remote.pair.introHint"));
+    const illustration = dialog.querySelector('image[href="/brand/nanobot_mark.svg"]')?.closest("svg");
+    expect(illustration).toHaveAttribute("aria-hidden", "true");
+    expect(illustration).toHaveAttribute("focusable", "false");
+    expect(dialog.querySelector(".invisible")).toBeNull();
+    expect(screen.queryByText(i18n.t("remote.pair.afterCopyHint"))).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Copy command" }));
+    await screen.findByRole("heading", { name: "Command copied" });
+    expect(dialog.querySelector('image[href="/brand/nanobot_mark.svg"]')?.closest("svg")).toBe(illustration);
+    expect(screen.queryByText(i18n.t("remote.pair.introHint"))).toBeNull();
+  });
+  it("keeps the illustration out of code entry and authorization review", async () => {
+    view();
+    await waitFor(() => expect(screen.getByRole("button", { name: "Copy command" })).toBeEnabled());
+    chooseOtherWay("Use a connection code instead");
+    const dialog = screen.getByRole("dialog");
+    expect(dialog.querySelector('image[href="/brand/nanobot_mark.svg"]')).toBeNull();
+    fireEvent.change(screen.getByRole("textbox", { name: "Connection code" }), { target: { value: "nbpc1.encrypted" } });
+    fireEvent.click(screen.getByRole("button", { name: "Review connection" }));
+    await screen.findByRole("heading", { name: "Open this nanobot?" });
+    expect(dialog.querySelector('image[href="/brand/nanobot_mark.svg"]')).toBeNull();
+    expect(screen.getByText(i18n.t("remote.pair.access"))).toBeVisible();
+    expect(mocks.connect).not.toHaveBeenCalled();
+  });
   it("reviews through the real NanobotClient after its socket opens", async () => {
     const socket = {
       readyState: 0,
@@ -143,7 +172,7 @@ describe("quick pairing", () => {
     render(<Dialog open><DialogContent><QuickPairSetup returned={{ id: "request-1", code: "nbpc1.encrypted" }} onSSH={vi.fn()} onClose={vi.fn()} /></DialogContent></Dialog>);
     expect(screen.getByRole("heading", { name: "Review connection" })).toBeVisible();
     expect(screen.queryByRole("button", { name: "Copy command" })).toBeNull();
-    expect(screen.queryByText("Run one command in your server terminal to connect.")).toBeNull();
+    expect(screen.queryByText(i18n.t("remote.pair.introHint"))).toBeNull();
     expect(screen.getByRole("button", { name: "Review connection" })).toBeDisabled();
     expect(mocks.connect).not.toHaveBeenCalled();
   });
@@ -152,7 +181,7 @@ describe("quick pairing", () => {
     await waitFor(() => expect(screen.getByRole("button", { name: "Copy command" })).toBeEnabled());
     expect(screen.getByText(/For Linux servers/).closest(".inline-disclosure")).toHaveAttribute("aria-hidden", "true");
     expect(screen.queryByRole("menuitem")).toBeNull();
-    expect(screen.getByText(/After authorizing/)).toHaveAttribute("aria-hidden", "true");
+    expect(screen.queryByText(i18n.t("remote.pair.afterCopyHint"))).toBeNull();
     chooseOtherWay("Requirements & help");
     expect(screen.getByText(/For Linux servers/)).toBeVisible();
     expect(screen.getByText(/Commands expire after 10 minutes/)).toBeVisible();
@@ -223,7 +252,7 @@ describe("quick pairing", () => {
     view();
     await waitFor(() => expect(screen.getByRole("button", { name: "Copy command" })).toBeEnabled());
     fireEvent.click(screen.getByRole("button", { name: "Copy command" }));
-    expect(screen.getByRole("heading", { name: "Add server" })).toBeVisible();
+    expect(screen.getByRole("heading", { name: "Connect to remote nanobot" })).toBeVisible();
     await act(async () => finish(true));
     expect(screen.getByRole("heading", { name: "Command copied" })).toBeVisible();
     expect(screen.getByText(/Paste it into your server terminal/)).toBeVisible();
@@ -240,7 +269,7 @@ describe("quick pairing", () => {
     fireEvent.click(screen.getByRole("button", { name: "Copy command" }));
     await screen.findByRole("alert");
     expect(screen.getByText(request().command)).toBeVisible();
-    expect(screen.getByRole("heading", { name: "Add server" })).toBeVisible();
+    expect(screen.getByRole("heading", { name: "Connect to remote nanobot" })).toBeVisible();
     expect(screen.queryByRole("button", { name: "Copy again" })).toBeNull();
   });
   it("keeps a manual code when returning to the simpler command screen", async () => {
