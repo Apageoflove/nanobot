@@ -1,16 +1,23 @@
-import { createContext, useContext, useEffect, useLayoutEffect, useRef, useSyncExternalStore, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 import { Loader2, PlugZap } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
+import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { needsRemoteSetup, type RemoteDirectory } from "@/lib/remote-instances";
 import { useHostSessions } from "./useHostSessions";
 import { HostNavigationContext, HostSwitcher, RemoteHostMenu, type HostPicker } from "./HostSwitcher";
 import { useSidebarHostBridge } from "./useSidebarHostBridge";
 import { readPairReturn, subscribePairReturn } from "@/lib/remote-pair-return";
+import { RemoteConnectionsPage } from "./RemoteConnectionsPage";
+import type { HostConnectionState } from "./HostConnectionStatus";
 
 const RemoteContext = createContext<{
   available: boolean;
   localActive: boolean;
+  activeHostId: string | null;
+  hostStates: Record<string, HostConnectionState>;
+  managing: boolean;
+  selectLocal: () => void;
   openHostIds: string[];
   directory: RemoteDirectory | null;
   directoryError: boolean;
@@ -25,6 +32,11 @@ export function useRemoteConnections() { return useContext(RemoteContext); }
 export function RemoteInstances({ children }: { children: ReactNode }) {
   const { t } = useTranslation();
   const hosts = useHostSessions();
+  const [managing, setManaging] = useState(false);
+  const managementOpen = useRef(false);
+  const managementConnect = useRef(false);
+  const managementPanel = useRef<HTMLDivElement>(null);
+  const legacyFooter = useRef<HTMLDivElement>(null);
   const returnedPair = useSyncExternalStore(subscribePairReturn, readPairReturn);
   const returnLocal = hosts.local;
   useEffect(() => { if (returnedPair) returnLocal(); }, [returnedPair, returnLocal]);
@@ -45,7 +57,9 @@ export function RemoteInstances({ children }: { children: ReactNode }) {
     for (const id of bridge.readyIds) hosts.loaded(id);
   }, [bridge.readyIds, hosts.loaded]);
   const restoreFocus = () => {
-    if (activeHostId.current) bridge.focus(activeHostId.current);
+    const fallback = legacyFooter.current?.querySelector<HTMLElement>("[data-host-switcher]");
+    if (activeHostId.current && fallback) fallback.focus({ preventScroll: true });
+    else if (activeHostId.current) bridge.focus(activeHostId.current);
     else restoreLocalFocus();
   };
   const available = directory?.available === true || hosts.directoryError;
@@ -53,7 +67,32 @@ export function RemoteInstances({ children }: { children: ReactNode }) {
   const offline = !!selected && (activeFrame?.offline || (!activeFrame && pending?.id !== selected.id));
   const recoveryCode = (hosts.errorId === selected?.id ? error : "") || activeFrame?.error || "";
   const recoveryMessage = recoveryCode ? t(`remote.errors.${recoveryCode}`, { defaultValue: t("remote.errors.unknown") }) : t("remote.noFallback");
-  const manage = () => { hosts.local(); window.location.hash = "/remote"; };
+  const changeManagement = (open: boolean) => {
+    managementOpen.current = open;
+    // Dismissing management cancels only work started there, not an existing
+    // switch or session restoration that happens to be running behind it.
+    if (!open && managementConnect.current) hosts.cancel();
+    setManaging(open);
+  };
+  const manage = () => { bridge.close(); changeManagement(true); };
+  const selectLocal = () => { hosts.local(); changeManagement(false); };
+  const connect = async (id: string, stillWanted: () => boolean = () => true) => {
+    const wanted = () => stillWanted() && (!managing || managementOpen.current);
+    if (!wanted()) return;
+    managementConnect.current = managing;
+    try {
+      await hosts.connect(id, wanted);
+      managementConnect.current = false;
+      if (wanted()) changeManagement(false);
+    } finally { managementConnect.current = false; }
+  };
+  const hostStates: Record<string, HostConnectionState> = {};
+  for (const profile of directory?.profiles || []) {
+    const frame = frames.find((item) => item.connection.id === profile.id);
+    hostStates[profile.id] = pending?.id === profile.id ? "connecting"
+      : hosts.directoryError || frame?.offline || hosts.errorId === profile.id || (profile.connection_error && profile.connection_error !== "disconnected") ? "error"
+      : profile.connected || (frame?.loaded && !frame.offline) ? "open" : "closed";
+  }
   const switchHost = (id: string) => {
     // The session module owns attempt-scoped errors, including cancelled work.
     void hosts.connect(id).catch(() => {});
@@ -61,11 +100,10 @@ export function RemoteInstances({ children }: { children: ReactNode }) {
   const picker: HostPicker = {
     kind: "shell", name: selected?.name || t("remote.localShort"), hostname: selected?.hostname || directory?.machine_name || "nanobot",
     localName: directory?.machine_name || "nanobot", currentId: selected?.id || null, recentIds: hosts.recentIds,
-    profiles: (directory?.profiles || []).map(({ id, name, host }) => ({ id, name, host,
-      ready: frames.some((frame) => frame.connection.id === id && !frame.offline && frame.loaded) })),
+    profiles: (directory?.profiles || []).map(({ id, name, host }) => ({ id, name, host, state: hostStates[id] })),
     pending, error: message, offline: !!offline, select: (id) => { if (id) switchHost(id); else hosts.local(); },
     manage,
-    cancel: hosts.cancel, clearError: hosts.clearError, restoreFocus,
+    cancel: hosts.cancel, clearError: hosts.clearError, restoreFocus: () => { if (!managing) restoreFocus(); },
   };
   useEffect(() => { if (selected) document.title = `${selected.name} · nanobot`; }, [selected]);
   useEffect(() => {
@@ -89,8 +127,9 @@ export function RemoteInstances({ children }: { children: ReactNode }) {
   }, [selected]);
 
   return <RemoteContext.Provider value={{ available, localActive: !selected, directory,
+    activeHostId: selected?.id || null, hostStates, managing, selectLocal,
     openHostIds: frames.map((frame) => frame.connection.id),
-    directoryError: hosts.directoryError, refresh: hosts.refresh, connect: hosts.connect, disconnect: hosts.disconnect, cancel: hosts.cancel }}>
+    directoryError: hosts.directoryError, refresh: hosts.refresh, connect, disconnect: hosts.disconnect, cancel: hosts.cancel }}>
     <HostNavigationContext.Provider value={bridge.embedded || (available || selected ? picker : null)}>
       <div className="flex h-full min-h-0 flex-col bg-background">
         <div className="relative min-h-0 flex-1 overflow-hidden">
@@ -126,10 +165,18 @@ export function RemoteInstances({ children }: { children: ReactNode }) {
         </div>
         {/* Older remote bundles cannot host the control. Keep an explicit exit
             in a compact bottom strip, never cover their sidebar controls. */}
-        {selected && (!bridge.readyIds.includes(selected.id) || offline) && <div data-testid="legacy-host-footer" className="flex shrink-0 items-center border-t border-border/50 bg-sidebar px-2.5 py-1">
+        {selected && (!bridge.readyIds.includes(selected.id) || offline) && <div ref={legacyFooter} data-testid="legacy-host-footer" className="flex shrink-0 items-center border-t border-border/50 bg-sidebar px-2.5 py-1">
           <div className="flex w-52 min-w-0"><HostSwitcher /></div>
         </div>}
         <RemoteHostMenu picker={picker} anchor={bridge.anchor} onClose={bridge.close} />
+        <Sheet open={managing} onOpenChange={changeManagement}>
+          <SheetContent ref={managementPanel} aria-describedby={undefined} className="w-full gap-0 overflow-hidden bg-settings-canvas outline-none sm:max-w-xl"
+            onOpenAutoFocus={(event) => { event.preventDefault(); managementPanel.current?.focus(); }}
+            onCloseAutoFocus={(event) => { event.preventDefault(); restoreFocus(); }}>
+            <div className="shrink-0 px-6 pb-2 pt-7 pr-12"><SheetTitle className="text-xl font-medium">{t("remote.title")}</SheetTitle></div>
+            <RemoteConnectionsPage inPanel onBackToChat={() => changeManagement(false)} />
+          </SheetContent>
+        </Sheet>
       </div>
     </HostNavigationContext.Provider>
   </RemoteContext.Provider>;

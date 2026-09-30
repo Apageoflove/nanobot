@@ -1111,7 +1111,9 @@ function Shell({
   onNativeEngineRestart: () => Promise<string>;
 }) {
   const { t, i18n } = useTranslation();
-  const localActive = useRemoteConnections()?.localActive !== false;
+  const remoteConnections = useRemoteConnections();
+  const localActive = remoteConnections?.localActive !== false;
+  const managingConnections = remoteConnections?.managing === true;
   const { client, getToken } = useClient();
   const { theme, toggle } = useTheme();
   const {
@@ -1156,8 +1158,8 @@ function Shell({
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   useEffect(() => {
     // The drawer portals outside the local host panel; don't leave it over a remote view.
-    if (!localActive) setMobileSidebarOpen(false);
-  }, [localActive]);
+    if (!localActive || managingConnections) setMobileSidebarOpen(false);
+  }, [localActive, managingConnections]);
   const mobileSidebarRef = useRef<HTMLDivElement>(null);
   const [sessionSearchOpen, setSessionSearchOpen] = useState(false);
   const mobileWorkbench = useMediaQuery("(max-width: 767px)");

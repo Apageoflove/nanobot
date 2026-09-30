@@ -15,7 +15,7 @@ function picker(count: number): HostPicker {
     profiles: Array.from({ length: count }, (_, index) => ({
       id: `00000000-0000-4000-8000-${String(index + 1).padStart(12, "0")}`,
       name: index === 1 ? "研发服务器" : `Server ${index + 1}`,
-      host: `ubuntu@host-${index + 1}.test`, ready: false,
+      host: `ubuntu@host-${index + 1}.test`, state: "closed",
     })),
     select: vi.fn(), manage: vi.fn(), cancel: vi.fn(), clearError: vi.fn(), restoreFocus: vi.fn(),
   };
@@ -181,8 +181,8 @@ describe("host switcher", () => {
     value.currentId = value.profiles[19].id;
     value.recentIds = [value.profiles[8].id, value.currentId, "deleted-id"];
     const rendered = await openMenu(value);
-    const names = () => within(screen.getByRole("group")).getAllByRole("menuitem").map((item) => item.textContent);
-    expect(names().slice(0, 4)).toEqual(["Local nanobotMy-Mac", "Server 20ubuntu@host-20.test", "Server 9ubuntu@host-9.test", "Server 1ubuntu@host-1.test"]);
+    const names = () => within(screen.getByRole("group")).getAllByRole("menuitem").map((item) => item.getAttribute("aria-label") || item.textContent);
+    expect(names().slice(0, 4)).toEqual(["Local nanobotMy-Mac", "Server 20 ubuntu@host-20.test", "Server 9 ubuntu@host-9.test", "Server 1 ubuntu@host-1.test"]);
     const before = names();
     rendered.rerender(<HostNavigationContext.Provider value={{ ...value, recentIds: [value.profiles[5].id] }}><HostSwitcher /></HostNavigationContext.Provider>);
     expect(names()).toEqual(before);

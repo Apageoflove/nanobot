@@ -2,7 +2,7 @@
 
 Open your local **nanobot WebUI**, click the current host (initially **Local**)
 at the bottom of the sidebar, and choose **Manage connections…**. This is the
-single entry point for switching and managing hosts. The page lists this computer
+single entry point for switching and managing hosts. The panel lists this computer
 and your saved servers. Choose
 **Connect to remote nanobot** to copy a prepared pairing command, or choose **Other ways → Use existing SSH settings**
 to enter an SSH address such as
@@ -252,8 +252,15 @@ desktop-host packaging and other platforms still need their own acceptance.
 The host switcher lives beside **Settings at the bottom of the sidebar**, showing
 **Local** or your saved server name. It is also available in Settings. Its menu
 opens upward and shows the computer name, recent hosts, and **Manage connections…**.
-With the sidebar collapsed, the icon still opens the same menu. Recent, loaded
-hosts show **Ready**. Remote
+With the sidebar collapsed, the icon still opens the same menu. A check marks
+the host you are viewing; a separate green dot marks an established connection.
+Saved but disconnected hosts stay gray, and connecting or failed hosts have
+distinct progress/error indicators. **Manage connections…** opens a side panel
+without switching to Local, changing the route, or disconnecting the server.
+Closing it returns to the same view and draft. The panel uses the same connection
+states with text labels, so color is never the only way to distinguish them.
+Selecting a host in the panel switches only after its view is ready; a failed
+attempt leaves the original host selected. Remote
 connection setup is hidden inside the embedded remote view, and connecting back
 to the same gateway is rejected rather than creating a nested local session.
 

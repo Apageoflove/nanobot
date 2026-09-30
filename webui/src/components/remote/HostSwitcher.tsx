@@ -8,6 +8,7 @@ import { useClient } from "@/providers/ClientProvider";
 import { cn } from "@/lib/utils";
 import type { ConnectionStatus } from "@/lib/types";
 import type { HostAnchor, EmbeddedHost } from "./host-bridge";
+import { HostConnectionStatus, type HostConnectionState } from "./HostConnectionStatus";
 
 export interface HostPicker {
   kind: "shell";
@@ -15,7 +16,7 @@ export interface HostPicker {
   hostname: string;
   localName: string;
   currentId: string | null;
-  profiles: { id: string; name: string; host: string; ready: boolean }[];
+  profiles: { id: string; name: string; host: string; state: HostConnectionState }[];
   recentIds: string[];
   pending: { id: string; name: string } | null;
   error: string;
@@ -100,11 +101,12 @@ function HostMenuItems({ picker }: { picker: HostPicker }) {
     </DropdownMenuItem>}
     {showLocal && !!profiles.length && <DropdownMenuSeparator />}
     {profiles.map((profile) => <DropdownMenuItem key={profile.id} onSelect={() => picker.select(profile.id)} className="gap-2.5"
+      aria-label={`${profile.name} ${profile.host}`} aria-describedby={`host-state-${profile.id}`}
       title={`${profile.name} · ${profile.host}`} aria-current={picker.currentId === profile.id || undefined}>
       <Server className="h-4 w-4 shrink-0 text-muted-foreground" />
       <span className="min-w-0 flex-1"><span className="block truncate">{profile.name}</span><span className="block truncate text-xs text-muted-foreground">{profile.host}</span></span>
-      {picker.pending?.id === profile.id ? <Loader2 className="h-4 w-4 shrink-0 animate-spin motion-reduce:animate-none" /> : picker.currentId === profile.id ? <Check className="h-4 w-4 shrink-0" />
-        : profile.ready ? <span className="shrink-0 text-[11px] text-muted-foreground">{t("remote.ready")}</span> : null}
+      <span id={`host-state-${profile.id}`}><HostConnectionStatus state={profile.state} compact /></span>
+      {picker.currentId === profile.id && <Check aria-label={t("remote.current")} className="h-4 w-4 shrink-0" />}
     </DropdownMenuItem>)}
     {!showLocal && !profiles.length && <p role="status" className="px-2.5 py-6 text-center text-xs text-muted-foreground">{t("remote.noMatchingHosts")}</p>}
     </div>

@@ -683,7 +683,7 @@ describe("App layout", () => {
     expect(window.location.hash).toBe("#/channels");
   });
 
-  it("opens Remote connections in the main shell and restores it through browser history", async () => {
+  it("opens management over the current view while keeping the standalone deep link", async () => {
     requestMutationSpy.mockResolvedValue({ hosts: [], files: [], incomplete: false });
     mockFetchRoutes({
       "/api/settings": baseSettingsPayload(),
@@ -692,6 +692,8 @@ describe("App layout", () => {
     render(<App />);
     await waitFor(() => expect(connectSpy).toHaveBeenCalled());
     const sidebar = screen.getByRole("navigation", { name: "Sidebar navigation" });
+    const originalHash = window.location.hash;
+    const originalTitle = document.title;
     expect(within(sidebar).queryByRole("button", { name: "Remote connections" })).not.toBeInTheDocument();
     fireEvent.pointerDown(await within(sidebar).findByRole("button", { name: "Switch host" }), { button: 0, ctrlKey: false });
     fireEvent.click(await screen.findByRole("menuitem", { name: "Manage connections…" }));
@@ -702,9 +704,10 @@ describe("App layout", () => {
     fireEvent.click(screen.getByRole("menuitem", { name: "Use existing SSH settings" }));
     const host = await screen.findByRole("textbox", { name: "SSH address" });
     expect(screen.getByRole("dialog", { name: "Connect to a server" })).toContainElement(host);
-    expect(window.location.hash).toBe("#/remote");
-    expect(document.title).toBe("Remote connections · nanobot");
+    expect(window.location.hash).toBe(originalHash);
+    expect(document.title).toBe(originalTitle);
     fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+    fireEvent.click(within(screen.getByRole("dialog", { name: "Remote connections" })).getByRole("button", { name: "Close" }));
     fireEvent.click(within(sidebar).getByRole("button", { name: "New topic" }));
     expect(window.location.hash).toBe("#/new");
     expect(screen.queryByRole("textbox", { name: "SSH address" })).not.toBeInTheDocument();
@@ -735,11 +738,11 @@ describe("App layout", () => {
     const sheet = await screen.findByRole("dialog");
     fireEvent.pointerDown(await within(sheet).findByRole("button", { name: "Switch host" }), { button: 0, ctrlKey: false });
     fireEvent.click(await screen.findByRole("menuitem", { name: "Manage connections…" }));
-    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+    await waitFor(() => expect(sheet).not.toBeInTheDocument());
+    expect(screen.getByRole("dialog", { name: "Remote connections" })).toBeVisible();
     expect(await screen.findByRole("heading", { name: "Remote connections" })).toBeVisible();
-    expect(window.location.hash).toBe("#/remote");
+    expect(window.location.hash).not.toBe("#/remote");
     expect(screen.queryByRole("button", { name: "Remote connections" })).not.toBeInTheDocument();
-    await waitFor(() => expect(document.body.style.pointerEvents).not.toBe("none"));
     await user.click(screen.getByRole("button", { name: "Connect to remote nanobot" }));
     expect(await screen.findByRole("dialog", { name: "Connect to remote nanobot" })).toBeVisible();
   });

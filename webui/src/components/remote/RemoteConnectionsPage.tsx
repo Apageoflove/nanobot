@@ -16,6 +16,7 @@ import { useRemoteConnections } from "./RemoteInstances";
 import { SSHHostPicker } from "./SSHHostPicker";
 import { QuickPairSetup } from "./QuickPairSetup";
 import { PairRouteSettings } from "./PairRouteSettings";
+import { HostConnectionStatus } from "./HostConnectionStatus";
 
 const emptyProfile = (): Omit<RemoteProfile, "id" | "connected"> => ({
   name: "", host: "", port: null, ssh_config: "", identity_file: "",
@@ -23,9 +24,10 @@ const emptyProfile = (): Omit<RemoteProfile, "id" | "connected"> => ({
 });
 
 /** The page is a server directory. Add/edit/first-use verification share one dialog. */
-export function RemoteConnectionsPage({ mainNavigationExpanded = false, hostChromeInset = false, onBackToChat }: {
+export function RemoteConnectionsPage({ mainNavigationExpanded = false, hostChromeInset = false, inPanel = false, onBackToChat }: {
   mainNavigationExpanded?: boolean;
   hostChromeInset?: boolean;
+  inPanel?: boolean;
   onBackToChat: () => void;
 }) {
   const { t } = useTranslation();
@@ -56,6 +58,7 @@ export function RemoteConnectionsPage({ mainNavigationExpanded = false, hostChro
   const mounted = useRef(true);
   const operation = useRef(0);
   const optionsId = useId();
+  const statusId = useId();
   const refresh = connections?.refresh;
 
   // Keep confirmation content intact during Radix's exit animation.
@@ -248,31 +251,36 @@ export function RemoteConnectionsPage({ mainNavigationExpanded = false, hostChro
     <div className="min-w-0 flex-1 overflow-y-auto [scrollbar-gutter:stable]">
       <div data-settings-section="remote" data-main-navigation-expanded={mainNavigationExpanded}
         className={cn("settings-grid settings-feature-page mx-auto w-full animate-in fade-in-0 slide-in-from-bottom-1 py-6 duration-200 ease-out motion-reduce:animate-none sm:py-8 lg:py-12",
-          hostChromeInset && "pt-[4.25rem] sm:pt-[4.25rem] lg:pt-[4.75rem]")}>
-        <div className="settings-feature-header mb-7">
+          hostChromeInset && "pt-[4.25rem] sm:pt-[4.25rem] lg:pt-[4.75rem]",
+          inPanel && "px-6 py-4 sm:py-4 lg:py-4 [--settings-margin:0px] [--settings-inset:16px]")}>
+        {!inPanel && <div className="settings-feature-header mb-7">
           <Button variant="ghost" size="sm" className="touch-target mb-4 gap-1 lg:hidden" onClick={onBackToChat}>
             <ChevronLeft className="h-4 w-4" />{t("settings.backToChat")}
           </Button>
           <h1 className="text-[24px] font-normal leading-tight tracking-normal text-foreground sm:text-[28px]">{t("remote.title")}</h1>
-        </div>
+        </div>}
         <div className="settings-stack">
           <p className="settings-list-inset text-[13px] leading-6 text-muted-foreground">{t("remote.description")}</p>
           {directory?.available && <>
             <SettingsGroup>
-              <div className="settings-list-row flex items-center gap-3 py-3">
+              <button type="button" className="settings-list-row settings-hover flex w-full items-center gap-3 py-3 text-left"
+                aria-current={connections.localActive || undefined} onClick={connections.selectLocal}>
                 <Laptop className="h-[18px] w-[18px] shrink-0 text-muted-foreground" />
                 <span className="min-w-0 flex-1"><span className="block text-[14px] font-medium">{t("remote.local")}</span>
                   {directory.machine_name && <span className="mt-0.5 block truncate text-xs text-muted-foreground">{directory.machine_name}</span>}</span>
-                <span className="flex items-center gap-1.5 text-xs text-muted-foreground"><Check className="h-3.5 w-3.5" />{t("remote.current")}</span>
-              </div>
+                {connections.localActive && <span className="flex items-center gap-1.5 text-xs text-muted-foreground"><Check className="h-3.5 w-3.5" />{t("remote.current")}</span>}
+              </button>
             </SettingsGroup>
             {directory.profiles.length > 0 && <SettingsGroup>
               {directory.profiles.map((profile) => <div key={profile.id} className="settings-list-row settings-hover flex items-center gap-2 transition-colors">
-                <button type="button" className="flex min-h-[60px] min-w-0 flex-1 items-center gap-3 rounded-xl py-3 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" disabled={!!busy} onClick={(event) => {
+                <button type="button" aria-label={`${profile.name} ${profile.host}`} aria-describedby={`${statusId}-${profile.id}`}
+                  aria-current={connections.activeHostId === profile.id || undefined}
+                  className="flex min-h-[60px] min-w-0 flex-1 items-center gap-3 rounded-xl py-3 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" disabled={!!busy} onClick={(event) => {
                   editorTrigger.current = event.currentTarget; void connect(profile.id);
                 }}>
                   {busy === profile.id ? <Loader2 className="h-[18px] w-[18px] shrink-0 animate-spin text-muted-foreground" /> : <Server className="h-[18px] w-[18px] shrink-0 text-muted-foreground" />}
                   <span className="min-w-0 flex-1"><span className="block truncate text-[14px] font-medium">{profile.name}</span><span className="mt-0.5 block truncate text-xs text-muted-foreground">{profile.host}</span>
+                    <span id={`${statusId}-${profile.id}`} className="mt-1 block"><HostConnectionStatus state={connections.hostStates[profile.id] || "closed"} /></span>
                     {profile.paired && typeof profile.authorized_until === "number" && Number.isFinite(profile.authorized_until)
                       && profile.authorized_until * 1000 <= Date.now() + 7 * 86_400_000 && <span className="mt-1 block text-xs leading-5 text-muted-foreground">
                         {t(profile.authorized_until * 1000 <= Date.now() ? "remote.pair.expiredDevice" : "remote.pair.expiringDevice", {
@@ -280,7 +288,7 @@ export function RemoteConnectionsPage({ mainNavigationExpanded = false, hostChro
                         })}
                       </span>}
                   </span>
-                  <ArrowUpRight className="h-4 w-4 text-muted-foreground" />
+                  {connections.activeHostId === profile.id ? <Check aria-label={t("remote.current")} className="h-4 w-4 shrink-0 text-muted-foreground" /> : <ArrowUpRight aria-hidden className="h-4 w-4 shrink-0 text-muted-foreground" />}
                 </button>
                 <DropdownMenu><DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" disabled={!!busy}
                   onPointerDown={(event) => { editorTrigger.current = event.currentTarget; }}
