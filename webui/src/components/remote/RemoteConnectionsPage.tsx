@@ -39,6 +39,9 @@ export function RemoteConnectionsPage({ mainNavigationExpanded = false, hostChro
   const [quickOpen, setQuickOpen] = useState(!!returnedPair);
   const [pairRoute, setPairRoute] = useState("");
   const [details, setDetails] = useState("");
+  const [renaming, setRenaming] = useState<RemoteProfile | null>(null);
+  const [name, setName] = useState("");
+  const [renameError, setRenameError] = useState("");
   const [editing, setEditing] = useState(false);
   const [savedId, setSavedId] = useState("");
   const [busy, setBusy] = useState("");
@@ -60,6 +63,8 @@ export function RemoteConnectionsPage({ mainNavigationExpanded = false, hostChro
   const operation = useRef(0);
   const optionsId = useId();
   const statusId = useId();
+  const nameId = useId();
+  const nameInput = useRef<HTMLInputElement>(null);
   const refresh = connections?.refresh;
   const page = useRef<HTMLDivElement>(null);
   useEffect(() => { if (connections?.managing) page.current?.focus({ preventScroll: true }); }, [connections?.managing]);
@@ -228,6 +233,16 @@ export function RemoteConnectionsPage({ mainNavigationExpanded = false, hostChro
     } catch (reason) { if (mounted.current) showError(reason); }
     finally { if (mounted.current) setBusy(""); }
   };
+  const rename = async () => {
+    if (!renaming || busy || !name.trim() || name.trim() === renaming.name) return;
+    setBusy("rename"); setRenameError("");
+    try {
+      await connections.rename(renaming.id, name.trim());
+      if (mounted.current) setRenaming(null);
+    } catch (reason) {
+      if (mounted.current) setRenameError(t(`remote.errors.${reason instanceof Error ? reason.message : "unknown"}`, { defaultValue: t("remote.errors.unknown") }));
+    } finally { if (mounted.current) setBusy(""); }
+  };
   const disconnect = async (id: string) => {
     setBusy(id); setError("");
     try { await disconnectHost(id); if (mounted.current) setDisconnecting(null); }
@@ -308,6 +323,7 @@ export function RemoteConnectionsPage({ mainNavigationExpanded = false, hostChro
                   onKeyDown={(event) => { editorTrigger.current = event.currentTarget; }}
                   aria-label={t("remote.manage", { name: profile.name })}><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
+                    <DropdownMenuItem onSelect={() => { setRenaming(profile); setName(profile.name); setRenameError(""); }}>{t("remote.rename.action")}</DropdownMenuItem>
                     {entries.length > 1 ? <DropdownMenuItem onSelect={() => setDetails(groupId)}>{t("remote.sameInstance.details")}</DropdownMenuItem> : connectionActions(profile)}
                   </DropdownMenuContent>
                 </DropdownMenu>
@@ -333,6 +349,31 @@ export function RemoteConnectionsPage({ mainNavigationExpanded = false, hostChro
       </div>
     </div>
 
+    <Dialog open={!!renaming} onOpenChange={(open) => { if (!open && !busy) setRenaming(null); }}>
+      <DialogContent className="max-h-[85dvh] max-w-sm overflow-y-auto" onOpenAutoFocus={(event) => {
+        event.preventDefault(); nameInput.current?.focus(); nameInput.current?.select();
+      }} onCloseAutoFocus={(event) => { event.preventDefault(); editorTrigger.current?.focus({ preventScroll: true }); }}>
+        <DialogHeader className="pr-5 text-left">
+          <DialogTitle>{t("remote.rename.title")}</DialogTitle>
+          <DialogDescription>{t("remote.rename.hint")}</DialogDescription>
+        </DialogHeader>
+        <form className="space-y-4" onSubmit={(event) => { event.preventDefault(); void rename(); }}>
+          <div className="space-y-2">
+            <label htmlFor={nameId} className="text-[13px] font-medium">{t("remote.rename.name")}</label>
+            <Input ref={nameInput} id={nameId} value={name} maxLength={64} required disabled={!!busy}
+              aria-invalid={!!renameError} aria-describedby={renameError ? `${nameId}-error` : undefined}
+              onChange={(event) => { setName(event.target.value); setRenameError(""); }} />
+          </div>
+          {renameError && <p id={`${nameId}-error`} role="alert" className="text-[13px] leading-5 text-foreground">{renameError}</p>}
+          <div className="flex justify-end gap-2">
+            <Button type="button" variant="ghost" disabled={!!busy} onClick={() => setRenaming(null)}>{t("common.cancel")}</Button>
+            <Button type="submit" disabled={!!busy || !name.trim() || name.trim() === renaming?.name} aria-busy={!!busy}>
+              {busy && <Loader2 aria-hidden className="mr-2 h-4 w-4 animate-spin motion-reduce:animate-none" />}{t(busy ? "remote.saving" : "remote.save")}
+            </Button>
+          </div>
+        </form>
+      </DialogContent>
+    </Dialog>
     <Dialog open={!!detailGroup} onOpenChange={(open) => { if (!open) setDetails(""); }}>
       <DialogContent className="flex max-h-[85dvh] max-w-md flex-col overflow-hidden">
         <DialogHeader className="pr-5 text-left"><DialogTitle>{t("remote.sameInstance.details")}</DialogTitle><DialogDescription>{t("remote.sameInstance.detailsHint")}</DialogDescription></DialogHeader>

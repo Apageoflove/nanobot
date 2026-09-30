@@ -279,6 +279,30 @@ async def test_same_name_or_ip_never_groups_different_pairing_destinations(tmp_p
     assert len({item["instance_id"] for item in result["profiles"]}) == 2
 
 
+async def test_rename_paired_instance_updates_only_verified_sibling_grants(tmp_path):
+    manager = RemoteInstances(tmp_path)
+    first = read_request((await manager.action("pair_start", {}))["command"].split()[-1])
+    original = receipt(first)
+    await manager.action("pair_finish", {"id": first.id, "code": seal(first, original)})
+    requests = [first]
+    for path in [original.config_path, "/srv/different/config.json"]:
+        request = read_request((await manager.action("pair_start", {}))["command"].split()[-1])
+        value = original.model_copy(update={"id": request.id, "ssh_key": request.ssh_key, "config_path": path})
+        await manager.action("pair_finish", {"id": request.id, "code": seal(request, value)})
+        requests.append(request)
+    before = manager._read()
+    receipts = {item.id: manager.pairing.path(item.id).joinpath("receipt").read_bytes() for item in requests}
+    live = SimpleNamespace(tunnel=SimpleNamespace(active=True), error="", gateway_id="live-session",
+                           proxy=SimpleNamespace(pause=AsyncMock()))
+    manager.connections[first.id] = live
+    result = await manager.action("rename", {"id": requests[1].id, "name": "My cloud"})
+    assert [p["name"] for p in result["profiles"]] == ["My cloud", "My cloud", original.hostname]
+    for item in requests:
+        assert manager.pairing.path(item.id).joinpath("receipt").read_bytes() == receipts[item.id]
+        assert manager._read()[item.id].model_dump(exclude={"name"}) == before[item.id].model_dump(exclude={"name"})
+    live.proxy.pause.assert_not_awaited()
+
+
 @pytest.mark.parametrize("healthy", [True, False])
 async def test_repair_retains_route_and_reuses_only_a_healthy_existing_connection(tmp_path, monkeypatch, healthy):
     manager = RemoteInstances(tmp_path)

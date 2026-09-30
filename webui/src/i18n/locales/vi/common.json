@@ -1,5 +1,11 @@
 {
   "remote": {
+    "rename": {
+      "action": "Đổi tên",
+      "title": "Đổi tên máy chủ",
+      "name": "Tên",
+      "hint": "Tên cho kết nối này. Máy chủ và cài đặt SSH không thay đổi."
+    },
     "sameInstance": {
       "forgetAction": "Forget",
       "switchHint": "To use another authorization, disconnect the open connection first.",
@@ -160,6 +166,7 @@
     "forgetTitle": "Forget {{name}}?",
     "forgetDescription": "Only this saved connection will be removed. nanobot, its keys and conversations on the server will stay untouched.",
     "errors": {
+      "invalid_name": "Nhập tên từ 1–64 ký tự, không chứa dấu xuống dòng.",
       "local_connection_unavailable": "Không thể kết nối với nanobot trên máy tính này. Hãy đảm bảo nanobot đang chạy rồi thử lại.",
       "disconnected": "Kết nối dùng chung này đã đóng. Bạn có thể kết nối lại khi sẵn sàng.",
       "instance_changed": "Kết nối đến máy chủ này đã thay đổi. Kết nối lại sẽ tải lại giao diện; bản nháp chưa gửi có thể bị mất.",

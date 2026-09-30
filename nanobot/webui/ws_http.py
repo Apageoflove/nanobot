@@ -173,6 +173,7 @@ _WEBUI_MUTATION_PATHS = {
     "remote.inspect": "/api/remote-instances/inspect",
     "remote.pick_file": "/api/remote-instances/pick_file",
     "remote.save": "/api/remote-instances/save",
+    "remote.rename": "/api/remote-instances/rename",
     "remote.connect": "/api/remote-instances/connect",
     "remote.disconnect": "/api/remote-instances/disconnect",
     "remote.remove": "/api/remote-instances/remove",

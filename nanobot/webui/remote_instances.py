@@ -329,6 +329,21 @@ class RemoteInstances:
                 return {"id": key, **self.snapshot()}
             if key not in profiles:
                 raise RemoteError("profile_not_found")
+            if action == "rename":
+                name = payload.get("name")
+                if (not isinstance(name, str) or not 1 <= len(name.strip()) <= 64
+                        or any(ord(char) < 32 or ord(char) == 127 for char in name)):
+                    raise RemoteError("invalid_name")
+                # Display metadata only: preserve live tunnels, origins and
+                # credentials. All verified grants for this instance share a name.
+                receipt = self.pairing.saved_receipt(profiles[key].pair_id) if profiles[key].pair_id else None
+                for saved_key, saved in profiles.items():
+                    if saved_key == key or (receipt and saved.pair_id
+                            and (other := self.pairing.saved_receipt(saved.pair_id))
+                            and other.destination() == receipt.destination()):
+                        saved.name = name.strip()
+                self._write(profiles)
+                return self.snapshot()
             if action == "pair_route":
                 profile = profiles[key]
                 if not profile.pair_id:

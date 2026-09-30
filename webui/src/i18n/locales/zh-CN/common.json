@@ -1,5 +1,11 @@
 {
   "remote": {
+    "rename": {
+      "action": "重命名",
+      "title": "重命名服务器",
+      "name": "名称",
+      "hint": "给连接起个好认的名字，不会更改服务器或 SSH 设置。"
+    },
     "sameInstance": {
       "forgetAction": "忘记",
       "switchHint": "要使用另一份授权，请先断开当前连接。",
@@ -160,6 +166,7 @@
     "forgetTitle": "忘记 {{name}}？",
     "forgetDescription": "只移除本机保存的连接。服务器上的 nanobot、密钥和会话都不会被删除。",
     "errors": {
+      "invalid_name": "请输入 1–64 个字符的名称，不能包含换行。",
       "local_connection_unavailable": "暂时无法连接这台电脑上的 nanobot，请确保它正在运行后重试。",
       "disconnected": "此共享连接已断开，需要时可重新连接。",
       "instance_changed": "此服务器的连接已发生变化。重新连接会重新打开页面，未发送的草稿可能丢失。",

@@ -58,17 +58,44 @@ export function useHostSessions() {
     publish();
   }, [publish]);
   const local = useCallback(() => { cancel(); select(null); }, [cancel, select]);
+  const applyDirectory = useCallback((next: RemoteDirectory) => {
+    setDirectory(next); setDirectoryError(false);
+    // Names are metadata, not a new host session. Keep iframe URLs, drafts,
+    // selection and connection state intact when this or another tab renames.
+    let changed = false;
+    for (const profile of next.profiles) {
+      const frame = cache.current.get(profile.id);
+      if (frame && frame.connection.name !== profile.name) {
+        frame.connection = { ...frame.connection, name: profile.name };
+        changed = true;
+      }
+      if (selectedRef.current?.id === profile.id && selectedRef.current.name !== profile.name) {
+        const value = { ...selectedRef.current, name: profile.name };
+        selectedRef.current = value; setSelected(value); rememberSelectedRemote(value);
+      }
+      if (pendingRef.current?.id === profile.id && pendingRef.current.name !== profile.name) {
+        setPendingSwitch({ id: profile.id, name: profile.name });
+      }
+    }
+    if (changed) publish();
+  }, [publish, setPendingSwitch]);
+  const rename = useCallback(async (id: string, name: string) => {
+    const next = await remoteAction<RemoteDirectory>(client, "rename", { id, name });
+    // Discard health reads begun before the save completed.
+    directoryGeneration.current += 1;
+    if (mounted.current) applyDirectory(next);
+  }, [applyDirectory, client]);
   const refresh = useCallback(async () => {
     const generation = ++directoryGeneration.current;
     try {
       const next = window.top === window ? await readRemoteInstances(getToken()) : { available: false, profiles: [] };
-      if (mounted.current && generation === directoryGeneration.current) { setDirectory(next); setDirectoryError(false); }
+      if (mounted.current && generation === directoryGeneration.current) applyDirectory(next);
       return next;
     } catch (reason) {
       if (mounted.current && generation === directoryGeneration.current) setDirectoryError(true);
       throw reason;
     }
-  }, [getToken]);
+  }, [applyDirectory, getToken]);
 
   const connect = useCallback(async (id: string, stillWanted: () => boolean = () => true) => {
     cancel();
@@ -120,7 +147,7 @@ export function useHostSessions() {
         });
         if (!ready) return;
       }
-      if (wanted()) select(connection);
+      if (wanted()) select(frame.connection);
     } catch (reason) {
       if (wanted()) {
         setFailure({ id, code: reason instanceof Error ? reason.message : "unknown" });
@@ -193,7 +220,7 @@ export function useHostSessions() {
       try {
         const next = await readRemoteInstances(getToken());
         if (cancelled || generation !== directoryGeneration.current) return;
-        setDirectory(next); setDirectoryError(false);
+        applyDirectory(next);
         for (const [id, frame] of cache.current) {
           if (id === pendingRef.current?.id) continue;
           const profile = next.profiles.find((profile) => profile.id === id);
@@ -230,7 +257,7 @@ export function useHostSessions() {
       window.removeEventListener("pageshow", wake);
       document.removeEventListener("visibilitychange", wake);
     };
-  }, [client, getToken, publish]);
-  return { directory, directoryError, refresh, selected, recentIds, frames, pending,
+  }, [applyDirectory, client, getToken, publish]);
+  return { directory, directoryError, refresh, rename, selected, recentIds, frames, pending,
     error: failure?.code || "", errorId: failure?.id, clearError, connect, cancel, local, disconnect, loaded };
 }

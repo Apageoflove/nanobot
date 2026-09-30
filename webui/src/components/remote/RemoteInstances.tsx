@@ -21,6 +21,7 @@ const RemoteContext = createContext<{
   directory: RemoteDirectory | null;
   directoryError: boolean;
   refresh: () => Promise<RemoteDirectory>;
+  rename: (id: string, name: string) => Promise<void>;
   connect: (id: string, stillWanted?: () => boolean) => Promise<void>;
   disconnect: (id: string) => Promise<void>;
   cancel: () => void;
@@ -138,7 +139,7 @@ export function RemoteInstances({ children }: { children: ReactNode }) {
   return <RemoteContext.Provider value={{ available, localActive: !selected, directory,
     activeHostId: selected?.id || null, hostStates, managing, closeManagement: () => changeManagement(false), selectLocal,
     openHostIds: frames.map((frame) => frame.connection.id),
-    directoryError: hosts.directoryError, refresh: hosts.refresh, connect, disconnect: hosts.disconnect, cancel: hosts.cancel }}>
+    directoryError: hosts.directoryError, refresh: hosts.refresh, rename: hosts.rename, connect, disconnect: hosts.disconnect, cancel: hosts.cancel }}>
     <HostNavigationContext.Provider value={bridge.embedded || (available || selected ? picker : null)}>
       <div className="flex h-full min-h-0 flex-col bg-background">
         <div className="relative min-h-0 flex-1 overflow-hidden">

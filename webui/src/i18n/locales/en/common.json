@@ -1,5 +1,11 @@
 {
   "remote": {
+    "rename": {
+      "action": "Rename",
+      "title": "Rename server",
+      "name": "Name",
+      "hint": "A name for this connection. Your server and SSH settings won’t change."
+    },
     "sameInstance": {
       "forgetAction": "Forget",
       "switchHint": "To use another authorization, disconnect the open connection first.",
@@ -160,6 +166,7 @@
     "forgetTitle": "Forget {{name}}?",
     "forgetDescription": "Only this saved connection will be removed. nanobot, its keys and conversations on the server will stay untouched.",
     "errors": {
+      "invalid_name": "Enter a name between 1 and 64 characters, without line breaks.",
       "local_connection_unavailable": "Couldn't reach local nanobot on this computer. Keep it running and try again.",
       "disconnected": "This shared connection was closed. Reconnect when you’re ready.",
       "instance_changed": "This server connection changed. Reconnecting will reload its view; unsent drafts may be lost.",

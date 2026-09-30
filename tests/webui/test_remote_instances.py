@@ -83,6 +83,41 @@ async def test_new_local_manager_has_new_view_identity_for_same_remote(manager, 
     assert "view_id" not in manager.path.read_text()
 
 
+async def test_rename_connected_profile_only_changes_display_name(manager, ssh):
+    key = await save(manager)
+    await manager.action("connect", {"id": key})
+    before = json.loads(manager.path.read_text())
+    live = manager.connections[key]
+    result = await manager.action("rename", {"id": key, "name": "  腾讯云 nanobot  "})
+    assert result["profiles"][0]["name"] == "腾讯云 nanobot"
+    assert result["profiles"][0]["connected"] is True
+    before[key]["name"] = "腾讯云 nanobot"
+    assert json.loads(manager.path.read_text()) == before
+    assert RemoteInstances(manager.path.parent).snapshot()["profiles"][0]["name"] == "腾讯云 nanobot"
+    assert manager.connections[key] is live
+    ssh.tunnel.pause.assert_not_awaited()
+    ssh.tunnel.close.assert_not_awaited()
+    assert ssh.probe.await_count == 1
+
+
+@pytest.mark.parametrize("name", [None, 7, {}, "", "   ", "a" * 65, "a\nb", "a\x00b", "a\x7fb"])
+async def test_rename_invalid_name_does_not_change_saved_profile(manager, name):
+    key = await save(manager)
+    before = manager.path.read_bytes()
+    with pytest.raises(RemoteError, match="invalid_name"):
+        await manager.action("rename", {"id": key, "name": name})
+    assert manager.path.read_bytes() == before
+
+
+async def test_rename_validates_id_and_does_not_merge_matching_names(manager):
+    first = await save(manager)
+    second = await save(manager, host="other-host")
+    await manager.action("rename", {"id": first, "name": "x" * 64})
+    assert manager._read()[second].name == "Team"
+    with pytest.raises(RemoteError, match="profile_not_found"):
+        await manager.action("rename", {"id": "missing", "name": "Team"})
+
+
 async def test_unchanged_save_allows_retry_after_browser_load_failure(manager, ssh):
     key = await save(manager)
     await manager.action("connect", {"id": key})

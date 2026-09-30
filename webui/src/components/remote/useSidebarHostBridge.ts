@@ -69,9 +69,10 @@ export function useSidebarHostBridge(frames: HostFrame[], selectedId: string | u
     return () => window.removeEventListener("message", receive);
   }, [initialize, nodes]);
   useEffect(() => { setAnchor(null); }, [selectedId]);
+  const selectedName = frames.find((frame) => frame.connection.id === selectedId)?.connection.name;
   useEffect(() => {
     if (selectedId && peers.current.has(selectedId)) initialize(selectedId);
-  }, [initialize, selectedId, activity.pendingName, activity.error]);
+  }, [initialize, selectedId, selectedName, activity.pendingName, activity.error]);
   useEffect(() => {
     for (const id of peers.current.keys()) if (!frames.some((frame) => frame.connection.id === id)) peers.current.delete(id);
   }, [frames]);

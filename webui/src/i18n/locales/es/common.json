@@ -1,5 +1,11 @@
 {
   "remote": {
+    "rename": {
+      "action": "Cambiar nombre",
+      "title": "Cambiar nombre del servidor",
+      "name": "Nombre",
+      "hint": "Un nombre para esta conexión. El servidor y la configuración SSH no cambiarán."
+    },
     "sameInstance": {
       "forgetAction": "Forget",
       "switchHint": "To use another authorization, disconnect the open connection first.",
@@ -160,6 +166,7 @@
     "forgetTitle": "Forget {{name}}?",
     "forgetDescription": "Only this saved connection will be removed. nanobot, its keys and conversations on the server will stay untouched.",
     "errors": {
+      "invalid_name": "Introduce un nombre de 1 a 64 caracteres, sin saltos de línea.",
       "local_connection_unavailable": "No se pudo conectar con nanobot en este equipo. Comprueba que esté en ejecución e inténtalo de nuevo.",
       "disconnected": "Esta conexión compartida se cerró. Reconecta cuando quieras.",
       "instance_changed": "La conexión a este servidor cambió. Al reconectar se recargará la vista; los borradores sin enviar podrían perderse.",

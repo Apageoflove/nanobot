@@ -92,6 +92,77 @@ function chooseExistingSSH() {
 }
 
 describe("remote instance UX", () => {
+  it.each([false, true])("renames an open server without reloading its view (paired: %s)", async (paired) => {
+    let saved = { ...profile, paired, connected: true };
+    mocks.read.mockImplementation(async () => ({ available: true, profiles: [saved] }));
+    mocks.request.mockImplementation(async (action, payload) => {
+      if (action === "remote.connect") return connection;
+      if (action === "remote.rename") { saved = { ...saved, name: payload.name }; return { available: true, profiles: [saved] }; }
+      return {};
+    });
+    view();
+    await chooseHost("Team server ubuntu@example.test");
+    const frame = await readyRemote();
+    const source = { postMessage: vi.fn() };
+    Object.defineProperty(frame, "contentWindow", { value: source });
+    act(() => window.dispatchEvent(new MessageEvent("message", { source: source as unknown as Window,
+      origin: "http://127.0.0.1:23456", data: { channel: HOST_BRIDGE, type: "hello" } })));
+    await openDirectory();
+    fireEvent.pointerDown(screen.getByRole("button", { name: "Manage Team server" }), { button: 0, ctrlKey: false });
+    fireEvent.click(screen.getByRole("menuitem", { name: "Rename", exact: true }));
+    const input = await screen.findByRole("textbox", { name: "Name", exact: true });
+    expect(input).toHaveValue("Team server");
+    expect(input).toHaveFocus();
+    expect(input).toHaveAttribute("maxlength", "64");
+    expect(screen.getByRole("button", { name: "Save changes" })).toBeDisabled();
+    fireEvent.change(input, { target: { value: "  腾讯云 nanobot  " } });
+    fireEvent.submit(input.closest("form")!);
+    await screen.findByRole("button", { name: "Manage 腾讯云 nanobot" });
+    expect(mocks.request).toHaveBeenCalledWith("remote.rename", { id: profile.id, name: "腾讯云 nanobot" }, 65_000);
+    expect(screen.getByTitle("nanobot on 腾讯云 nanobot")).toBe(frame);
+    expect(frame).toHaveAttribute("src", connection.url);
+    expect(readSelectedRemote()).toMatchObject({ id: profile.id, name: "腾讯云 nanobot" });
+    expect(document.title).toBe("腾讯云 nanobot · nanobot");
+    expect(source.postMessage).toHaveBeenLastCalledWith(expect.objectContaining({ type: "init", name: "腾讯云 nanobot" }), "http://127.0.0.1:23456");
+    expect(mocks.request.mock.calls.map(([action]) => action)).toEqual(["remote.connect", "remote.rename"]);
+    await chooseHost("腾讯云 nanobot ubuntu@example.test");
+    expect(screen.getByTitle("nanobot on 腾讯云 nanobot")).toBe(frame);
+    expect(mocks.request).toHaveBeenCalledTimes(2);
+  });
+
+  it("rejects a blank name, preserves input on failure and lets the user retry or cancel", async () => {
+    view(); await openDirectory();
+    fireEvent.pointerDown(screen.getByRole("button", { name: "Manage Team server" }), { button: 0, ctrlKey: false });
+    fireEvent.click(screen.getByRole("menuitem", { name: "Rename", exact: true }));
+    const input = await screen.findByRole("textbox", { name: "Name", exact: true });
+    fireEvent.change(input, { target: { value: "   " } });
+    expect(screen.getByRole("button", { name: "Save changes" })).toBeDisabled();
+    fireEvent.submit(input.closest("form")!);
+    expect(mocks.request).not.toHaveBeenCalled();
+    mocks.request.mockRejectedValueOnce(new Error("local_io_error"));
+    fireEvent.change(input, { target: { value: "Cloud" } });
+    fireEvent.click(screen.getByRole("button", { name: "Save changes" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent(i18n.t("remote.errors.local_io_error"));
+    expect(input).toHaveValue("Cloud");
+    expect(screen.getByRole("button", { name: "Save changes" })).toBeEnabled();
+    fireEvent.click(screen.getByRole("button", { name: "Cancel", exact: true }));
+    expect(screen.getByRole("button", { name: "Manage Team server" })).toBeVisible();
+    expect(mocks.request).toHaveBeenCalledTimes(1);
+  });
+
+  it("offers one instance-level rename for grouped authorizations", async () => {
+    const siblings = [{ ...profile, paired: true, instance_id: profile.id }, { ...profile, id: "other-grant", paired: true, instance_id: profile.id }];
+    mocks.read.mockResolvedValue({ available: true, profiles: siblings });
+    mocks.request.mockResolvedValue({ available: true, profiles: siblings.map((item) => ({ ...item, name: "Cloud" })) });
+    view(); await openDirectory();
+    fireEvent.pointerDown(screen.getByRole("button", { name: "Manage Team server" }), { button: 0, ctrlKey: false });
+    fireEvent.click(screen.getByRole("menuitem", { name: "Rename", exact: true }));
+    fireEvent.change(await screen.findByRole("textbox", { name: "Name", exact: true }), { target: { value: "Cloud" } });
+    fireEvent.click(screen.getByRole("button", { name: "Save changes" }));
+    await screen.findByRole("button", { name: "Manage Cloud" });
+    expect(screen.getAllByRole("button", { name: "Cloud ubuntu@example.test" })).toHaveLength(1);
+  });
+
   it("shows revocation as a shared copyable code block without executing it or forgetting the connection", async () => {
     const command = "nanobot remote revoke 0dec816f-55e8-47ab-a8ad-13251e2a4f30 --ssh-user ubuntu";
     const copy = vi.spyOn(clipboard, "copyTextToClipboard").mockResolvedValue(true);

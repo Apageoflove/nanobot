@@ -1,5 +1,11 @@
 {
   "remote": {
+    "rename": {
+      "action": "Ubah nama",
+      "title": "Ubah nama server",
+      "name": "Nama",
+      "hint": "Nama untuk koneksi ini. Server dan pengaturan SSH tidak berubah."
+    },
     "sameInstance": {
       "forgetAction": "Forget",
       "switchHint": "To use another authorization, disconnect the open connection first.",
@@ -160,6 +166,7 @@
     "forgetTitle": "Forget {{name}}?",
     "forgetDescription": "Only this saved connection will be removed. nanobot, its keys and conversations on the server will stay untouched.",
     "errors": {
+      "invalid_name": "Masukkan nama sepanjang 1–64 karakter, tanpa baris baru.",
       "local_connection_unavailable": "Tidak dapat terhubung ke nanobot di komputer ini. Pastikan nanobot berjalan, lalu coba lagi.",
       "disconnected": "Koneksi bersama ini telah ditutup. Sambungkan kembali saat Anda siap.",
       "instance_changed": "Koneksi server ini berubah. Menyambungkan kembali akan memuat ulang tampilan; draf yang belum dikirim dapat hilang.",
