@@ -683,7 +683,7 @@ describe("App layout", () => {
     expect(window.location.hash).toBe("#/channels");
   });
 
-  it("opens management over the current view while keeping the standalone deep link", async () => {
+  it("opens management in the main content area while keeping the standalone deep link", async () => {
     requestMutationSpy.mockResolvedValue({ hosts: [], files: [], incomplete: false });
     mockFetchRoutes({
       "/api/settings": baseSettingsPayload(),
@@ -698,6 +698,8 @@ describe("App layout", () => {
     fireEvent.pointerDown(await within(sidebar).findByRole("button", { name: "Switch host" }), { button: 0, ctrlKey: false });
     fireEvent.click(await screen.findByRole("menuitem", { name: "Manage connections…" }));
     expect(await screen.findByRole("heading", { name: "Remote connections" })).toBeVisible();
+    expect(screen.getByRole("main")).toContainElement(screen.getByRole("region", { name: "Remote connections" }));
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
     expect(sidebar).toBeVisible();
     fireEvent.click(await screen.findByRole("button", { name: "Connect to remote nanobot" }));
     fireEvent.pointerDown(screen.getByRole("button", { name: "Other ways" }), { button: 0, ctrlKey: false });
@@ -707,7 +709,7 @@ describe("App layout", () => {
     expect(window.location.hash).toBe(originalHash);
     expect(document.title).toBe(originalTitle);
     fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
-    fireEvent.click(within(screen.getByRole("dialog", { name: "Remote connections" })).getByRole("button", { name: "Close" }));
+    fireEvent.click(screen.getByRole("button", { name: "Back", exact: true }));
     fireEvent.click(within(sidebar).getByRole("button", { name: "New topic" }));
     expect(window.location.hash).toBe("#/new");
     expect(screen.queryByRole("textbox", { name: "SSH address" })).not.toBeInTheDocument();
@@ -718,6 +720,22 @@ describe("App layout", () => {
     expect(await screen.findByRole("button", { name: "Connect to remote nanobot" })).toBeVisible();
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
     expect(within(sidebar).queryByRole("button", { name: "Remote connections" })).not.toBeInTheDocument();
+  });
+
+  it("lets sidebar navigation leave the management page without a second dismissal", async () => {
+    mockFetchRoutes({
+      "/api/settings": baseSettingsPayload(),
+      "/api/remote-instances": { available: true, profiles: [] },
+    });
+    render(<App />);
+    const sidebar = await screen.findByRole("navigation", { name: "Sidebar navigation" });
+    fireEvent.pointerDown(await within(sidebar).findByRole("button", { name: "Switch host" }), { button: 0, ctrlKey: false });
+    fireEvent.click(await screen.findByRole("menuitem", { name: "Manage connections…" }));
+    expect(await screen.findByRole("region", { name: "Remote connections" })).toBeVisible();
+    fireEvent.click(within(sidebar).getByRole("button", { name: "Apps" }));
+    expect(await screen.findByRole("heading", { name: "Apps" })).toBeVisible();
+    expect(screen.queryByRole("region", { name: "Remote connections" })).not.toBeInTheDocument();
+    expect(window.location.hash).toBe("#/apps");
   });
 
   it("closes the mobile sidebar when managing connections from its host menu", async () => {
@@ -739,7 +757,8 @@ describe("App layout", () => {
     fireEvent.pointerDown(await within(sheet).findByRole("button", { name: "Switch host" }), { button: 0, ctrlKey: false });
     fireEvent.click(await screen.findByRole("menuitem", { name: "Manage connections…" }));
     await waitFor(() => expect(sheet).not.toBeInTheDocument());
-    expect(screen.getByRole("dialog", { name: "Remote connections" })).toBeVisible();
+    expect(screen.getByRole("main")).toContainElement(screen.getByRole("region", { name: "Remote connections" }));
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
     expect(await screen.findByRole("heading", { name: "Remote connections" })).toBeVisible();
     expect(window.location.hash).not.toBe("#/remote");
     expect(screen.queryByRole("button", { name: "Remote connections" })).not.toBeInTheDocument();

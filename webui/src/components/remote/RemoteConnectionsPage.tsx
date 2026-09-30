@@ -24,10 +24,9 @@ const emptyProfile = (): Omit<RemoteProfile, "id" | "connected"> => ({
 });
 
 /** The page is a server directory. Add/edit/first-use verification share one dialog. */
-export function RemoteConnectionsPage({ mainNavigationExpanded = false, hostChromeInset = false, inPanel = false, onBackToChat }: {
+export function RemoteConnectionsPage({ mainNavigationExpanded = false, hostChromeInset = false, onBackToChat }: {
   mainNavigationExpanded?: boolean;
   hostChromeInset?: boolean;
-  inPanel?: boolean;
   onBackToChat: () => void;
 }) {
   const { t } = useTranslation();
@@ -60,6 +59,8 @@ export function RemoteConnectionsPage({ mainNavigationExpanded = false, hostChro
   const optionsId = useId();
   const statusId = useId();
   const refresh = connections?.refresh;
+  const page = useRef<HTMLDivElement>(null);
+  useEffect(() => { if (connections?.managing) page.current?.focus({ preventScroll: true }); }, [connections?.managing]);
 
   // Keep confirmation content intact during Radix's exit animation.
   useEffect(() => { if (removing) lastRemoval.current = removing; }, [removing]);
@@ -247,18 +248,17 @@ export function RemoteConnectionsPage({ mainNavigationExpanded = false, hostChro
     setError(""); setErrorCode(""); setSSHOptions(true);
   };
 
-  return <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-settings-canvas">
+  return <div ref={page} tabIndex={-1} role="region" aria-label={t("remote.title")} className="flex min-h-0 flex-1 flex-col overflow-hidden bg-settings-canvas outline-none">
     <div className="min-w-0 flex-1 overflow-y-auto [scrollbar-gutter:stable]">
       <div data-settings-section="remote" data-main-navigation-expanded={mainNavigationExpanded}
         className={cn("settings-grid settings-feature-page mx-auto w-full animate-in fade-in-0 slide-in-from-bottom-1 py-6 duration-200 ease-out motion-reduce:animate-none sm:py-8 lg:py-12",
-          hostChromeInset && "pt-[4.25rem] sm:pt-[4.25rem] lg:pt-[4.75rem]",
-          inPanel && "px-6 py-4 sm:py-4 lg:py-4 [--settings-margin:0px] [--settings-inset:16px]")}>
-        {!inPanel && <div className="settings-feature-header mb-7">
-          <Button variant="ghost" size="sm" className="touch-target mb-4 gap-1 lg:hidden" onClick={onBackToChat}>
-            <ChevronLeft className="h-4 w-4" />{t("settings.backToChat")}
+          hostChromeInset && "pt-[4.25rem] sm:pt-[4.25rem] lg:pt-[4.75rem]")}>
+        <div className="settings-feature-header mb-7">
+          <Button variant="ghost" size="sm" className={cn("touch-target mb-4 gap-1", !connections.managing && "lg:hidden")} onClick={onBackToChat}>
+            <ChevronLeft className="h-4 w-4" />{t(connections.managing ? "remote.back" : "settings.backToChat")}
           </Button>
           <h1 className="text-[24px] font-normal leading-tight tracking-normal text-foreground sm:text-[28px]">{t("remote.title")}</h1>
-        </div>}
+        </div>
         <div className="settings-stack">
           <p className="settings-list-inset text-[13px] leading-6 text-muted-foreground">{t("remote.description")}</p>
           {directory?.available && <>

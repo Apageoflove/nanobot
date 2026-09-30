@@ -1114,6 +1114,8 @@ function Shell({
   const remoteConnections = useRemoteConnections();
   const localActive = remoteConnections?.localActive !== false;
   const managingConnections = remoteConnections?.managing === true;
+  const remoteConnectionsRef = useRef(remoteConnections);
+  remoteConnectionsRef.current = remoteConnections;
   const { client, getToken } = useClient();
   const { theme, toggle } = useTheme();
   const {
@@ -1275,6 +1277,9 @@ function Shell({
   const navigate = useCallback(
     (route: ShellRoute, options?: { replace?: boolean }) => {
       const leave = () => {
+        // Navigating the local sidebar is an explicit choice of a local view.
+        // Merely opening global connection management does not switch hosts.
+        if (remoteConnectionsRef.current?.managing) remoteConnectionsRef.current.selectLocal();
         setActiveKey(route.activeKey);
         setView(route.view);
         setSettingsInitialSection(route.settingsSection);
@@ -2707,11 +2712,11 @@ function Shell({
   const sidebarProps = {
     sessions: sidebarTopicSessions,
     temporarySessions: temporarySessionList,
-    activeKey: view === "chat"
+    activeKey: !managingConnections && view === "chat"
       ? (temporaryChatActive ? activeKey : activeSidebarKey)
       : null,
     loading,
-    newChatActive: view === "chat" && activeKey === null,
+    newChatActive: !managingConnections && view === "chat" && activeKey === null,
     onNewChat,
     onSelect: onSelectSidebarItem,
     onCloseTemporaryChat,
@@ -2737,7 +2742,7 @@ function Shell({
     onOpenSkills,
     onSettingsIntent,
     onOpenSearch: onOpenSessionSearch,
-    activeUtility: view === "apps" || view === "automations" || view === "skills" || view === "channels" ? view : null,
+    activeUtility: !managingConnections && (view === "apps" || view === "automations" || view === "skills" || view === "channels") ? view : null,
     onToggleArchived,
     pinnedKeys: sidebarPinnedTabKeys,
     archivedKeys: sidebarArchivedTabKeys,
@@ -2766,7 +2771,7 @@ function Shell({
 
   return (
     <ThemeProvider theme={theme}>
-      <StarPrompt ready={localActive && !loading && !sidebarStateLoading} />
+      <StarPrompt ready={localActive && !managingConnections && !loading && !sidebarStateLoading} />
       <div
         className={cn(
           "relative h-full w-full overflow-hidden",
@@ -2887,13 +2892,15 @@ function Shell({
             "relative flex h-full min-w-0 flex-1 flex-col overflow-hidden bg-background",
           )}
         >
+          <div className={cn("absolute inset-0 flex flex-col", managingConnections && "hidden")}
+            aria-hidden={managingConnections || undefined} {...(managingConnections ? { inert: "" } : {})}>
             {(view === "chat" || chatVisited) && <div
               className={cn(
                 "absolute inset-0 flex flex-col",
                 view !== "chat" && "hidden",
               )}
             >
-              <ThreadVisibilityContext.Provider value={localActive && view === "chat"}>
+              <ThreadVisibilityContext.Provider value={localActive && !managingConnections && view === "chat"}>
                 <Suspense fallback={<StartupShell embedded />}>
                   <PaneWorkbench
                     panes={renderedWorkbenchPanes}
@@ -3069,6 +3076,14 @@ function Shell({
                 </Suspense>}
               </div>
             )}
+          </div>
+          {managingConnections && <div className="absolute inset-0 flex flex-col">
+            <RemoteConnectionsPage
+              mainNavigationExpanded={showMainSidebar && hostSidebarOpen}
+              hostChromeInset={showHostChrome}
+              onBackToChat={() => remoteConnections?.closeManagement()}
+            />
+          </div>}
           </main>
         </div>
 

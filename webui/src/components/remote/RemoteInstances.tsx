@@ -2,13 +2,11 @@ import { createContext, useContext, useEffect, useLayoutEffect, useRef, useState
 import { Loader2, PlugZap } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
-import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { needsRemoteSetup, type RemoteDirectory } from "@/lib/remote-instances";
 import { useHostSessions } from "./useHostSessions";
 import { HostNavigationContext, HostSwitcher, RemoteHostMenu, type HostPicker } from "./HostSwitcher";
 import { useSidebarHostBridge } from "./useSidebarHostBridge";
 import { readPairReturn, subscribePairReturn } from "@/lib/remote-pair-return";
-import { RemoteConnectionsPage } from "./RemoteConnectionsPage";
 import type { HostConnectionState } from "./HostConnectionStatus";
 
 const RemoteContext = createContext<{
@@ -17,6 +15,7 @@ const RemoteContext = createContext<{
   activeHostId: string | null;
   hostStates: Record<string, HostConnectionState>;
   managing: boolean;
+  closeManagement: () => void;
   selectLocal: () => void;
   openHostIds: string[];
   directory: RemoteDirectory | null;
@@ -35,7 +34,6 @@ export function RemoteInstances({ children }: { children: ReactNode }) {
   const [managing, setManaging] = useState(false);
   const managementOpen = useRef(false);
   const managementConnect = useRef(false);
-  const managementPanel = useRef<HTMLDivElement>(null);
   const legacyFooter = useRef<HTMLDivElement>(null);
   const returnedPair = useSyncExternalStore(subscribePairReturn, readPairReturn);
   const returnLocal = hosts.local;
@@ -59,7 +57,10 @@ export function RemoteInstances({ children }: { children: ReactNode }) {
   const restoreFocus = () => {
     const fallback = legacyFooter.current?.querySelector<HTMLElement>("[data-host-switcher]");
     if (activeHostId.current && fallback) fallback.focus({ preventScroll: true });
-    else if (activeHostId.current) bridge.focus(activeHostId.current);
+    else if (activeHostId.current) {
+      frameNodes.current.get(activeHostId.current)?.focus({ preventScroll: true });
+      bridge.focus(activeHostId.current);
+    }
     else restoreLocalFocus();
   };
   const available = directory?.available === true || hosts.directoryError;
@@ -101,23 +102,30 @@ export function RemoteInstances({ children }: { children: ReactNode }) {
     kind: "shell", name: selected?.name || t("remote.localShort"), hostname: selected?.hostname || directory?.machine_name || "nanobot",
     localName: directory?.machine_name || "nanobot", currentId: selected?.id || null, recentIds: hosts.recentIds,
     profiles: (directory?.profiles || []).map(({ id, name, host }) => ({ id, name, host, state: hostStates[id] })),
-    pending, error: message, offline: !!offline, select: (id) => { if (id) switchHost(id); else hosts.local(); },
+    pending, error: message, offline: !!offline,
+    select: (id) => {
+      if (!id) selectLocal();
+      else if (managing) void connect(id).catch(() => {});
+      else switchHost(id);
+    },
     manage,
     cancel: hosts.cancel, clearError: hosts.clearError, restoreFocus: () => { if (!managing) restoreFocus(); },
   };
   useEffect(() => { if (selected) document.title = `${selected.name} · nanobot`; }, [selected]);
   useEffect(() => {
     const rememberFocus = (event: FocusEvent) => {
-      if (event.target instanceof HTMLElement && localPanel.current?.contains(event.target)
+      if (!managementOpen.current && event.target instanceof HTMLElement && localPanel.current?.contains(event.target)
         && !event.target.closest("[data-host-switcher]")) lastLocalFocus.current = event.target;
     };
     document.addEventListener("focusin", rememberFocus);
     return () => document.removeEventListener("focusin", rememberFocus);
   }, []);
   useLayoutEffect(() => {
-    if (selected) frameNodes.current.get(selected.id)?.focus({ preventScroll: true });
+    if (managing) return;
+    if (selected) restoreFocus();
     else restoreLocalFocus();
-  }, [selected]);
+  // Focus only on view changes, not on directory refreshes.
+  }, [selected, managing]);
   useEffect(() => {
     if (!selected) return;
     const stop = (event: KeyboardEvent) => event.stopPropagation();
@@ -127,19 +135,19 @@ export function RemoteInstances({ children }: { children: ReactNode }) {
   }, [selected]);
 
   return <RemoteContext.Provider value={{ available, localActive: !selected, directory,
-    activeHostId: selected?.id || null, hostStates, managing, selectLocal,
+    activeHostId: selected?.id || null, hostStates, managing, closeManagement: () => changeManagement(false), selectLocal,
     openHostIds: frames.map((frame) => frame.connection.id),
     directoryError: hosts.directoryError, refresh: hosts.refresh, connect, disconnect: hosts.disconnect, cancel: hosts.cancel }}>
     <HostNavigationContext.Provider value={bridge.embedded || (available || selected ? picker : null)}>
       <div className="flex h-full min-h-0 flex-col bg-background">
         <div className="relative min-h-0 flex-1 overflow-hidden">
-          <div ref={localPanel} data-host-view="local" aria-hidden={!!selected} {...(selected ? { inert: "" } : {})}
-            style={{ visibility: selected ? "hidden" : "visible" }}
-            className={`absolute inset-0 transition-opacity duration-150 motion-reduce:transition-none ${selected ? "invisible pointer-events-none opacity-0" : "visible opacity-100"}`}>
+          <div ref={localPanel} data-host-view="local" aria-hidden={!!selected && !managing} {...(selected && !managing ? { inert: "" } : {})}
+            style={{ visibility: selected && !managing ? "hidden" : "visible" }}
+            className={`absolute inset-0 transition-opacity duration-150 motion-reduce:transition-none ${selected && !managing ? "invisible pointer-events-none opacity-0" : "visible opacity-100"}`}>
             {children}
           </div>
           {frames.map((frame) => {
-            const active = selected?.id === frame.connection.id;
+            const active = !managing && selected?.id === frame.connection.id;
             return <div key={`${frame.connection.id}:${frame.connection.gateway_id}:${frame.connection.view_id || ""}`} data-host-view={frame.connection.id} aria-hidden={!active || offline}
               {...(!active || offline ? { inert: "" } : {})} style={{ visibility: active ? "visible" : "hidden" }}
               className={`absolute inset-0 transition-opacity duration-150 motion-reduce:transition-none ${active ? "visible opacity-100" : "invisible pointer-events-none opacity-0"}`}>
@@ -150,7 +158,7 @@ export function RemoteInstances({ children }: { children: ReactNode }) {
                 onLoad={() => { bridge.initialize(frame.connection.id); hosts.loaded(frame.connection.id); }} />
             </div>;
           })}
-          {selected && (offline || !activeFrame?.loaded) && <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-background px-6 text-center">
+          {!managing && selected && (offline || !activeFrame?.loaded) && <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-background px-6 text-center">
             {offline ? <PlugZap className="h-7 w-7 text-muted-foreground" /> : <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />}
             <p className="max-w-full break-words text-xs text-muted-foreground">{selected.name} · {selected.hostname}</p>
             <p className="font-medium">{t(offline ? "remote.offline" : "remote.opening")}</p>
@@ -165,18 +173,10 @@ export function RemoteInstances({ children }: { children: ReactNode }) {
         </div>
         {/* Older remote bundles cannot host the control. Keep an explicit exit
             in a compact bottom strip, never cover their sidebar controls. */}
-        {selected && (!bridge.readyIds.includes(selected.id) || offline) && <div ref={legacyFooter} data-testid="legacy-host-footer" className="flex shrink-0 items-center border-t border-border/50 bg-sidebar px-2.5 py-1">
+        {!managing && selected && (!bridge.readyIds.includes(selected.id) || offline) && <div ref={legacyFooter} data-testid="legacy-host-footer" className="flex shrink-0 items-center border-t border-border/50 bg-sidebar px-2.5 py-1">
           <div className="flex w-52 min-w-0"><HostSwitcher /></div>
         </div>}
         <RemoteHostMenu picker={picker} anchor={bridge.anchor} onClose={bridge.close} />
-        <Sheet open={managing} onOpenChange={changeManagement}>
-          <SheetContent ref={managementPanel} aria-describedby={undefined} className="w-full gap-0 overflow-hidden bg-settings-canvas outline-none sm:max-w-xl"
-            onOpenAutoFocus={(event) => { event.preventDefault(); managementPanel.current?.focus(); }}
-            onCloseAutoFocus={(event) => { event.preventDefault(); restoreFocus(); }}>
-            <div className="shrink-0 px-6 pb-2 pt-7 pr-12"><SheetTitle className="text-xl font-medium">{t("remote.title")}</SheetTitle></div>
-            <RemoteConnectionsPage inPanel onBackToChat={() => changeManagement(false)} />
-          </SheetContent>
-        </Sheet>
       </div>
     </HostNavigationContext.Provider>
   </RemoteContext.Provider>;

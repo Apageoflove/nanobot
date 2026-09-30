@@ -255,11 +255,12 @@ opens upward and shows the computer name, recent hosts, and **Manage connections
 With the sidebar collapsed, the icon still opens the same menu. A check marks
 the host you are viewing; a separate green dot marks an established connection.
 Saved but disconnected hosts stay gray, and connecting or failed hosts have
-distinct progress/error indicators. **Manage connections…** opens a side panel
+distinct progress/error indicators. **Manage connections…** opens a full page in
+the main content area beside the existing sidebar,
 without switching to Local, changing the route, or disconnecting the server.
-Closing it returns to the same view and draft. The panel uses the same connection
+**Back** returns to the same view and draft. The page uses the same connection
 states with text labels, so color is never the only way to distinguish them.
-Selecting a host in the panel switches only after its view is ready; a failed
+Selecting a host on the page switches only after its view is ready; a failed
 attempt leaves the original host selected. Remote
 connection setup is hidden inside the embedded remote view, and connecting back
 to the same gateway is rejected rather than creating a nested local session.
