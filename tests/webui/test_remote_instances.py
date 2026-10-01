@@ -86,13 +86,13 @@ async def test_new_local_manager_has_new_view_identity_for_same_remote(manager, 
 async def test_rename_connected_profile_only_changes_display_name(manager, ssh):
     key = await save(manager)
     await manager.action("connect", {"id": key})
-    before = json.loads(manager.path.read_text())
+    before = json.loads(manager.path.read_text(encoding="utf-8"))
     live = manager.connections[key]
     result = await manager.action("rename", {"id": key, "name": "  腾讯云 nanobot  "})
     assert result["profiles"][0]["name"] == "腾讯云 nanobot"
     assert result["profiles"][0]["connected"] is True
     before[key]["name"] = "腾讯云 nanobot"
-    assert json.loads(manager.path.read_text()) == before
+    assert json.loads(manager.path.read_text(encoding="utf-8")) == before
     assert RemoteInstances(manager.path.parent).snapshot()["profiles"][0]["name"] == "腾讯云 nanobot"
     assert manager.connections[key] is live
     ssh.tunnel.pause.assert_not_awaited()
