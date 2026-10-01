@@ -21,7 +21,9 @@ from websockets.http11 import Request
 
 from nanobot.channels.websocket.runtime import WebSocketConfig
 from nanobot.webui import remote_ssh
+from nanobot.webui.client_contract import webui_contract
 from nanobot.webui.gateway_services import build_gateway_services
+from nanobot.webui.local_client_assets import LocalClientAssets
 from nanobot.webui.remote_proxy import RemoteProxy
 from nanobot.webui.remote_ssh import RemoteProfile, open_tunnel
 
@@ -31,6 +33,13 @@ MEDIA = "/api/media/AAAAAAAAAAAAAAAAAAAAAA/remoteFilePayload"
 
 @pytest.fixture
 async def remote(tmp_path, monkeypatch):
+    assets = tmp_path / "local-dist"
+    assets.mkdir()
+    (assets / "index.html").write_text("<!doctype html><title>Local nanobot</title>", encoding="utf-8")
+    (assets / "assets").mkdir()
+    for name in ["index-AbcD1234.js", "index-AbcD1234.css", "index.js"]:
+        (assets / "assets" / name).write_text("local client asset", encoding="utf-8")
+    monkeypatch.setattr("nanobot.webui.remote_proxy.LocalClientAssets", lambda: LocalClientAssets(assets))
     config = WebSocketConfig(host="127.0.0.1", token_issue_secret=ROOT, path="/custom/ws")
     services = build_gateway_services(
         config=config, bus=MagicMock(), session_manager=None, static_dist_path=None,
@@ -39,8 +48,10 @@ async def remote(tmp_path, monkeypatch):
         runtime_surface="browser", runtime_capabilities_overrides=None,
     )
     seen, children = [], []
+    # Frozen initial wire declaration: current client vs an independently defined host.
     state = SimpleNamespace(block=asyncio.Event(), entered=asyncio.Event(), ws_redirect=False,
-                            asset_cache="public, max-age=31536000, immutable")
+                            contract={"version": "0.3.5", "min_protocol": 1, "max_protocol": 1,
+                                      "capabilities": ["webui.core.v1"]})
 
     async def process(connection, request):
         seen.append(request)
@@ -48,7 +59,7 @@ async def remote(tmp_path, monkeypatch):
         if path.startswith("/assets/"):
             response = connection.respond(200, "fixture asset")
             response.headers["Content-Type"] = "application/javascript"
-            response.headers["Cache-Control"] = state.asset_cache
+            response.headers["Cache-Control"] = "public, max-age=31536000, immutable"
             if "private" in request.path:
                 response.headers["Cache-Control"] = "private, no-store"
             if "cookie" in request.path:
@@ -75,7 +86,14 @@ async def remote(tmp_path, monkeypatch):
             response.headers["Content-Type"] = "image/png"
             response.headers["Content-Range"] = "bytes 0-4/10"
             return response
-        return await services.endpoint.process_request(connection, request, is_allowed=lambda _: True)
+        response = await services.endpoint.process_request(connection, request, is_allowed=lambda _: True)
+        if path == "/webui/bootstrap" and response.status_code == 200:
+            payload = json.loads(response.body)
+            payload["terminal"]["webui"] = state.contract
+            response.body = json.dumps(payload).encode()
+            del response.headers["Content-Length"]
+            response.headers["Content-Length"] = str(len(response.body))
+        return response
 
     async def messages(ws):
         assert ws in services.endpoint.webui_connections
@@ -130,29 +148,65 @@ async def bootstrap(remote, headers=None):
 
 @pytest.mark.parametrize("path,cacheable", [
     ("/assets/index-AbcD1234.js", True), ("/assets/index-AbcD1234.css", True),
-    ("/assets/private-AbcD1234.js", False), ("/assets/cookie-AbcD1234.js", False),
-    ("/assets/index-AbcD1234.js?token=secret", False), ("/assets/config.json", False),
-    ("/assets/index.js", False), ("/assets/index-AbcD1234.html", False),
+    ("/assets/index.js", False), ("/", False),
 ])
-async def test_cache_only_versioned_public_build_assets(remote, path, cacheable):
+async def test_only_local_assets_are_served_and_versioned_files_cached(remote, path, cacheable):
     response = await remote.client.get(remote.proxy.origin + path)
     assert response.status_code == 200
-    assert response.headers["cache-control"] == ("private, max-age=31536000, immutable" if cacheable else "no-store")
+    assert response.headers["cache-control"] == ("private, max-age=31536000, immutable" if cacheable else "no-cache")
+    assert response.headers["x-nanobot-ui"] == "local"
     assert "set-cookie" not in response.headers
+    assert remote.seen == []
+    assert "local" in response.text.lower()
 
 
-@pytest.mark.parametrize("directive", ["no-cache", 'no-cache="Content-Type"', "must-revalidate"])
-async def test_proxy_preserves_upstream_asset_revalidation(remote, directive):
-    remote.state.asset_cache = f"public, max-age=0, immutable, {directive}"
-    response = await remote.client.get(remote.proxy.origin + "/assets/index-AbcD1234.js")
-    assert response.status_code == 200
-    assert response.headers["cache-control"] == "no-store"
+@pytest.mark.parametrize("path", ["/assets/remote-only-AbcD1234.js", "/auth/callback", "/missing",
+    "/assets/%2e%2e/config.json", "/assets/%2e%2e/%2e%2e/config.json", "/assets/foo%5cbar.js"])
+async def test_missing_local_files_never_fall_back_to_remote_html_or_code(remote, path):
+    assert (await remote.client.get(remote.proxy.origin + path)).status_code == 404
+    assert remote.seen == []
 
 
-async def test_proxy_does_not_extend_upstream_asset_freshness(remote):
-    remote.state.asset_cache = "public, max-age=60, immutable"
-    response = await remote.client.get(remote.proxy.origin + "/assets/index-AbcD1234.js")
-    assert response.headers["cache-control"] == "private, max-age=60, immutable"
+async def test_static_symlink_cannot_escape_local_bundle(remote, tmp_path):
+    outside = tmp_path / "private.js"
+    outside.write_text("not a UI asset", encoding="utf-8")
+    link = remote.proxy.assets.directory / "assets" / "escape.js"
+    try:
+        link.symlink_to(outside)
+    except OSError:
+        pytest.skip("This platform does not permit unprivileged symlinks")
+    assert (await remote.client.get(remote.proxy.origin + "/assets/escape.js")).status_code == 404
+    assert remote.seen == []
+
+
+async def test_compressed_sibling_cannot_escape_local_bundle(remote, tmp_path):
+    outside = tmp_path / "private.gz"
+    outside.write_bytes(b"not a UI asset")
+    link = remote.proxy.assets.directory / "assets" / "index.js.gz"
+    try:
+        link.symlink_to(outside)
+    except OSError:
+        pytest.skip("This platform does not permit unprivileged symlinks")
+    response = await remote.client.get(remote.proxy.origin + "/assets/index.js", headers={
+        "Accept-Encoding": "gzip",
+    })
+    assert response.status_code == 404
+    assert remote.seen == []
+
+
+@pytest.mark.parametrize("contract,error", [
+    (None, "webui_compatibility_unknown"),
+    ({**webui_contract(), "min_protocol": 2, "max_protocol": 2}, "client_update_required"),
+    ({**webui_contract(), "capabilities": []}, "host_update_required"),
+])
+async def test_bootstrap_rechecks_contract_before_issuing_local_credentials(remote, contract, error):
+    remote.state.contract = contract
+    response = await remote.client.get(remote.proxy.origin + "/webui/bootstrap",
+                                       headers={"X-Nanobot-Auth": remote.proxy.secret})
+    assert response.status_code == 409
+    assert response.json()["error"] == error
+    assert "token" not in response.json() and ROOT not in response.text
+    assert not remote.proxy._api and not remote.proxy._ws
 
 
 async def test_remote_credentials_never_leave_the_backend(remote):
@@ -237,13 +291,16 @@ async def test_signed_media_wrapped_over_http_and_websocket_and_range_preserved(
     response = await remote.client.get(remote.proxy.origin + local, headers={"Range": "bytes=0-4"})
     assert response.status_code == 206 and response.content == b"bytes"
     assert response.headers["content-range"] == "bytes 0-4/10"
+    assert response.headers["x-content-type-options"] == "nosniff"
+    assert response.headers["content-security-policy"].startswith("sandbox;")
+    assert "allow-scripts" not in response.headers["content-security-policy"]
     assert remote.seen[-1].headers["Range"] == "bytes=0-4"
     assert (await remote.client.get(remote.proxy.origin + MEDIA)).status_code == 401
 
 
 async def test_http_and_websocket_redirects_cannot_disclose_credentials(remote):
     response = await remote.client.get(remote.proxy.origin + "/redirect")
-    assert response.status_code == 502
+    assert response.status_code == 404
     assert ROOT not in response.text and "location" not in response.headers
     assert "set-cookie" not in response.headers
     remote.state.ws_redirect = True

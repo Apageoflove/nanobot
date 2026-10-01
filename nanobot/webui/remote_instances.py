@@ -18,6 +18,7 @@ from pydantic import Field
 
 from nanobot.utils.helpers import _write_text_atomic  # pyright: ignore[reportPrivateUsage]
 from nanobot.webui import remote_ssh
+from nanobot.webui.client_contract import Compatibility, assess_webui_contract, compatibility_error
 from nanobot.webui.remote_proxy import RemoteProxy
 from nanobot.webui.remote_ssh import RemoteError, RemoteProfile, Tunnel
 
@@ -29,6 +30,7 @@ class _SavedProfile(RemoteProfile):
     # between servers on every reconnect. Not an editable API field.
     local_port: int = Field(default=0, ge=0, le=65535)
     proxy_origin: bool = False
+    local_client_origin: bool = False
     pair_id: str = ""
 
 
@@ -60,6 +62,7 @@ class RemoteInstances:
         self._unverified: dict[str, tuple[str, str, float]] = {}
         self._unknown_hosts: set[str] = set()
         self._closed = False
+        self._compatibility: dict[str, Compatibility] = {}
         from nanobot.webui.remote_pairing import PairStore
 
         self.pairing = PairStore(directory)
@@ -129,12 +132,16 @@ class RemoteInstances:
         for key, profile in self._read().items():
             connection = self.connections.get(key)
             error = (connection.error or ("" if connection.tunnel.active else "ssh_unreachable")) if connection else "disconnected"
-            item = {"id": key, **profile.model_dump(exclude={"local_port", "proxy_origin", "pair_id"}),
+            item = {"id": key, **profile.model_dump(exclude={"local_port", "proxy_origin", "local_client_origin", "pair_id"}),
                     "connected": connection is not None and not error,
                     "connection_error": error}
             if connection:
                 item["gateway_id"] = connection.gateway_id
                 item["view_id"] = self._view_session
+            if key in self._compatibility:
+                item["compatibility"] = self._compatibility[key]
+                if not connection and (compatibility_failure := compatibility_error(self._compatibility[key])):
+                    item["connection_error"] = compatibility_failure
             if profile.pair_id:
                 item.update(paired=True, revoke_command=
                             f"nanobot remote revoke {profile.pair_id} --ssh-user {profile.host.split('@')[0]}")
@@ -147,7 +154,10 @@ class RemoteInstances:
                     # display names, addresses alone, or transient gateway IDs.
                     item["instance_id"] = instances.setdefault(receipt.destination(), key)
             profiles.append(item)
-        return {"available": True, "machine_name": socket.gethostname(), "profiles": profiles}
+        from nanobot import __version__
+
+        return {"available": True, "machine_name": socket.gethostname(),
+                "client_version": __version__, "profiles": profiles}
 
     async def health(self) -> dict[str, Any]:
         # Hold a lifetime lease through every credential-bearing request. Final
@@ -185,7 +195,13 @@ class RemoteInstances:
                 elif identity["gatewayId"] != connection.gateway_id:
                     connection.error = "instance_changed"
                 else:
-                    connection.error = ""
+                    report = assess_webui_contract(identity.get("webui"))
+                    for key, item in self.connections.items():
+                        if item is connection:
+                            self._compatibility[key] = report
+                    connection.error = compatibility_error(report)
+                    if connection.error:
+                        await connection.proxy.pause()
         except (httpx.HTTPError, ValueError, AttributeError):
             connection.error = connection.tunnel.error or "remote_unreachable"
             if connection.paired and connection.error == "ssh_auth_failed":
@@ -411,6 +427,7 @@ class RemoteInstances:
                 if connection:
                     await connection.proxy.pause()
                 if action == "remove":
+                    self._compatibility.pop(key, None)
                     if pair_id:
                         self.pairing.forget(pair_id)
                     self._known_hosts(key).unlink(missing_ok=True)
@@ -435,6 +452,7 @@ class RemoteInstances:
             del self.connections[key]
         if len(self.connections) >= 4:
             raise RemoteError("connection_limit")
+        self._compatibility.pop(key, None)
         known_hosts = self._known_hosts(key)
         transport: RemoteProfile = profile
         if profile.pair_id:
@@ -445,7 +463,9 @@ class RemoteInstances:
         used_ports = self._remember_origins(self._read())
         # Retire browser origins from the earlier transparent tunnel. Those
         # origins may still contain remote secrets in old tabs/localStorage.
-        local_port = profile.local_port if profile.proxy_origin else 0
+        # Retire origins that previously executed remote-provided JS, including
+        # persistent service workers. They cannot intercept this local client.
+        local_port = profile.local_port if profile.proxy_origin and profile.local_client_origin else 0
         proxy = self._proxies.get(local_port)
         if proxy is not None:
             tunnel = proxy.tunnel
@@ -481,10 +501,11 @@ class RemoteInstances:
                     await self._check(item)
                 if any(not item.error for _, item in duplicates):
                     raise RemoteError("duplicate_instance")
-                # Require the installed WebUI too, not just a port answering HTTP.
-                page = await client.get(base + "/")
-                if page.status_code != 200 or "text/html" not in page.headers.get("content-type", ""):
-                    raise RemoteError("webui_unavailable")
+                # The host supplies data only. Its frontend need not be installed.
+                report = assess_webui_contract(identity.get("webui"))
+                self._compatibility[key] = report
+                if error := compatibility_error(report):
+                    raise RemoteError(error)
             issue_path = data.get("token_issue_path", "")
             if not isinstance(issue_path, str):
                 raise RemoteError("incompatible_gateway")
@@ -504,6 +525,7 @@ class RemoteInstances:
             self._remember_origins(profiles, proxy.port)
             profiles[key].local_port = proxy.port
             profiles[key].proxy_origin = True
+            profiles[key].local_client_origin = True
             self._write(profiles)
             # A failed route must not block a newly verified route to this bot.
             # Retire it only after the replacement is saved; retain its profile

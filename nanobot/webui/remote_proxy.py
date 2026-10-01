@@ -27,11 +27,16 @@ from websockets.exceptions import WebSocketException
 from websockets.typing import Origin
 from yarl import URL
 
-from nanobot.webui.remote_ssh import Tunnel, _listen  # pyright: ignore[reportPrivateUsage]
+from nanobot.webui.client_contract import assess_webui_contract, compatibility_error
+from nanobot.webui.local_client_assets import LocalClientAssets
+from nanobot.webui.remote_ssh import (
+    RemoteError,
+    Tunnel,
+    _listen,  # pyright: ignore[reportPrivateUsage]
+)
 
 _MAX_BYTES = 64 * 1024 * 1024
 _MAX_CAPABILITIES = 10000
-_STATIC_ASSET = re.compile(r"/assets/[^/]+-[A-Za-z0-9_-]{8,}\.(?:js|css|woff2?|ttf|svg|png|webp|ico)$")
 _MEDIA_PATH = r"/api/media/[A-Za-z0-9_-]{22}/[A-Za-z0-9_-]+"
 # Consume absolute URLs unchanged before matching gateway-relative media paths.
 # An external site's similarly named route is not this proxy's capability.
@@ -72,6 +77,7 @@ class RemoteProxy:
         self._bootstrap_lock = asyncio.Lock()
         self._enabled = True
         self._runner: web.AppRunner | None = None
+        self.assets = LocalClientAssets()
 
     @classmethod
     async def open(
@@ -79,6 +85,8 @@ class RemoteProxy:
         *, local_port: int = 0, excluded_ports: set[int] | None = None,
     ) -> RemoteProxy:
         self = cls(tunnel, secret, gateway_id, issue_path)
+        if not self.assets.available:
+            raise RemoteError("local_webui_unavailable")
         listener = _listen(local_port, excluded_ports or set())
         self.port = int(listener.getsockname()[1])
         app = web.Application(client_max_size=_MAX_BYTES)
@@ -188,6 +196,8 @@ class RemoteProxy:
                     return await self._bootstrap()
             if path == "/webui/terminal":
                 raise web.HTTPForbidden()
+            if not path.startswith("/api/"):
+                return self.assets.response(request)
             return await self._http(request, path)
         except (httpx.HTTPError, WebSocketException, OSError, ValueError):
             # Never reflect upstream URLs, credentials or raw exception text.
@@ -226,6 +236,11 @@ class RemoteProxy:
         if not isinstance(terminal, dict):
             raise ValueError("invalid terminal")
         terminal = cast(dict[str, Any], terminal)
+        report = assess_webui_contract(terminal.get("webui"))
+        error = compatibility_error(report)
+        if error:
+            return web.json_response({"error": error, "compatibility": report}, status=409,
+                                     headers={"Cache-Control": "no-store"})
         ttl, ws_path = data.get("expires_in"), data.get("ws_path")
         if (terminal.get("gatewayId") != self._gateway_id
                 or terminal.get("protocolVersion") != 1
@@ -246,6 +261,7 @@ class RemoteProxy:
         result.update(token=token, api_token=api_token, expires_in=ttl,
                       terminal={"protocolVersion": 1, "gatewayId": self._gateway_id},
                       ws_path=self._ws_path, ws_url=f"ws://127.0.0.1:{self.port}{self._ws_path}")
+        result["host_compatibility"] = report
         return web.json_response(result, headers={"Cache-Control": "no-store"})
 
     def _local_media(self, match: re.Match[str]) -> str:
@@ -297,7 +313,7 @@ class RemoteProxy:
         elif path.startswith("/api/"):
             grant = self._grant(self._credential(request), self._api)
             headers["Authorization"] = "Bearer " + grant.remote
-        # HTTP API and static responses are read-only. WebUI writes travel over
+        # HTTP API responses are read-only. WebUI writes travel over
         # its authenticated multiplex WebSocket, not an arbitrary HTTP relay.
         if request.method not in {"GET", "HEAD"}:
             raise web.HTTPMethodNotAllowed(request.method, ["GET", "HEAD"])
@@ -308,16 +324,12 @@ class RemoteProxy:
                 outgoing = {key: value for key, value in upstream.headers.items()
                             if key.lower() in _RESPONSE_HEADERS}
                 outgoing["Cache-Control"] = "no-store"
-                upstream_cache = upstream.headers.get("cache-control", "").lower()
-                if (upstream.status_code == 200 and _STATIC_ASSET.fullmatch(path)
-                        and not request.rel_url.query and "set-cookie" not in upstream.headers
-                        and "public" in upstream_cache and "immutable" in upstream_cache
-                        and "no-store" not in upstream_cache and "private" not in upstream_cache
-                        and "no-cache" not in upstream_cache and "must-revalidate" not in upstream_cache
-                        and "application/json" not in upstream.headers.get("content-type", "")):
-                    # Only versioned public build assets, never HTML, API data,
-                    # credentials or media capabilities. Keep caches browser-local.
-                    outgoing["Cache-Control"] = re.sub(r"\bpublic\b", "private", upstream_cache)
+                # Remote documents/media are data, never executable client code.
+                # Keep them sandboxed even if a host omits or relaxes its headers.
+                outgoing["X-Content-Type-Options"] = "nosniff"
+                outgoing["Content-Security-Policy"] = (
+                    "sandbox; default-src 'none'; style-src 'unsafe-inline'; img-src data: blob:"
+                )
                 if "application/json" in upstream.headers.get("content-type", ""):
                     body = bytearray()
                     async for chunk in upstream.aiter_bytes():

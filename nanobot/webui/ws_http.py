@@ -736,7 +736,9 @@ class GatewayHTTPHandler:
             elif not is_local_browser:
                 return _http_error(403, "bootstrap is localhost-only")
 
-        terminal = {"protocolVersion": 1, "gatewayId": self.tokens.instance_id}
+        from nanobot.webui.client_contract import gateway_identity
+
+        terminal = gateway_identity(self.tokens.instance_id)
         if terminal_probe:
             # Capability probing does not allocate credentials or acquire client leases.
             return _http_json_response(terminal, extra_headers=_NO_STORE_HEADERS)

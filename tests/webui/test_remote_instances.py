@@ -16,6 +16,7 @@ from websockets.http11 import Request
 
 from nanobot.channels.websocket.runtime import WebSocketConfig
 from nanobot.webui import remote_instances, remote_ssh
+from nanobot.webui.client_contract import webui_contract
 from nanobot.webui.gateway_services import build_gateway_services
 from nanobot.webui.remote_instances import RemoteInstances
 from nanobot.webui.remote_proxy import RemoteProxy
@@ -48,13 +49,13 @@ def ssh(monkeypatch):
     probe = AsyncMock(return_value={"port": 8765, "secret": "private-webui-secret", "hostname": "team-host"})
     monkeypatch.setattr(remote_ssh, "probe", probe)
     monkeypatch.setattr(remote_ssh, "open_tunnel", AsyncMock(return_value=tunnel))
-    state = {"status": 200, "identity": {"protocolVersion": 1, "gatewayId": "remote-one"}}
+    state = {"status": 200, "identity": {"protocolVersion": 1, "gatewayId": "remote-one", "webui": webui_contract()}}
 
     def respond(request):
         if request.url.path == "/webui/terminal":
             assert request.headers["X-Nanobot-Auth"] == "private-webui-secret"
             return httpx.Response(state["status"], json=state["identity"])
-        return httpx.Response(200, text="<!doctype html><title>nanobot</title>", headers={"content-type": "text/html"})
+        raise AssertionError(f"A data-only host must not be asked for a frontend: {request.url.path}")
 
     real_client = httpx.AsyncClient
     monkeypatch.setattr(httpx, "AsyncClient", lambda **kwargs: real_client(transport=httpx.MockTransport(respond), **kwargs))
@@ -67,6 +68,48 @@ async def test_save_survives_restart_without_credentials(manager):
     assert "secret" not in manager.path.read_text()
     with pytest.raises(ValidationError):
         await save(manager, private_key="must-never-save")
+
+
+@pytest.mark.parametrize("contract,code", [
+    (None, "webui_compatibility_unknown"),
+    ({**webui_contract(), "min_protocol": 2, "max_protocol": 2}, "client_update_required"),
+    ({**webui_contract(), "capabilities": []}, "host_update_required"),
+])
+async def test_contract_failure_keeps_profile_and_reports_correct_update_target(manager, ssh, contract, code):
+    key = await save(manager)
+    ssh.state["identity"]["webui"] = contract
+    with pytest.raises(RemoteError, match=code):
+        await manager.action("connect", {"id": key})
+    RemoteProxy.open.assert_not_awaited()
+    ssh.tunnel.close.assert_awaited_once()
+    snapshot = manager.snapshot()
+    assert len(snapshot["profiles"]) == 1
+    assert snapshot["profiles"][0]["connection_error"] == code
+    assert not snapshot["profiles"][0]["connected"]
+    assert snapshot["profiles"][0]["compatibility"]["status"] != "compatible"
+    assert not manager.connections
+
+
+async def test_server_upgrade_rechecks_compatibility_without_new_pairing(manager, ssh):
+    key = await save(manager)
+    ssh.state["identity"].pop("webui")
+    with pytest.raises(RemoteError, match="webui_compatibility_unknown"):
+        await manager.action("connect", {"id": key})
+    saved = manager.path.read_text(encoding="utf-8")
+    ssh.state["identity"]["webui"] = {**webui_contract(), "version": "9.0.0"}
+    await manager.action("connect", {"id": key})
+    assert manager.snapshot()["profiles"][0]["compatibility"]["status"] == "compatible"
+    # The stable saved host remains; only its reserved local origin is added.
+    assert set(json.loads(manager.path.read_text(encoding="utf-8"))) == set(json.loads(saved))
+
+
+async def test_host_contract_change_invalidates_live_proxy(manager, ssh):
+    key = await save(manager)
+    await manager.action("connect", {"id": key})
+    ssh.state["identity"]["webui"] = {**webui_contract(), "capabilities": []}
+    await manager.health()
+    ssh.proxy.pause.assert_awaited_once()
+    assert manager.snapshot()["profiles"][0]["connection_error"] == "host_update_required"
 
 
 async def test_new_local_manager_has_new_view_identity_for_same_remote(manager, ssh):
@@ -531,16 +574,19 @@ async def test_old_profile_origin_is_remembered_before_first_edit(manager, ssh):
     assert RemoteInstances(manager.path.parent)._remember_origins({}) == {23456}
 
 
-async def test_legacy_transparent_origin_is_not_reused(manager, ssh):
+@pytest.mark.parametrize("proxy_origin", [False, True])
+async def test_legacy_transparent_or_remote_code_origin_is_not_reused(manager, ssh, proxy_origin):
     key = await save(manager)
     old = json.loads(manager.path.read_text())
     old[key]["local_port"] = 12345
+    old[key]["proxy_origin"] = proxy_origin
     manager.path.write_text(json.dumps(old))
     await manager.action("connect", {"id": key})
     kwargs = RemoteProxy.open.call_args.kwargs
     assert kwargs["local_port"] == 0
     assert 12345 in kwargs["excluded_ports"]
     assert json.loads(manager.path.read_text())[key]["proxy_origin"] is True
+    assert json.loads(manager.path.read_text())[key]["local_client_origin"] is True
     assert "proxy_origin" not in manager.snapshot()["profiles"][0]
 
 

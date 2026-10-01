@@ -224,7 +224,8 @@ and forced TTY are disabled for the fixed nanobot probe.
 - The remote server needs `python3` and an already running nanobot WebUI with
   a configured `tokenIssueSecret` (or `token`) in its configuration file.
 - The remote gateway must support the authenticated `/webui/terminal`
-  identity probe, protocol version 1, and have the WebUI bundle installed.
+  identity probe and the supported WebUI client contract. The local installation
+  must have its WebUI bundle; the remote host only needs the backend endpoints.
   The initial transport supports HTTP on the server's loopback address; SSH
   encrypts the connection. A configured public WebSocket URL or trusted-proxy
   authentication is not supported by this SSH connection mode.
@@ -271,20 +272,57 @@ checks expiry and revocation on every new stream. Older bridges still work with
 fresh authentication per stream. Pair again after upgrading the server to install
 the guarded bridge; upgrading nanobot alone does not rewrite existing grants.
 
-Versioned public JS/CSS and other build assets are cached in this browser, so
-refreshes do not download the same bundle again. HTML, API responses, credentials
-and media capabilities remain uncached by the proxy. Initial authentication,
-uncached assets and network latency still affect the first connection; reuse
+The interface's HTML, JS, CSS and bundled images come from your **local nanobot
+installation**, not the server. Versioned local assets can be cached in the
+browser; HTML is revalidated. API responses, credentials and media capabilities
+remain uncached by the proxy. Initial authentication and network latency still
+affect the first connection; reuse
 does not bypass a blocked SSH route or VPN policy.
 
 ## Using the remote instance
 
-The remote instance's **own complete WebUI** fills the main window. Its UI
-version follows the server, independently of the local
-installation. Model settings, channels, tools and conversations belong to that
-server. The isolated remote view cannot navigate the local application's
+The **local WebUI** displays the selected server's data. Interface updates follow
+your local installation; model settings, channels, tools and conversations still
+belong to the server. Every host uses an isolated browser origin and runtime, but
+all of them load the same locally installed frontend. The server's static WebUI
+bundle is not required for this mode. The isolated view cannot navigate the local application's
 top-level window. The first version has been exercised in macOS Chrome; native
 desktop-host packaging and other platforms still need their own acceptance.
+
+When upgrading from the earlier remote-page mode, the first reconnect reserves
+a fresh local browser origin. This prevents previously loaded remote service
+workers or cached code from controlling the local client. Saved SSH profiles,
+pairing authorizations, and server conversations remain intact; origin-local
+browser preferences may return to their defaults. Finish or copy unsent drafts
+before restarting the local application for this upgrade.
+
+### Versions and updating the right machine
+
+Open a server's **… → Version & compatibility** in **Manage connections…** to see
+the local and server versions and the compatibility result. Matching package
+versions are not required: both sides must support a common WebUI protocol.
+Compatible version differences do not show an update warning.
+
+- **Compatibility not confirmed:** the host has not advertised a supported
+  WebUI contract. This is not evidence of a broken key, VPN issue, or simply an
+  old version. Local-client mode cannot safely proceed until support is confirmed.
+  For older installations, update nanobot on that server and reconnect.
+- **Update this server:** its advertised contract lacks the client's required
+  core features. Update the server, not merely this computer.
+- **Update this computer:** the host requires a newer client protocol. Update
+  the local installation; do not downgrade the server.
+
+The initial explicit contract is WebUI protocol 1 with `webui.core.v1`. Older
+hosts without this metadata need a compatible update to use local-client mode;
+their own server WebUI is unaffected. The terminal transport protocol is separate.
+
+Use the [update instructions](../quick-start.md#updating) for the same installation
+method and environment that run nanobot on the target machine. For a container,
+update the deployed image; for a service, update its actual environment rather
+than an unrelated shell installation. Back up configuration and data and finish
+active tasks before a required restart. Verify the version of the restarted
+process, then reconnect. Version checks do not install packages, restart a host,
+or change its model, channel, or SSH configuration automatically.
 
 The host switcher lives beside **Settings at the bottom of the sidebar**, showing
 **Local** or your saved server name. It is also available in Settings. Its menu
