@@ -481,13 +481,33 @@ async def test_health_budget_includes_waiting_for_connection_lock(manager, ssh, 
 
 async def test_reconnect_keeps_origin_and_changing_target_does_not(manager, ssh):
     key = await save(manager)
-    await manager.action("connect", {"id": key})
+    first = await manager.action("connect", {"id": key})
     assert json.loads(manager.path.read_text())[key]["local_port"] == 23456
     await manager.action("disconnect", {"id": key})
     await manager.action("save", {"id": key, "profile": {"name": "Renamed", "host": "ubuntu@example.test"}})
     assert json.loads(manager.path.read_text())[key]["local_port"] == 23456
+    # Editing display metadata must preserve the local-client origin marker,
+    # not just its port: otherwise reconnect silently retires that origin.
+    assert json.loads(manager.path.read_text())[key]["local_client_origin"] is True
+    second = await manager.action("connect", {"id": key})
+    assert second["url"] == first["url"]
+    RemoteProxy.open.assert_awaited_once()
+    await manager.action("disconnect", {"id": key})
     await manager.action("save", {"id": key, "profile": {"name": "Other", "host": "other.example.test"}})
     assert json.loads(manager.path.read_text())[key]["local_port"] == 0
+    assert "compatibility" not in manager.snapshot()["profiles"][0]
+
+
+async def test_editing_failed_target_clears_its_compatibility_diagnosis(manager, ssh):
+    key = await save(manager)
+    ssh.state["identity"].pop("webui")
+    with pytest.raises(RemoteError, match="webui_compatibility_unknown"):
+        await manager.action("connect", {"id": key})
+    result = await manager.action("save", {"id": key, "profile": {
+        "name": "Other", "host": "other.example.test",
+    }})
+    assert result["profiles"][0]["connection_error"] == "disconnected"
+    assert "compatibility" not in result["profiles"][0]
 
 
 async def test_corrupt_store_not_overwritten(manager):

@@ -67,6 +67,7 @@ beforeEach(async () => {
   mocks.request.mockReset().mockImplementation(async (action: string) => {
     if (action === "remote.connect") return connection;
     if (action === "remote.save") return { id: profile.id };
+    if (action === "remote.disconnect") return { available: true, profiles: [profile] };
     return {};
   });
 });
@@ -858,6 +859,33 @@ describe("remote instance UX", () => {
     fireEvent.click(within(dialog).getByRole("button", { name: "Disconnect" }));
     await waitFor(() => expect(screen.queryByTitle("nanobot on Team server")).not.toBeInTheDocument());
     expect(mocks.request).toHaveBeenCalledWith("remote.disconnect", { id: profile.id }, 65_000);
+  });
+
+  it("keeps the current view when forgetting fails and closes it only after a successful retry", async () => {
+    view(); await openDirectory();
+    fireEvent.click(screen.getByRole("button", { name: "Team server ubuntu@example.test" }));
+    const frame = await readyRemote();
+    await openDirectory();
+    fireEvent.pointerDown(screen.getByRole("button", { name: "Manage Team server" }), { button: 0, ctrlKey: false });
+    fireEvent.click(await screen.findByRole("menuitem", { name: "Forget server" }));
+    const dialog = await screen.findByRole("dialog", { name: "Forget Team server?" });
+    mocks.request.mockImplementation(async (action: string) => {
+      if (action === "remote.remove") throw new Error("local_io_error");
+      return {};
+    });
+    fireEvent.click(within(dialog).getByRole("button", { name: "Forget server" }));
+    await within(dialog).findByRole("alert");
+    expect(readSelectedRemote()?.id).toBe(profile.id);
+    expect(frame).toBeInTheDocument();
+    expect(mocks.request.mock.calls.map(([action]) => action)).toEqual(["remote.connect", "remote.remove"]);
+
+    mocks.request.mockResolvedValue({ available: true, profiles: [] });
+    mocks.read.mockRejectedValue(new Error("directory_unavailable"));
+    fireEvent.click(within(dialog).getByRole("button", { name: "Forget server" }));
+    await waitFor(() => expect(frame).not.toBeInTheDocument());
+    expect(readSelectedRemote()).toBeNull();
+    expect(screen.queryByRole("button", { name: "Manage Team server" })).not.toBeInTheDocument();
+    expect(mocks.request.mock.calls.map(([action]) => action)).toEqual(["remote.connect", "remote.remove", "remote.remove"]);
   });
 
   it("refresh restores the selected remote, keeping the local shell hidden", async () => {

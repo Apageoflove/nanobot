@@ -35,7 +35,10 @@ beforeEach(() => {
   window.sessionStorage.clear();
   mocks.read.mockReset().mockResolvedValue(directory);
   mocks.request.mockReset().mockImplementation(async (action: string, payload: { id: string }) =>
-    action === "remote.connect" ? connections.find((item) => item.id === payload.id) : {});
+    action === "remote.connect" ? connections.find((item) => item.id === payload.id) : {
+      ...directory, profiles: directory.profiles.map((profile) =>
+        profile.id === payload.id ? { ...profile, connected: false } : profile),
+    });
 });
 afterEach(() => { cleanup(); vi.useRealTimers(); vi.restoreAllMocks(); });
 
@@ -99,14 +102,17 @@ describe("host session lifecycle", () => {
     expect(result.current.frames[0].error).toBe("instance_changed");
   });
 
-  it("does not report a successful disconnect as failed when refreshing the list fails", async () => {
+  it("uses the disconnect result without a second directory read", async () => {
     const { result } = renderHook(useHostSessions);
     await ready(result, 0);
+    const reads = mocks.read.mock.calls.length;
     mocks.read.mockRejectedValue(new Error("directory_unavailable"));
     await act(async () => { await expect(result.current.disconnect(ids[0])).resolves.toBeUndefined(); });
     expect(result.current.selected).toBeNull();
     expect(result.current.frames).toHaveLength(0);
-    expect(result.current.directoryError).toBe(true);
+    expect(result.current.directory?.profiles.find((profile) => profile.id === ids[0])?.connected).toBe(false);
+    expect(mocks.read).toHaveBeenCalledTimes(reads);
+    expect(result.current.directoryError).toBe(false);
   });
 
   it("keeps the current host until the destination view loads, then switches warm without RPC", async () => {

@@ -172,17 +172,21 @@ export function useHostSessions() {
     if (frame) { frame.loaded = true; publish(); }
     if (waiter.current?.id === id) { waiter.current.finish(true); waiter.current = null; }
   }, [publish]);
-  const disconnect = useCallback(async (id: string) => {
+  const closeConnection = useCallback(async (id: string, action: "disconnect" | "remove") => {
     directoryGeneration.current += 1;
     if (pendingRef.current?.id === id) cancel();
-    await remoteAction(client, "disconnect", { id });
+    // The backend owns the transaction. In particular, a failed Forget must
+    // leave the connection and its browser view intact for a safe retry.
+    const next = await remoteAction<RemoteDirectory>(client, action, { id });
+    directoryGeneration.current += 1;
+    if (!mounted.current) return;
     if (selectedRef.current?.id === id) local();
     cache.current.delete(id);
+    applyDirectory(next);
     publish();
-    // The mutation succeeded. A failed follow-up read must not ask the user to
-    // repeat a destructive action; refresh has its own retryable list error.
-    await refresh().catch(() => {});
-  }, [cancel, client, local, publish, refresh]);
+  }, [applyDirectory, cancel, client, local, publish]);
+  const disconnect = useCallback((id: string) => closeConnection(id, "disconnect"), [closeConnection]);
+  const remove = useCallback((id: string) => closeConnection(id, "remove"), [closeConnection]);
 
   useEffect(() => {
     mounted.current = true;
@@ -259,5 +263,5 @@ export function useHostSessions() {
     };
   }, [applyDirectory, client, getToken, publish]);
   return { directory, directoryError, refresh, rename, selected, recentIds, frames, pending,
-    error: failure?.code || "", errorId: failure?.id, clearError, connect, cancel, local, disconnect, loaded };
+    error: failure?.code || "", errorId: failure?.id, clearError, connect, cancel, local, disconnect, remove, loaded };
 }

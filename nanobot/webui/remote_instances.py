@@ -333,11 +333,14 @@ class RemoteInstances:
                 ))
                 if instance_changed:
                     self._remember_origins(profiles)
-                local_port = profiles[key].local_port if key in profiles and not instance_changed else 0
-                proxy_origin = bool(local_port and profiles[key].proxy_origin)
-                profiles[key] = _SavedProfile(**profile.model_dump(), local_port=local_port,
-                                             proxy_origin=proxy_origin)
+                # Update editable fields without reconstructing (and losing)
+                # managed origin metadata for an unchanged destination.
+                profiles[key] = (profiles[key].model_copy(update=profile.model_dump())
+                                 if key in profiles and not instance_changed
+                                 else _SavedProfile(**profile.model_dump()))
                 self._write(profiles)
+                if instance_changed:
+                    self._compatibility.pop(key, None)
                 if target_changed:
                     self._known_hosts(key).unlink(missing_ok=True)
                     self._unverified.pop(key, None)

@@ -51,8 +51,8 @@ export function RemoteConnectionsPage({ mainNavigationExpanded = false, hostChro
   const [editing, setEditing] = useState(false);
   const [savedId, setSavedId] = useState("");
   const [busy, setBusy] = useState("");
-  const [error, setError] = useState("");
   const [errorCode, setErrorCode] = useState("");
+  const error = errorCode ? t(`remote.errors.${errorCode}`, { defaultValue: t("remote.errors.unknown") }) : "";
   const [sshOptions, setSSHOptions] = useState(false);
   const [manualLocation, setManualLocation] = useState(false);
   const [inspection, setInspection] = useState<RemoteInspection | null>(null);
@@ -96,12 +96,11 @@ export function RemoteConnectionsPage({ mainNavigationExpanded = false, hostChro
       setInspection(null); setManualLocation(false); setInspectBeforeConnect(true);
     }
     setErrorCode(code);
-    setError(t(`remote.errors.${code}`, { defaultValue: t("remote.errors.unknown") }));
   };
   const closeEditor = () => {
     operation.current += 1;
     if (busy) connections.cancel();
-    setBusy(""); setEditorOpen(false); setFingerprint(null); setError(""); setErrorCode("");
+    setBusy(""); setEditorOpen(false); setFingerprint(null); setErrorCode("");
   };
   const beginEditor = (profile?: RemoteProfile) => {
     operation.current += 1;
@@ -111,20 +110,20 @@ export function RemoteConnectionsPage({ mainNavigationExpanded = false, hostChro
     setForm(profile ? { name: profile.name, host: profile.host, port: profile.port,
       ssh_config: profile.ssh_config, identity_file: profile.identity_file,
       config_path: profile.config_path, runtime_user: profile.runtime_user } : emptyProfile());
-    setError(""); setCommandImported(false); setEditorOpen(true); setFingerprint(null);
+    setCommandImported(false); setEditorOpen(true); setFingerprint(null);
   };
 
   const importCommand = () => {
     if (!/^ssh\s/.test(form.host.trim())) return;
     try {
       setForm({ ...form, ...parseSSHAddress(form.host) });
-      setCommandImported(true); setError("");
+      setCommandImported(true); setErrorCode("");
     } catch (reason) { showError(reason); }
   };
 
   const pickFile = async (field: "ssh_config" | "identity_file") => {
     const attempt = ++operation.current;
-    setBusy(`pick-${field}`); setError(""); setErrorCode("");
+    setBusy(`pick-${field}`); setErrorCode("");
     try {
       const result = await remoteAction<{ path: string | null }>(client, "pick_file", {});
       if (wanted(attempt) && typeof result.path === "string" && result.path) {
@@ -140,7 +139,7 @@ export function RemoteConnectionsPage({ mainNavigationExpanded = false, hostChro
   </Button>;
 
   const connect = async (id: string, attempt = ++operation.current, inspect = false) => {
-    setBusy(inspect ? "inspect" : id); setError(""); setErrorCode("");
+    setBusy(inspect ? "inspect" : id); setErrorCode("");
     try {
       if (inspect) {
         const result = await remoteAction<RemoteInspection>(client, "inspect", { id });
@@ -208,7 +207,7 @@ export function RemoteConnectionsPage({ mainNavigationExpanded = false, hostChro
     if (!fingerprint) return;
     const attempt = ++operation.current;
     const id = fingerprint.id;
-    setBusy("trust"); setError("");
+    setBusy("trust"); setErrorCode("");
     try {
       await remoteAction(client, "trust", { id, challenge: fingerprint.challenge });
       if (wanted(attempt)) { setFingerprint(null); await connect(id, attempt, fingerprint.inspect); }
@@ -218,7 +217,7 @@ export function RemoteConnectionsPage({ mainNavigationExpanded = false, hostChro
 
   const save = async () => {
     const attempt = ++operation.current;
-    setBusy("save"); setError(""); setErrorCode("");
+    setBusy("save"); setErrorCode("");
     try {
       // Also parse here for Enter submission, which doesn't blur the address.
       const address = parseSSHAddress(form.host);
@@ -239,12 +238,10 @@ export function RemoteConnectionsPage({ mainNavigationExpanded = false, hostChro
 
   const remove = async () => {
     if (!removing) return;
-    setBusy("remove"); setError("");
+    setBusy("remove"); setErrorCode("");
     try {
-      await disconnectHost(removing.id);
-      await remoteAction(client, "remove", { id: removing.id });
+      await connections.remove(removing.id);
       if (mounted.current) setRemoving(null);
-      await refresh?.().catch(() => {});
     } catch (reason) { if (mounted.current) showError(reason); }
     finally { if (mounted.current) setBusy(""); }
   };
@@ -259,7 +256,7 @@ export function RemoteConnectionsPage({ mainNavigationExpanded = false, hostChro
     } finally { if (mounted.current) setBusy(""); }
   };
   const disconnect = async (id: string) => {
-    setBusy(id); setError("");
+    setBusy(id); setErrorCode("");
     try { await disconnectHost(id); if (mounted.current) setDisconnecting(null); }
     catch (reason) { if (mounted.current) showError(reason); }
     finally { if (mounted.current) setBusy(""); }
@@ -277,7 +274,7 @@ export function RemoteConnectionsPage({ mainNavigationExpanded = false, hostChro
   const disconnectProfile = disconnecting || lastDisconnect.current;
   const editSSH = () => {
     setInspection(null); setManualLocation(false); setInspectBeforeConnect(true);
-    setError(""); setErrorCode(""); setSSHOptions(true);
+    setErrorCode(""); setSSHOptions(true);
   };
   const groups = groupRemoteProfiles(directory?.profiles || [], connections.activeHostId);
   const detailGroup = groups.find((group) => group.id === details);
@@ -286,8 +283,8 @@ export function RemoteConnectionsPage({ mainNavigationExpanded = false, hostChro
   const connectionActions = (profile: RemoteProfile, grouped = false) => <>
     {!profile.paired && <DropdownMenuItem disabled={profile.connected || connections.openHostIds.includes(profile.id)} onSelect={() => { setDetailsOpen(false); beginEditor(profile); }}>{t("remote.edit")}</DropdownMenuItem>}
     {profile.paired && <DropdownMenuItem disabled={profile.connected || connections.openHostIds.includes(profile.id)} onSelect={() => { setDetailsOpen(false); setPairRoute(profile.id); setRouteOpen(true); }}>{t("remote.pair.route")}</DropdownMenuItem>}
-    {(profile.connected || connections.openHostIds.includes(profile.id)) && <DropdownMenuItem onSelect={() => { setDetailsOpen(false); setError(""); setDisconnecting(profile); }}>{t("remote.disconnect")}</DropdownMenuItem>}
-    <DropdownMenuItem tone="destructive" onSelect={() => { setDetailsOpen(false); setError(""); setRemoving(profile); }}>{t(grouped ? "remote.sameInstance.forgetConnection" : "remote.forget")}</DropdownMenuItem>
+    {(profile.connected || connections.openHostIds.includes(profile.id)) && <DropdownMenuItem onSelect={() => { setDetailsOpen(false); setErrorCode(""); setDisconnecting(profile); }}>{t("remote.disconnect")}</DropdownMenuItem>}
+    <DropdownMenuItem tone="destructive" onSelect={() => { setDetailsOpen(false); setErrorCode(""); setRemoving(profile); }}>{t(grouped ? "remote.sameInstance.forgetConnection" : "remote.forget")}</DropdownMenuItem>
   </>;
 
   return <div ref={page} tabIndex={-1} role="region" aria-label={t("remote.title")} className="flex min-h-0 flex-1 flex-col overflow-hidden bg-settings-canvas outline-none">
@@ -361,7 +358,7 @@ export function RemoteConnectionsPage({ mainNavigationExpanded = false, hostChro
           {pageError && !editorOpen && !fingerprint && !removing && !disconnecting && <div className="settings-list-inset space-y-2">
             <p role="alert" className="remote-alert items-start gap-2 text-[13px] leading-5 text-foreground"><AlertCircle aria-hidden="true" className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />{pageError}</p>
             {directoryError && <Button variant="ghost" size="sm" disabled={!!busy} onClick={() => {
-              setBusy("refresh"); setError(""); void refresh?.().catch((reason: unknown) => { if (mounted.current) showError(reason); }).finally(() => { if (mounted.current) setBusy(""); });
+              setBusy("refresh"); setErrorCode(""); void refresh?.().catch((reason: unknown) => { if (mounted.current) showError(reason); }).finally(() => { if (mounted.current) setBusy(""); });
             }}>{t("remote.retry")}</Button>}
           </div>}
         </div>
@@ -444,7 +441,7 @@ export function RemoteConnectionsPage({ mainNavigationExpanded = false, hostChro
           <p className="text-xs leading-5 text-muted-foreground">{t("remote.verifyHint")}</p>
           {error && <p role="alert" className="remote-alert items-start gap-2 text-[13px] leading-5 text-foreground"><AlertCircle aria-hidden="true" className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" /><span>{error}</span></p>}
           <div className="remote-dialog-actions">
-            {editorOpen && <Button variant="ghost" disabled={!!busy} className="gap-1" onClick={() => { setFingerprint(null); setError(""); setErrorCode(""); setInspection(null); setInspectBeforeConnect(true); }}><ChevronLeft className="h-4 w-4" />{t("remote.back")}</Button>}
+            {editorOpen && <Button variant="ghost" disabled={!!busy} className="gap-1" onClick={() => { setFingerprint(null); setErrorCode(""); setInspection(null); setInspectBeforeConnect(true); }}><ChevronLeft className="h-4 w-4" />{t("remote.back")}</Button>}
             <Button variant="ghost" onClick={closeEditor}>{t("common.cancel")}</Button>
             <Button className="col-span-2 h-auto min-h-10 whitespace-normal" disabled={!!busy} aria-busy={!!busy} onClick={() => { void trustHost(); }}>{busy && <Loader2 aria-hidden className="mr-2 h-4 w-4 shrink-0 animate-spin motion-reduce:animate-none" />}{t("remote.verifyConnect")}</Button>
           </div>
@@ -466,7 +463,7 @@ export function RemoteConnectionsPage({ mainNavigationExpanded = false, hostChro
               {inspection.candidates.map((candidate) => <label key={candidate.config_path + candidate.runtime_user} className={cn("flex cursor-pointer items-start gap-3 rounded-2xl border p-3 transition-colors", !manualLocation && form.config_path === candidate.config_path && form.runtime_user === candidate.runtime_user ? "border-foreground/30 bg-muted/40" : "border-border hover:bg-muted/30")}>
                 <input type="radio" name="nanobot-location" className="mt-1 accent-foreground" disabled={!!busy}
                   checked={!manualLocation && form.config_path === candidate.config_path && form.runtime_user === candidate.runtime_user}
-                  onChange={() => { setManualLocation(false); setForm({ ...form, config_path: candidate.config_path, runtime_user: candidate.runtime_user }); setError(""); setErrorCode(""); }} />
+                  onChange={() => { setManualLocation(false); setForm({ ...form, config_path: candidate.config_path, runtime_user: candidate.runtime_user }); setErrorCode(""); }} />
                 <span className="min-w-0 text-[13px]"><span className="block font-medium [overflow-wrap:anywhere]">{candidate.service || t("remote.setup.yourNanobot")}</span>
                   <span className="block break-all text-xs leading-5 text-muted-foreground">{candidate.config_path}</span>
                   {candidate.runtime_user && <span className="mt-1 block text-xs leading-5 text-muted-foreground">{t("remote.setup.serviceAccount", { user: candidate.runtime_user })}</span>}
@@ -482,7 +479,7 @@ export function RemoteConnectionsPage({ mainNavigationExpanded = false, hostChro
           </div> : <>
             <SSHHostPicker inputRef={hostInput} disabled={!!busy} value={form.host} configFile={form.ssh_config} imported={commandImported}
               suggestions={!editingProfile || form.host !== editingProfile.host || form.ssh_config !== editingProfile.ssh_config}
-              onChange={(host) => { setForm({ ...form, host }); setCommandImported(false); setError(""); setErrorCode(""); }} onBlur={importCommand} />
+              onChange={(host) => { setForm({ ...form, host }); setCommandImported(false); setErrorCode(""); }} onBlur={importCommand} />
             <div>
             <button type="button" disabled={!!busy} aria-expanded={sshOptions} aria-controls={optionsId}
               className="flex min-h-9 items-center gap-2 rounded-xl text-[13px] text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
