@@ -475,8 +475,11 @@ class RemoteInstances:
                     raise RemoteError("same_instance")
                 # SSH aliases identify routes, not nanobot instances. Don't open
                 # two independent browser views of the same live gateway.
-                if any(item.gateway_id == identity["gatewayId"]
-                       for item in self.connections.values()):
+                duplicates = [(saved_key, item) for saved_key, item in self.connections.items()
+                              if item.gateway_id == identity["gatewayId"]]
+                for _, item in duplicates:
+                    await self._check(item)
+                if any(not item.error for _, item in duplicates):
                     raise RemoteError("duplicate_instance")
                 # Require the installed WebUI too, not just a port answering HTTP.
                 page = await client.get(base + "/")
@@ -502,6 +505,12 @@ class RemoteInstances:
             profiles[key].local_port = proxy.port
             profiles[key].proxy_origin = True
             self._write(profiles)
+            # A failed route must not block a newly verified route to this bot.
+            # Retire it only after the replacement is saved; retain its profile
+            # and browser origin, so other tabs keep their drafts and fail closed.
+            for saved_key, item in duplicates:
+                await item.proxy.pause()
+                del self.connections[saved_key]
             self._proxies[proxy.port] = proxy
             self.connections[key] = connection
             return self._launch(key, profile, connection)

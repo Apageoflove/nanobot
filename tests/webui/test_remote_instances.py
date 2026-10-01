@@ -329,6 +329,24 @@ async def test_forget_only_removes_saved_profile(manager, ssh):
     ssh.tunnel.close.assert_not_awaited()
 
 
+async def test_offline_alias_does_not_block_replacement_connection(manager, ssh, monkeypatch):
+    first = await save(manager)
+    await manager.action("connect", {"id": first})
+    ssh.tunnel.active = False
+    alias = await save(manager, host="working-route")
+    second_tunnel = SimpleNamespace(active=True, error="", port=23457, close=AsyncMock())
+    second_proxy = SimpleNamespace(port=23458, origin="http://127.0.0.1:23458", secret="local-two")
+    monkeypatch.setattr(remote_ssh, "open_tunnel", AsyncMock(return_value=second_tunnel))
+    monkeypatch.setattr(RemoteProxy, "open", AsyncMock(return_value=second_proxy))
+
+    assert (await manager.action("connect", {"id": alias}))["gateway_id"] == "remote-one"
+    assert first not in manager.connections
+    assert manager.connections[alias].proxy is second_proxy
+    ssh.tunnel.pause.assert_awaited_once()
+    ssh.tunnel.close.assert_not_awaited()  # Keep the old browser origin reserved.
+    assert len(manager.snapshot()["profiles"]) == 2  # No saved routes/drafts were deleted.
+
+
 async def test_closing_local_manager_reaps_ssh(manager, ssh):
     key = await save(manager)
     await manager.action("connect", {"id": key})
