@@ -256,6 +256,34 @@ async def test_api_pair_finalization_pins_host_and_hides_credentials(tmp_path):
     assert manager.snapshot()["profiles"] == []
 
 
+async def test_failed_forget_preserves_saved_pair_for_restart_and_retry(tmp_path, monkeypatch):
+    manager = RemoteInstances(tmp_path)
+    request = read_request((await manager.action("pair_start", {}))["command"].split()[-1])
+    value = receipt(request)
+    await manager.action("pair_finish", {"id": request.id, "code": seal(request, value)})
+    directory_before = manager.path.read_bytes()
+    identity_path = manager.pairing.path(request.id) / "identity"
+    identity_before = identity_path.read_bytes()
+
+    def fail_save(_profiles):
+        raise OSError("disk full")
+
+    monkeypatch.setattr(manager, "_write", fail_save)
+    with pytest.raises(OSError, match="disk full"):
+        await manager.action("remove", {"id": request.id})
+
+    restarted = RemoteInstances(tmp_path)
+    assert restarted.path.read_bytes() == directory_before
+    assert restarted.snapshot()["profiles"][0]["id"] == request.id
+    assert identity_path.read_bytes() == identity_before
+    assert restarted.pairing.connection(request.id)["secret"] == value.secret
+    assert restarted._known_hosts(request.id).exists()
+    await restarted.action("rename", {"id": request.id, "name": "Still usable"})
+    await restarted.action("remove", {"id": request.id})
+    assert restarted.snapshot()["profiles"] == []
+    assert not identity_path.exists()
+
+
 async def test_repeated_pairing_groups_one_instance_without_deleting_authorizations(tmp_path):
     manager = RemoteInstances(tmp_path)
     first = read_request((await manager.action("pair_start", {}))["command"].split()[-1])

@@ -313,10 +313,11 @@ class RemoteProxy:
                         and not request.rel_url.query and "set-cookie" not in upstream.headers
                         and "public" in upstream_cache and "immutable" in upstream_cache
                         and "no-store" not in upstream_cache and "private" not in upstream_cache
+                        and "no-cache" not in upstream_cache and "must-revalidate" not in upstream_cache
                         and "application/json" not in upstream.headers.get("content-type", "")):
                     # Only versioned public build assets, never HTML, API data,
                     # credentials or media capabilities. Keep caches browser-local.
-                    outgoing["Cache-Control"] = "private, max-age=31536000, immutable"
+                    outgoing["Cache-Control"] = re.sub(r"\bpublic\b", "private", upstream_cache)
                 if "application/json" in upstream.headers.get("content-type", ""):
                     body = bytearray()
                     async for chunk in upstream.aiter_bytes():

@@ -39,7 +39,8 @@ async def remote(tmp_path, monkeypatch):
         runtime_surface="browser", runtime_capabilities_overrides=None,
     )
     seen, children = [], []
-    state = SimpleNamespace(block=asyncio.Event(), entered=asyncio.Event(), ws_redirect=False)
+    state = SimpleNamespace(block=asyncio.Event(), entered=asyncio.Event(), ws_redirect=False,
+                            asset_cache="public, max-age=31536000, immutable")
 
     async def process(connection, request):
         seen.append(request)
@@ -47,7 +48,7 @@ async def remote(tmp_path, monkeypatch):
         if path.startswith("/assets/"):
             response = connection.respond(200, "fixture asset")
             response.headers["Content-Type"] = "application/javascript"
-            response.headers["Cache-Control"] = "public, max-age=31536000, immutable"
+            response.headers["Cache-Control"] = state.asset_cache
             if "private" in request.path:
                 response.headers["Cache-Control"] = "private, no-store"
             if "cookie" in request.path:
@@ -138,6 +139,20 @@ async def test_cache_only_versioned_public_build_assets(remote, path, cacheable)
     assert response.status_code == 200
     assert response.headers["cache-control"] == ("private, max-age=31536000, immutable" if cacheable else "no-store")
     assert "set-cookie" not in response.headers
+
+
+@pytest.mark.parametrize("directive", ["no-cache", 'no-cache="Content-Type"', "must-revalidate"])
+async def test_proxy_preserves_upstream_asset_revalidation(remote, directive):
+    remote.state.asset_cache = f"public, max-age=0, immutable, {directive}"
+    response = await remote.client.get(remote.proxy.origin + "/assets/index-AbcD1234.js")
+    assert response.status_code == 200
+    assert response.headers["cache-control"] == "no-store"
+
+
+async def test_proxy_does_not_extend_upstream_asset_freshness(remote):
+    remote.state.asset_cache = "public, max-age=60, immutable"
+    response = await remote.client.get(remote.proxy.origin + "/assets/index-AbcD1234.js")
+    assert response.headers["cache-control"] == "private, max-age=60, immutable"
 
 
 async def test_remote_credentials_never_leave_the_backend(remote):

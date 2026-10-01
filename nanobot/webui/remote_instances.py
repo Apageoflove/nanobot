@@ -400,15 +400,19 @@ class RemoteInstances:
                 self._unknown_hosts.discard(key)
                 return {"trusted": True}
             if action in {"disconnect", "remove"}:
+                pair_id = profiles[key].pair_id
+                if action == "remove":
+                    self._remember_origins(profiles)
+                    del profiles[key]
+                    # Commit the directory before destroying its credentials.
+                    # A failed save must leave the listed connection usable.
+                    self._write(profiles)
                 connection = self.connections.pop(key, None)
                 if connection:
                     await connection.proxy.pause()
                 if action == "remove":
-                    self._remember_origins(profiles)
-                    if profiles[key].pair_id:
-                        self.pairing.forget(profiles[key].pair_id)
-                    del profiles[key]
-                    self._write(profiles)
+                    if pair_id:
+                        self.pairing.forget(pair_id)
                     self._known_hosts(key).unlink(missing_ok=True)
                     self._unknown_hosts.discard(key)
                     self._unverified.pop(key, None)
