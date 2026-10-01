@@ -65,6 +65,76 @@ async function reviewed() {
 }
 
 describe("quick pairing", () => {
+  it("keeps retry available if saving finishes as the invitation expires", async () => {
+    const timer = vi.spyOn(window, "setTimeout");
+    view(); await reviewed();
+    const expiry = timer.mock.calls.find(([, delay]) => typeof delay === "number" && delay > 599_000)?.[0];
+    expect(typeof expiry).toBe("function");
+    let finish!: (value: { id: string }) => void;
+    mocks.action.mockImplementation(() => new Promise((resolve) => { finish = resolve; }));
+    mocks.connect.mockRejectedValueOnce(new Error("ssh_connection_closed"));
+    fireEvent.click(screen.getByRole("button", { name: "Connect", exact: true }));
+    act(() => { if (typeof expiry === "function") expiry(); });
+    await act(async () => finish({ id: "paired-server" }));
+    expect(await screen.findByRole("button", { name: "Retry", exact: true })).toBeEnabled();
+    expect(screen.getByRole("heading", { name: "Open this nanobot?" })).toBeVisible();
+    expect(screen.queryByRole("button", { name: "Get a new command" })).not.toBeInTheDocument();
+  });
+  it("replaces an expired confirmation with a new-command action", async () => {
+    const timer = vi.spyOn(window, "setTimeout");
+    view(); await reviewed();
+    const expiry = timer.mock.calls.find(([, delay]) => typeof delay === "number" && delay > 599_000)?.[0];
+    expect(typeof expiry).toBe("function");
+    act(() => { if (typeof expiry === "function") expiry(); });
+    expect(screen.getByRole("button", { name: "Get a new command" })).toBeEnabled();
+    expect(screen.queryByRole("heading", { name: "Open this nanobot?" })).not.toBeInTheDocument();
+    expect(mocks.connect).not.toHaveBeenCalled();
+  });
+  it.each(["pair_expired", "pair_used"])("offers a new command when manual review reports %s", async (code) => {
+    mocks.action.mockImplementation(async (action: string) => {
+      if (action === "remote.pair_start") return request();
+      if (action === "remote.pair_preview") throw new Error(code);
+      return {};
+    });
+    view();
+    await waitFor(() => expect(screen.getByRole("button", { name: "Copy command" })).toBeEnabled());
+    chooseOtherWay("Use a connection code instead");
+    fireEvent.change(screen.getByRole("textbox", { name: "Connection code" }), { target: { value: "nbpc1.expired" } });
+    fireEvent.click(screen.getByRole("button", { name: "Review connection" }));
+    const restart = await screen.findByRole("button", { name: "Get a new command" });
+    expect(screen.queryByRole("textbox", { name: "Connection code" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Back" })).not.toBeInTheDocument();
+    fireEvent.click(restart);
+    await waitFor(() => expect(screen.getByRole("button", { name: "Copy command" })).toBeEnabled());
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    expect(mocks.action.mock.calls.filter(([action]) => action === "remote.pair_start")).toHaveLength(2);
+    expect(mocks.connect).not.toHaveBeenCalled();
+  });
+  it("does not start work when mounted only for the closing animation", () => {
+    render(<Dialog open><DialogContent><QuickPairSetup active={false} onSSH={vi.fn()} onClose={vi.fn()} /></DialogContent></Dialog>);
+    expect(mocks.action).not.toHaveBeenCalled();
+  });
+  it("ignores a preview arriving during the closing animation", async () => {
+    let resolve!: (value: typeof preview) => void;
+    mocks.action.mockImplementation(() => new Promise((done) => { resolve = done; }));
+    const returned = { id: "request-1", code: "nbpc1.encrypted" };
+    const content = (active: boolean) => <Dialog open><DialogContent><QuickPairSetup active={active} returned={returned} onSSH={vi.fn()} onClose={vi.fn()} /></DialogContent></Dialog>;
+    const result = render(content(true));
+    result.rerender(content(false));
+    await act(async () => resolve(preview));
+    expect(screen.queryByRole("heading", { name: "Open this nanobot?" })).not.toBeInTheDocument();
+    expect(mocks.connect).not.toHaveBeenCalled();
+    expect(mocks.action).toHaveBeenCalledTimes(1);
+  });
+  it("cleans up an invitation arriving during the closing animation", async () => {
+    let resolve!: (value: ReturnType<typeof request>) => void;
+    mocks.action.mockImplementation((action: string) => action === "remote.pair_start" ? new Promise((done) => { resolve = done; }) : Promise.resolve({}));
+    const content = (active: boolean) => <Dialog open><DialogContent><QuickPairSetup active={active} onSSH={vi.fn()} onClose={vi.fn()} /></DialogContent></Dialog>;
+    const result = render(content(true));
+    result.rerender(content(false));
+    await act(async () => resolve(request()));
+    expect(mocks.action).toHaveBeenCalledWith("remote.pair_cancel", { id: "request-1" }, 65000);
+  });
   it("uses the same copyable revocation code block in pairing details", async () => {
     returnedView();
     await screen.findByRole("heading", { name: "Open this nanobot?" });

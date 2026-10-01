@@ -1,10 +1,30 @@
 {
   "remote": {
+    "compatibility": {
+      "title": "版本與相容性",
+      "client": "這台電腦",
+      "host": "這台伺服器",
+      "unreported": "未回報",
+      "compatible": "相容",
+      "compatibleHint": "可直接連線，無需更新。",
+      "unknown": "尚無法確認相容性",
+      "unknownHint": "這台伺服器尚未提供受支援的 WebUI 通訊協定資訊。請更新伺服器上的 nanobot，然後重新連線。",
+      "update_host": "需要更新伺服器",
+      "update_hostHint": "這台伺服器不支援本機介面所需的能力。請更新這台伺服器上的 nanobot。",
+      "update_client": "需要更新本機",
+      "update_clientHint": "這台伺服器要求更新的用戶端協定。請更新這台電腦上的 nanobot，無需降級伺服器。",
+      "unchecked": "尚未檢查",
+      "uncheckedHint": "連線至這台伺服器後檢查相容性。無法取得版本不代表版本過舊。",
+      "localUpdateHint": "更新這台電腦上安裝的 nanobot，然後重新開啟 WebUI。不會更改遠端伺服器。",
+      "serverUpdateHint": "請在執行該伺服器 nanobot 的安裝環境中更新。先備份設定和資料；如需重新啟動，請先結束正在執行的任務。更新這台電腦 不會更新這台伺服器。",
+      "guide": "查看更新說明",
+      "preparation": "更新前須知"
+    },
     "rename": {
       "action": "重新命名",
       "title": "重新命名伺服器",
       "name": "名稱",
-      "hint": "為連線取個好認的名字，不會更改伺服器或 SSH 設定。"
+      "hint": "只修改這裡顯示的名稱。"
     },
     "sameInstance": {
       "forgetAction": "忘記",
@@ -76,7 +96,7 @@
       "fingerprint": "連線時會核對伺服器終端提供的 SSH 指紋：",
       "revoke": "若要撤銷新連線，請在伺服器執行以下指令，並關閉已開啟的遠端工作階段：",
       "retryHint": "配對已儲存，無需重複執行伺服器指令。若網路或 VPN 阻擋 SSH，配對無法繞過該限制。",
-      "forgetHint": "忘記連線只會移除本機列表項目，不會撤銷伺服器授權。撤銷裝置請在伺服器執行："
+      "forgetHint": "若還要撤銷此裝置的伺服器授權，請在伺服器執行："
     },
     "setup": {
       "progress": "連線設定",
@@ -166,6 +186,10 @@
     "forgetTitle": "Forget {{name}}?",
     "forgetDescription": "Only this saved connection will be removed. nanobot, its keys and conversations on the server will stay untouched.",
     "errors": {
+      "webui_compatibility_unknown": "這台伺服器尚未提供受支援的 WebUI 通訊協定資訊。請更新伺服器上的 nanobot，然後重新連線。",
+      "host_update_required": "這台伺服器不支援本機介面所需的能力。請更新這台伺服器上的 nanobot。",
+      "client_update_required": "這台伺服器要求更新的用戶端協定。請更新這台電腦上的 nanobot，無需降級伺服器。",
+      "local_webui_unavailable": "本機 WebUI 檔案遺失。請修復或重新建置這台電腦上的 nanobot；伺服器不需要安裝前端檔案。",
       "invalid_name": "請輸入 1–64 個字元的名稱，不能包含換行。",
       "local_connection_unavailable": "暫時無法連線到這台電腦上的 nanobot，請確認它正在執行後重試。",
       "disconnected": "此共用連線已中斷，需要時可重新連線。",

@@ -8,7 +8,7 @@ import { remoteAction } from "@/lib/remote-instances";
 import { useRemoteConnections } from "./RemoteInstances";
 
 /** An explicit escape hatch for a VPN/bound-interface route, not a new SSH form. */
-export function PairRouteSettings({ id, onSaved }: { id: string; onSaved?: () => void }) {
+export function PairRouteSettings({ id, onSaved, showHint = true }: { id: string; onSaved?: () => void; showHint?: boolean }) {
   const { t } = useTranslation();
   const { client } = useClient();
   const connections = useRemoteConnections();
@@ -39,18 +39,18 @@ export function PairRouteSettings({ id, onSaved }: { id: string; onSaved?: () =>
     } finally { if (alive.current) setBusy(false); }
   };
   return <div className="space-y-3">
-    <p className="text-xs leading-5 text-muted-foreground">{t("remote.pair.routeHint")}</p>
-    <Select value={route} onValueChange={(value) => { setRoute(value); setError(""); setSaved(false); }} disabled={busy}><SelectTrigger aria-label={t("remote.pair.route")}><SelectValue /></SelectTrigger>
+    {showHint && <p className="text-xs leading-5 text-muted-foreground">{t("remote.pair.routeHint")}</p>}
+    <Select value={route} onValueChange={(value) => { setRoute(value); setError(""); setSaved(false); }} disabled={busy}><SelectTrigger className="w-full min-w-0" aria-label={t("remote.pair.route")}><SelectValue /></SelectTrigger>
       <SelectContent>
         {hasSavedRoute && <SelectItem value="saved">{t("remote.pair.savedRoute")}</SelectItem>}
         <SelectItem value="direct">{t("remote.pair.direct")}</SelectItem>
-        {connections?.directory?.profiles.filter((profile) => !profile.paired).map((profile) => <SelectItem key={profile.id} value={profile.id}>{profile.name}</SelectItem>)}
+        {connections?.directory?.profiles.filter((profile) => !profile.paired).map((profile) => <SelectItem key={profile.id} value={profile.id} className="h-auto min-h-9 max-w-[calc(100vw-3rem)] py-2 [overflow-wrap:anywhere]">{profile.name}</SelectItem>)}
       </SelectContent>
     </Select>
-    {error && <p role="alert" className="flex items-start gap-2 text-[13px] leading-5 text-foreground"><AlertCircle aria-hidden="true" className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />{error}</p>}
-    <div className="flex items-center justify-end gap-3">
+    {error && <p role="alert" className="remote-alert items-start gap-2 text-[13px] leading-5 text-foreground"><AlertCircle aria-hidden="true" className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" /><span>{error}</span></p>}
+    <div className="flex flex-wrap items-center justify-end gap-3">
       {saved && <p role="status" className="mr-auto flex items-center gap-1.5 text-xs text-muted-foreground"><Check aria-hidden className="h-3.5 w-3.5" />{t("remote.saved")}</p>}
-      <Button size="sm" disabled={busy || route === original || route === "saved"} aria-busy={busy} onClick={() => { void save(); }}>
+      <Button className="remote-action" size="sm" disabled={busy || route === original || route === "saved"} aria-busy={busy} onClick={() => { void save(); }}>
         {busy && <Loader2 aria-hidden className="mr-2 h-4 w-4 animate-spin motion-reduce:animate-none" />}{t(busy ? "remote.saving" : "remote.save")}
       </Button>
     </div>

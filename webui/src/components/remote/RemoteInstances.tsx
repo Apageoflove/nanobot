@@ -2,7 +2,11 @@ import { createContext, useContext, useEffect, useLayoutEffect, useRef, useState
 import { Loader2, PlugZap } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
-import { groupRemoteProfiles, needsRemoteSetup, type RemoteDirectory } from "@/lib/remote-instances";
+import { groupRemoteProfiles, isCompatibilityError, needsRemoteSetup, type RemoteDirectory } from "@/lib/remote-instances";
+import { HostCompatibilityDialog } from "./HostCompatibilityDialog";
+import { RemoteConnectionsPage } from "./RemoteConnectionsPage";
+import type { HostAnchor } from "./host-bridge";
+import { ThemeProvider } from "@/hooks/useTheme";
 import { useHostSessions } from "./useHostSessions";
 import { HostNavigationContext, HostSwitcher, RemoteHostMenu, type HostPicker } from "./HostSwitcher";
 import { useSidebarHostBridge } from "./useSidebarHostBridge";
@@ -15,6 +19,8 @@ const RemoteContext = createContext<{
   activeHostId: string | null;
   hostStates: Record<string, HostConnectionState>;
   managing: boolean;
+  embeddedManagement?: boolean;
+  reportManagementSurface?: (rect: HostAnchor, theme: "light" | "dark") => void;
   closeManagement: () => void;
   selectLocal: () => void;
   openHostIds: string[];
@@ -33,6 +39,7 @@ export function RemoteInstances({ children }: { children: ReactNode }) {
   const { t } = useTranslation();
   const hosts = useHostSessions();
   const [managing, setManaging] = useState(false);
+  const [versionOpen, setVersionOpen] = useState(false);
   const managementOpen = useRef(false);
   const managementConnect = useRef(false);
   const legacyFooter = useRef<HTMLDivElement>(null);
@@ -49,7 +56,16 @@ export function RemoteInstances({ children }: { children: ReactNode }) {
     if (lastLocalFocus.current?.isConnected) lastLocalFocus.current.focus({ preventScroll: true });
   };
   const message = error ? t(`remote.errors.${error}`, { defaultValue: t("remote.errors.unknown") }) : "";
-  const bridge = useSidebarHostBridge(frames, selected?.id, frameNodes, restoreLocalFocus, { pendingName: pending?.name, error: message });
+  const bridge = useSidebarHostBridge(frames, selected?.id, frameNodes, restoreLocalFocus, { pendingName: pending?.name, error: message }, managing, () => changeManagement(false));
+  useEffect(() => {
+    if (!managing || !selected || !bridge.surface?.theme) return;
+    // Management is drawn by the local shell, beside this host's sidebar.
+    // Match its appearance temporarily without changing either saved preference.
+    const root = document.documentElement;
+    const wasDark = root.classList.contains("dark");
+    root.classList.toggle("dark", bridge.surface.theme === "dark");
+    return () => { root.classList.toggle("dark", wasDark); };
+  }, [managing, selected?.id, bridge.surface?.theme]);
   useEffect(() => {
     // A verified remote app can be interactive before optional images/fonts
     // finish loading. Older bundles still use the iframe load fallback.
@@ -68,6 +84,10 @@ export function RemoteInstances({ children }: { children: ReactNode }) {
   const activeFrame = frames.find((frame) => frame.connection.id === selected?.id);
   const offline = !!selected && (activeFrame?.offline || (!activeFrame && pending?.id !== selected.id));
   const recoveryCode = (hosts.errorId === selected?.id ? error : "") || activeFrame?.error || "";
+  const compatibilityFailure = isCompatibilityError(recoveryCode);
+  const recoveryTitle = compatibilityFailure
+    ? `remote.compatibility.${recoveryCode === "host_update_required" ? "update_host" : recoveryCode === "client_update_required" ? "update_client" : "unknown"}`
+    : "remote.offline";
   const recoveryMessage = recoveryCode ? t(`remote.errors.${recoveryCode}`, { defaultValue: t("remote.errors.unknown") }) : t("remote.noFallback");
   const changeManagement = (open: boolean) => {
     managementOpen.current = open;
@@ -104,7 +124,7 @@ export function RemoteInstances({ children }: { children: ReactNode }) {
     localName: directory?.machine_name || "nanobot", currentId: selected?.id || null, recentIds: hosts.recentIds,
     profiles: groupRemoteProfiles(directory?.profiles || [], selected?.id || null)
       .map(({ profile: { id, name, host } }) => ({ id, name, host, state: hostStates[id] })),
-    pending, error: message, offline: !!offline,
+    pending, error: message, offline: !!offline, offlineLabel: compatibilityFailure ? t(recoveryTitle) : undefined,
     select: (id) => {
       if (!id) selectLocal();
       else if (managing) void connect(id).catch(() => {});
@@ -137,19 +157,21 @@ export function RemoteInstances({ children }: { children: ReactNode }) {
   }, [selected]);
 
   return <RemoteContext.Provider value={{ available, localActive: !selected, directory,
-    activeHostId: selected?.id || null, hostStates, managing, closeManagement: () => changeManagement(false), selectLocal,
+    activeHostId: selected?.id || null, hostStates, managing: bridge.embedded ? bridge.hostedManagement : managing,
+    embeddedManagement: !!bridge.embedded, reportManagementSurface: bridge.embedded ? bridge.reportSurface : undefined,
+    closeManagement: bridge.embedded ? bridge.leaveManagement : () => changeManagement(false), selectLocal,
     openHostIds: frames.map((frame) => frame.connection.id),
     directoryError: hosts.directoryError, refresh: hosts.refresh, rename: hosts.rename, connect, disconnect: hosts.disconnect, cancel: hosts.cancel }}>
     <HostNavigationContext.Provider value={bridge.embedded || (available || selected ? picker : null)}>
       <div className="flex h-full min-h-0 flex-col bg-background">
         <div className="relative min-h-0 flex-1 overflow-hidden">
-          <div ref={localPanel} data-host-view="local" aria-hidden={!!selected && !managing} {...(selected && !managing ? { inert: "" } : {})}
-            style={{ visibility: selected && !managing ? "hidden" : "visible" }}
-            className={`absolute inset-0 transition-opacity duration-150 motion-reduce:transition-none ${selected && !managing ? "invisible pointer-events-none opacity-0" : "visible opacity-100"}`}>
+          <div ref={localPanel} data-host-view="local" aria-hidden={!!selected} {...(selected ? { inert: "" } : {})}
+            style={{ visibility: selected ? "hidden" : "visible" }}
+            className={`absolute inset-0 transition-opacity duration-150 motion-reduce:transition-none ${selected ? "invisible pointer-events-none opacity-0" : "visible opacity-100"}`}>
             {children}
           </div>
           {frames.map((frame) => {
-            const active = !managing && selected?.id === frame.connection.id;
+            const active = (!managing || !!bridge.surface) && selected?.id === frame.connection.id;
             return <div key={`${frame.connection.id}:${frame.connection.gateway_id}:${frame.connection.view_id || ""}`} data-host-view={frame.connection.id} aria-hidden={!active || offline}
               {...(!active || offline ? { inert: "" } : {})} style={{ visibility: active ? "visible" : "hidden" }}
               className={`absolute inset-0 transition-opacity duration-150 motion-reduce:transition-none ${active ? "visible opacity-100" : "invisible pointer-events-none opacity-0"}`}>
@@ -160,18 +182,26 @@ export function RemoteInstances({ children }: { children: ReactNode }) {
                 onLoad={() => { bridge.initialize(frame.connection.id); hosts.loaded(frame.connection.id); }} />
             </div>;
           })}
-          {!managing && selected && (offline || !activeFrame?.loaded) && <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-background px-6 text-center">
+          {managing && selected && <main data-testid="remote-management-surface"
+            className="absolute bottom-0 right-0 flex min-h-0 flex-col bg-background"
+            style={{ left: offline ? 0 : Math.min(bridge.surface?.left || 0, Math.max(0, window.innerWidth - 280)), top: offline ? 0 : Math.min(bridge.surface?.top || 0, Math.max(0, window.innerHeight - 280)) }}>
+            <ThemeProvider theme={bridge.surface?.theme || "light"}>
+              <RemoteConnectionsPage onBackToChat={() => changeManagement(false)} mainNavigationExpanded={!!bridge.surface?.left} />
+            </ThemeProvider>
+          </main>}
+          {!managing && selected && (offline || !activeFrame?.loaded) && <div className="absolute inset-0 overflow-y-auto bg-background p-6 text-center"><div className="flex min-h-full flex-col items-center justify-center gap-3">
             {offline ? <PlugZap className="h-7 w-7 text-muted-foreground" /> : <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />}
-            <p className="max-w-full break-words text-xs text-muted-foreground">{selected.name} · {selected.hostname}</p>
-            <p className="font-medium">{t(offline ? "remote.offline" : "remote.opening")}</p>
-            <p className="max-w-sm text-sm text-muted-foreground">{recoveryMessage}</p>
-            <div className="flex flex-wrap items-center justify-center gap-2">
-              {offline && (needsRemoteSetup(recoveryCode) ? <Button onClick={manage}>{t("remote.manageConnections")}</Button> : <Button disabled={!!pending} aria-busy={!!pending} onClick={() => switchHost(selected.id)}>
+            <p className="max-w-full text-pretty text-xs text-muted-foreground [overflow-wrap:anywhere]">{selected.name} · {selected.hostname}</p>
+            <p className="font-medium">{t(offline ? recoveryTitle : "remote.opening")}</p>
+            <p className="max-w-sm text-pretty text-sm text-muted-foreground">{recoveryMessage}</p>
+            <div className="flex max-w-full flex-wrap items-stretch justify-center gap-2 [&>button]:h-auto [&>button]:min-h-10 [&>button]:min-w-0 [&>button]:max-w-full [&>button]:whitespace-normal">
+              {offline && compatibilityFailure && <Button onClick={() => setVersionOpen(true)}>{t("remote.compatibility.title")}</Button>}
+              {offline && (needsRemoteSetup(recoveryCode) && !compatibilityFailure ? <Button onClick={manage}>{t("remote.manageConnections")}</Button> : <Button variant={compatibilityFailure ? "ghost" : "default"} disabled={!!pending} aria-busy={!!pending} onClick={() => switchHost(selected.id)}>
                 {pending && <Loader2 aria-hidden className="mr-2 h-4 w-4 animate-spin motion-reduce:animate-none" />}{t(pending ? "remote.connecting" : "remote.reconnect")}
               </Button>)}
               <Button variant="ghost" onClick={hosts.local}>{t("remote.returnLocal")}</Button>
             </div>
-          </div>}
+          </div></div>}
         </div>
         {/* Older remote bundles cannot host the control. Keep an explicit exit
             in a compact bottom strip, never cover their sidebar controls. */}
@@ -179,6 +209,8 @@ export function RemoteInstances({ children }: { children: ReactNode }) {
           <div className="flex w-52 min-w-0"><HostSwitcher /></div>
         </div>}
         <RemoteHostMenu picker={picker} anchor={bridge.anchor} onClose={bridge.close} />
+        <HostCompatibilityDialog profile={versionOpen ? directory?.profiles.find((profile) => profile.id === selected?.id) : undefined}
+          clientVersion={directory?.client_version} onClose={() => setVersionOpen(false)} />
       </div>
     </HostNavigationContext.Provider>
   </RemoteContext.Provider>;

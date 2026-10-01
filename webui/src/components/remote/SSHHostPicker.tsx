@@ -82,9 +82,9 @@ export function SSHHostPicker({ disabled, value, configFile, imported, suggestio
       }} />
     <p id={`${id}-hint`} role={imported ? "status" : undefined} className="text-xs leading-5 text-muted-foreground">{t(imported ? "remote.commandImported" : suggestions ? "remote.commandHint" : "remote.addressHint")}</p>
     {suggestions && (!!hosts.length || !!error) && <div className="rounded-2xl bg-muted/40 p-1.5">
-      <div className="flex h-8 items-center justify-between gap-2 px-2">
+      <div className="flex min-h-8 items-center justify-between gap-2 px-2">
         <span className="text-xs text-muted-foreground">{t("remote.sshHosts")}</span>
-        <Button type="button" variant="ghost" size="icon" className="h-7 w-7" aria-label={t("remote.refreshHosts")}
+        <Button type="button" variant="ghost" size="icon" className="h-7 w-7 shrink-0" aria-label={t("remote.refreshHosts")}
           disabled={busy || disabled} onClick={() => { void load(file); }}>
           <RefreshCw className={`h-3.5 w-3.5 ${busy ? "animate-spin" : ""}`} />
         </Button>
@@ -102,8 +102,8 @@ export function SSHHostPicker({ disabled, value, configFile, imported, suggestio
             }
           }}
           onClick={() => { onChange(host.host); inputRef.current?.focus(); }}>
-          <Server className="h-4 w-4 shrink-0 text-muted-foreground" /><span className="flex-1 truncate">{host.host}</span>
-          {value === host.host && <Check className="h-3.5 w-3.5 text-muted-foreground" />}
+          <Server className="h-4 w-4 shrink-0 text-muted-foreground" /><span className="min-w-0 flex-1 truncate">{host.host}</span>
+          {value === host.host && <Check className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />}
         </button>)}
       </div>
       {error && <p role="alert" className="px-2 py-1 text-xs leading-5 text-muted-foreground">{error}</p>}

@@ -1,10 +1,30 @@
 {
   "remote": {
+    "compatibility": {
+      "title": "Version & compatibility",
+      "client": "On this computer",
+      "host": "On this server",
+      "unreported": "Not reported",
+      "compatible": "Compatible",
+      "compatibleHint": "No update needed to connect.",
+      "unknown": "Compatibility not confirmed",
+      "unknownHint": "We couldn’t verify that this server supports your local interface. Update nanobot on this server, then reconnect.",
+      "update_host": "Update this server",
+      "update_hostHint": "Your local interface needs features this server doesn’t support. Update nanobot on this server, then reconnect.",
+      "update_client": "Update this computer",
+      "update_clientHint": "This server needs a newer local interface. Update nanobot on this computer; leave the server as it is.",
+      "unchecked": "Not checked yet",
+      "uncheckedHint": "Connect to this server to check compatibility. An unknown version does not mean it is outdated.",
+      "localUpdateHint": "Update your local nanobot installation, then reopen the WebUI. The remote server will not be changed.",
+      "serverUpdateHint": "Update the installation running on this server. Back up its configuration and data, and finish active tasks before restarting. Updating this computer does not update the server.",
+      "guide": "Update guide",
+      "preparation": "Before updating"
+    },
     "rename": {
       "action": "Rename",
       "title": "Rename server",
       "name": "Name",
-      "hint": "A name for this connection. Your server and SSH settings won’t change."
+      "hint": "Only the name shown here changes."
     },
     "sameInstance": {
       "forgetAction": "Forget",
@@ -76,7 +96,7 @@
       "fingerprint": "The SSH server must match this fingerprint from the server console:",
       "revoke": "To revoke new connections, run this on the server and close any open remote sessions:",
       "retryHint": "Pairing is saved. You can retry without running the server command again. If SSH is blocked by your network or VPN, pairing cannot bypass it.",
-      "forgetHint": "Forgetting removes this connection from the list, not its server authorization. To revoke the device, run this on the server:"
+      "forgetHint": "To also revoke this device’s server authorization, run on the server:"
     },
     "setup": {
       "progress": "Connection setup",
@@ -166,6 +186,10 @@
     "forgetTitle": "Forget {{name}}?",
     "forgetDescription": "Only this saved connection will be removed. nanobot, its keys and conversations on the server will stay untouched.",
     "errors": {
+      "webui_compatibility_unknown": "We couldn’t verify that this server supports your local interface. Update nanobot on this server, then reconnect.",
+      "host_update_required": "Your local interface needs features this server doesn’t support. Update nanobot on this server, then reconnect.",
+      "client_update_required": "This server needs a newer local interface. Update nanobot on this computer; leave the server as it is.",
+      "local_webui_unavailable": "The local WebUI bundle is missing. Repair or rebuild nanobot on this computer; the server does not need a frontend bundle.",
       "invalid_name": "Enter a name between 1 and 64 characters, without line breaks.",
       "local_connection_unavailable": "Couldn't reach local nanobot on this computer. Keep it running and try again.",
       "disconnected": "This shared connection was closed. Reconnect when you’re ready.",

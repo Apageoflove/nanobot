@@ -1,10 +1,30 @@
 {
   "remote": {
+    "compatibility": {
+      "title": "Versão e compatibilidade",
+      "client": "Neste computador",
+      "host": "Neste servidor",
+      "unreported": "Não informada",
+      "compatible": "Compatível",
+      "compatibleHint": "Não é preciso atualizar para conectar.",
+      "unknown": "Compatibilidade não confirmada",
+      "unknownHint": "Este servidor não forneceu um contrato WebUI compatível. Atualize o nanobot neste servidor e reconecte.",
+      "update_host": "Atualize este servidor",
+      "update_hostHint": "Este servidor não suporta os recursos exigidos pelo cliente. Atualize o nanobot neste servidor.",
+      "update_client": "Atualize este computador",
+      "update_clientHint": "Este servidor exige um protocolo de cliente mais recente. Atualize o nanobot neste computador; não é preciso rebaixar o servidor.",
+      "unchecked": "Ainda não verificada",
+      "uncheckedHint": "Conecte a este servidor para verificar a compatibilidade. Uma versão desconhecida não significa que está desatualizada.",
+      "localUpdateHint": "Atualize a instalação local do nanobot e reabra a WebUI. O servidor remoto não será alterado.",
+      "serverUpdateHint": "Use o ambiente de instalação que executa o nanobot neste servidor. Faça backup da configuração e dos dados e conclua tarefas ativas antes de reiniciar. Atualizar este computador não atualiza este servidor.",
+      "guide": "Guia de atualização",
+      "preparation": "Antes de atualizar"
+    },
     "rename": {
       "action": "Renomear",
       "title": "Renomear servidor",
       "name": "Nome",
-      "hint": "Um nome para esta conexão. O servidor e as configurações SSH não serão alterados."
+      "hint": "Só o nome exibido aqui muda."
     },
     "sameInstance": {
       "forgetAction": "Forget",
@@ -76,7 +96,7 @@
       "fingerprint": "O servidor SSH deve corresponder a esta impressão digital do console:",
       "revoke": "Para revogar novas conexões, execute isto no servidor e feche as sessões remotas abertas:",
       "retryHint": "O pareamento foi salvo. Tente novamente sem executar o comando outra vez. Ele não contorna bloqueios de SSH pela rede ou VPN.",
-      "forgetHint": "Esquecer remove a conexão da lista, não a autorização do servidor. Para revogar, execute no servidor:"
+      "forgetHint": "Para também revogar a autorização deste dispositivo, execute no servidor:"
     },
     "setup": {
       "progress": "Configuração da conexão",
@@ -166,6 +186,10 @@
     "forgetTitle": "Forget {{name}}?",
     "forgetDescription": "Only this saved connection will be removed. nanobot, its keys and conversations on the server will stay untouched.",
     "errors": {
+      "webui_compatibility_unknown": "Este servidor não forneceu um contrato WebUI compatível. Atualize o nanobot neste servidor e reconecte.",
+      "host_update_required": "Este servidor não suporta os recursos exigidos pelo cliente. Atualize o nanobot neste servidor.",
+      "client_update_required": "Este servidor exige um protocolo de cliente mais recente. Atualize o nanobot neste computador; não é preciso rebaixar o servidor.",
+      "local_webui_unavailable": "Os arquivos locais da WebUI estão ausentes. Repare ou recompile o nanobot neste computador; o servidor não precisa dos arquivos de interface.",
       "invalid_name": "Insira um nome de 1 a 64 caracteres, sem quebras de linha.",
       "local_connection_unavailable": "Não foi possível acessar o nanobot neste computador. Verifique se ele está em execução e tente novamente.",
       "disconnected": "Esta conexão compartilhada foi fechada. Reconecte quando quiser.",

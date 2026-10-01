@@ -1,10 +1,30 @@
 {
   "remote": {
+    "compatibility": {
+      "title": "Versi dan kompatibilitas",
+      "client": "Di komputer ini",
+      "host": "Di server ini",
+      "unreported": "Tidak dilaporkan",
+      "compatible": "Kompatibel",
+      "compatibleHint": "Tidak perlu memperbarui untuk terhubung.",
+      "unknown": "Kompatibilitas belum dipastikan",
+      "unknownHint": "Server ini belum menyediakan kontrak WebUI yang didukung. Perbarui nanobot di server ini, lalu hubungkan kembali.",
+      "update_host": "Perbarui server ini",
+      "update_hostHint": "Server ini tidak mendukung fitur yang diperlukan klien. Perbarui nanobot di server ini.",
+      "update_client": "Perbarui komputer ini",
+      "update_clientHint": "Server ini memerlukan protokol klien yang lebih baru. Perbarui nanobot di komputer ini; versi server tidak perlu diturunkan.",
+      "unchecked": "Belum diperiksa",
+      "uncheckedHint": "Hubungkan ke server ini untuk memeriksa kompatibilitas. Versi yang tidak diketahui bukan berarti sudah usang.",
+      "localUpdateHint": "Perbarui instalasi nanobot lokal, lalu buka kembali WebUI. Server jarak jauh tidak akan diubah.",
+      "serverUpdateHint": "Gunakan lingkungan instalasi yang menjalankan nanobot di server ini. Cadangkan konfigurasi dan data, lalu selesaikan tugas aktif sebelum memulai ulang. Memperbarui komputer ini tidak memperbarui server ini.",
+      "guide": "Panduan pembaruan",
+      "preparation": "Sebelum memperbarui"
+    },
     "rename": {
       "action": "Ubah nama",
       "title": "Ubah nama server",
       "name": "Nama",
-      "hint": "Nama untuk koneksi ini. Server dan pengaturan SSH tidak berubah."
+      "hint": "Hanya nama yang ditampilkan di sini yang berubah."
     },
     "sameInstance": {
       "forgetAction": "Forget",
@@ -76,7 +96,7 @@
       "fingerprint": "Server SSH harus cocok dengan sidik jari dari konsol server ini:",
       "revoke": "Untuk mencabut koneksi baru, jalankan ini di server dan tutup sesi jarak jauh yang terbuka:",
       "retryHint": "Pemasangan tersimpan. Coba lagi tanpa menjalankan ulang perintah server. Pemasangan tidak dapat melewati pemblokiran SSH oleh jaringan atau VPN.",
-      "forgetHint": "Melupakan hanya menghapus koneksi dari daftar, bukan izin server. Untuk mencabutnya, jalankan di server:"
+      "forgetHint": "Untuk juga mencabut izin perangkat ini, jalankan di server:"
     },
     "setup": {
       "progress": "Pengaturan koneksi",
@@ -166,6 +186,10 @@
     "forgetTitle": "Forget {{name}}?",
     "forgetDescription": "Only this saved connection will be removed. nanobot, its keys and conversations on the server will stay untouched.",
     "errors": {
+      "webui_compatibility_unknown": "Server ini belum menyediakan kontrak WebUI yang didukung. Perbarui nanobot di server ini, lalu hubungkan kembali.",
+      "host_update_required": "Server ini tidak mendukung fitur yang diperlukan klien. Perbarui nanobot di server ini.",
+      "client_update_required": "Server ini memerlukan protokol klien yang lebih baru. Perbarui nanobot di komputer ini; versi server tidak perlu diturunkan.",
+      "local_webui_unavailable": "Berkas WebUI lokal tidak ditemukan. Perbaiki atau bangun ulang nanobot di komputer ini; server tidak memerlukan berkas antarmuka.",
       "invalid_name": "Masukkan nama sepanjang 1–64 karakter, tanpa baris baru.",
       "local_connection_unavailable": "Tidak dapat terhubung ke nanobot di komputer ini. Pastikan nanobot berjalan, lalu coba lagi.",
       "disconnected": "Koneksi bersama ini telah ditutup. Sambungkan kembali saat Anda siap.",

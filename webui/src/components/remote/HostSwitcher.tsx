@@ -21,6 +21,7 @@ export interface HostPicker {
   pending: { id: string; name: string } | null;
   error: string;
   offline: boolean;
+  offlineLabel?: string;
   select: (id: string | null) => void;
   manage: () => void;
   cancel: () => void;
@@ -133,13 +134,18 @@ export function HostSwitcher({ collapsed = false, portalContainer }: { collapsed
   const shell = picker.kind === "shell" ? picker : null;
   const remote = picker.kind === "embedded" || !!shell?.currentId;
   const pendingName = picker.kind === "shell" ? picker.pending?.name : picker.pendingName;
+  const currentStatus = shell?.currentId
+    ? (shell.pending?.id === shell.currentId || shell.profiles.find((profile) => profile.id === shell.currentId)?.state === "connecting" ? "connecting" : shell.offline ? "closed" : "open")
+    : status;
   // A failed switch describes the destination, not the still-active connection.
-  const failed = !!shell?.offline || status === "error" || status === "closed";
-  const waiting = !!pendingName || status === "connecting" || status === "reconnecting";
+  const failed = !!shell?.offline || currentStatus === "error" || currentStatus === "closed";
+  const waiting = !!pendingName || currentStatus === "connecting" || currentStatus === "reconnecting";
   // The old host stays interactive until the new one is ready. Keep its identity
   // visible; progress belongs to the target's row and the accessible status.
   const label = picker.name;
-  const current = `${picker.name} · ${picker.hostname} · ${t(failed ? "remote.offline" : `connection.${status}`)}`;
+  const currentLabel = failed ? shell?.offlineLabel || t("remote.offline") : t(`connection.${currentStatus}`);
+  const identity = picker.name === picker.hostname ? picker.name : `${picker.name} · ${picker.hostname}`;
+  const current = `${identity} · ${currentLabel}`;
   const detail = pendingName ? `${current} · ${t("remote.preparing", { name: pendingName })}` : current;
   const title = picker.error ? `${detail} — ${picker.error}` : detail;
   const button = <Button ref={buttonRef} variant="ghost" size="sm" aria-label={t("remote.switchHost")} title={title}
@@ -152,7 +158,7 @@ export function HostSwitcher({ collapsed = false, portalContainer }: { collapsed
     <span className="relative flex shrink-0 items-center justify-center">
       {waiting ? <Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" /> : failed ? <CircleAlert className="h-4 w-4" />
         : remote ? <Server className="h-4 w-4" /> : <Laptop className="h-4 w-4" />}
-      {!waiting && !failed && <span aria-hidden className={cn("absolute -bottom-0.5 -right-0.5 h-1.5 w-1.5 rounded-full ring-2 ring-sidebar", status === "open" ? "bg-emerald-500" : "bg-muted-foreground")} />}
+      {!waiting && !failed && <span aria-hidden className={cn("absolute -bottom-0.5 -right-0.5 h-1.5 w-1.5 rounded-full ring-2 ring-sidebar", currentStatus === "open" ? "bg-emerald-500" : "bg-muted-foreground")} />}
     </span>
     {!collapsed && <><span className="truncate">{label}</span><ChevronUp className="ml-auto h-3 w-3 shrink-0 opacity-60" /></>}
     <span className="sr-only" role="status">{detail}</span>

@@ -1113,11 +1113,26 @@ function Shell({
   const { t, i18n } = useTranslation();
   const remoteConnections = useRemoteConnections();
   const localActive = remoteConnections?.localActive !== false;
-  const managingConnections = remoteConnections?.managing === true;
+  const managingConnections = remoteConnections?.managing === true && !remoteConnections?.activeHostId;
+  const { theme, toggle } = useTheme();
+  const managementMain = useRef<HTMLElement>(null);
+  const reportManagementSurface = remoteConnections?.reportManagementSurface;
+  useEffect(() => {
+    const main = managementMain.current;
+    if (!main || !reportManagementSurface) return;
+    const report = () => {
+      const rect = main.getBoundingClientRect();
+      reportManagementSurface({ left: rect.left, top: rect.top, width: rect.width, height: rect.height }, theme);
+    };
+    const observer = new ResizeObserver(report);
+    observer.observe(main);
+    window.addEventListener("resize", report);
+    report();
+    return () => { observer.disconnect(); window.removeEventListener("resize", report); };
+  }, [reportManagementSurface, theme]);
   const remoteConnectionsRef = useRef(remoteConnections);
   remoteConnectionsRef.current = remoteConnections;
   const { client, getToken } = useClient();
-  const { theme, toggle } = useTheme();
   const {
     sessions,
     loading,
@@ -1277,9 +1292,9 @@ function Shell({
   const navigate = useCallback(
     (route: ShellRoute, options?: { replace?: boolean }) => {
       const leave = () => {
-        // Navigating the local sidebar is an explicit choice of a local view.
-        // Merely opening global connection management does not switch hosts.
-        if (remoteConnectionsRef.current?.managing) remoteConnectionsRef.current.selectLocal();
+        // The visible sidebar always belongs to its existing host. Navigation
+        // dismisses global management without switching to a different host.
+        if (remoteConnectionsRef.current?.managing) remoteConnectionsRef.current.closeManagement();
         setActiveKey(route.activeKey);
         setView(route.view);
         setSettingsInitialSection(route.settingsSection);
@@ -2887,7 +2902,9 @@ function Shell({
               />
             </Suspense>
           ) : null}
-        <main
+        <main ref={managementMain}
+          aria-hidden={managingConnections && remoteConnections?.embeddedManagement || undefined}
+          {...(managingConnections && remoteConnections?.embeddedManagement ? { inert: "" } : {})}
           className={cn(
             "relative flex h-full min-w-0 flex-1 flex-col overflow-hidden bg-background",
           )}
@@ -3077,7 +3094,7 @@ function Shell({
               </div>
             )}
           </div>
-          {managingConnections && <div className="absolute inset-0 flex flex-col">
+          {managingConnections && !remoteConnections?.embeddedManagement && <div className="absolute inset-0 flex flex-col">
             <RemoteConnectionsPage
               mainNavigationExpanded={showMainSidebar && hostSidebarOpen}
               hostChromeInset={showHostChrome}

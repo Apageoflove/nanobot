@@ -1,10 +1,30 @@
 {
   "remote": {
+    "compatibility": {
+      "title": "版本与兼容性",
+      "client": "这台电脑",
+      "host": "这台服务器",
+      "unreported": "未报告",
+      "compatible": "兼容",
+      "compatibleHint": "可直接连接，无需更新。",
+      "unknown": "尚无法确认兼容性",
+      "unknownHint": "还无法确认这台服务器是否支持本地界面。请更新服务器上的 nanobot，然后重新连接。",
+      "update_host": "需要更新服务器",
+      "update_hostHint": "本地界面需要的功能在这台服务器上还不可用。请更新服务器上的 nanobot，然后重新连接。",
+      "update_client": "需要更新本地",
+      "update_clientHint": "这台服务器需要更新的本地界面。请更新这台电脑上的 nanobot，服务器无需改动。",
+      "unchecked": "尚未检查",
+      "uncheckedHint": "连接这台服务器后检查兼容性。无法获取版本不代表版本过旧。",
+      "localUpdateHint": "更新这台电脑上安装的 nanobot，然后重新打开 WebUI。不会更改远程服务器。",
+      "serverUpdateHint": "请更新服务器上实际运行的那份 nanobot。先备份配置和数据，重启前结束正在运行的任务。更新这台电脑不会更新服务器。",
+      "guide": "查看更新说明",
+      "preparation": "更新前须知"
+    },
     "rename": {
       "action": "重命名",
       "title": "重命名服务器",
       "name": "名称",
-      "hint": "给连接起个好认的名字，不会更改服务器或 SSH 设置。"
+      "hint": "只修改这里显示的名称。"
     },
     "sameInstance": {
       "forgetAction": "忘记",
@@ -76,7 +96,7 @@
       "fingerprint": "连接时会核对服务器终端提供的 SSH 指纹：",
       "revoke": "如需撤销新连接，在服务器运行以下命令，并关闭已打开的远程会话：",
       "retryHint": "配对已保存，无需重复运行服务器命令。若网络或 VPN 阻断 SSH，配对无法绕过该限制。",
-      "forgetHint": "忘记连接只会从本地列表移除，不会撤销服务器授权。撤销设备请在服务器运行："
+      "forgetHint": "若还要撤销此设备的服务器授权，请在服务器运行："
     },
     "setup": {
       "progress": "连接设置",
@@ -166,6 +186,10 @@
     "forgetTitle": "忘记 {{name}}？",
     "forgetDescription": "只移除本机保存的连接。服务器上的 nanobot、密钥和会话都不会被删除。",
     "errors": {
+      "webui_compatibility_unknown": "还无法确认这台服务器是否支持本地界面。请更新服务器上的 nanobot，然后重新连接。",
+      "host_update_required": "本地界面需要的功能在这台服务器上还不可用。请更新服务器上的 nanobot，然后重新连接。",
+      "client_update_required": "这台服务器需要更新的本地界面。请更新这台电脑上的 nanobot，服务器无需改动。",
+      "local_webui_unavailable": "本地 WebUI 文件缺失。请修复或重新构建这台电脑上的 nanobot；服务器不需要安装前端文件。",
       "invalid_name": "请输入 1–64 个字符的名称，不能包含换行。",
       "local_connection_unavailable": "暂时无法连接这台电脑上的 nanobot，请确保它正在运行后重试。",
       "disconnected": "此共享连接已断开，需要时可重新连接。",

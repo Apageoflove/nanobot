@@ -14,13 +14,14 @@ import { pairingReturnOrigin, type PairReturn } from "@/lib/remote-pair-return";
 import type { ConnectionStatus } from "@/lib/types";
 import { useRemoteConnections } from "./RemoteInstances";
 import { PairRouteSettings } from "./PairRouteSettings";
+import "./remote-layout.css";
 
 type Request = { id: string; command: string; expires: number };
 type Preview = { id: string; host: string; hostname: string; fingerprint: string; authorized_until: number; revoke_command: string;
   existing_connection?: { id: string; name: string; connected: boolean } };
 
 /** Public invitation → encrypted receipt → explicit confirmation. No private key inputs. */
-export function QuickPairSetup({ returned, onSSH, onClose }: { returned?: PairReturn | null; onSSH: () => void; onClose: () => void }) {
+export function QuickPairSetup({ returned, active = true, onSSH, onClose }: { returned?: PairReturn | null; active?: boolean; onSSH: () => void; onClose: () => void }) {
   const { t } = useTranslation();
   const { client } = useClient();
   const connections = useRemoteConnections();
@@ -56,14 +57,14 @@ export function QuickPairSetup({ returned, onSSH, onClose }: { returned?: PairRe
   }, [pending]);
 
   useEffect(() => {
-    alive.current = true;
+    alive.current = active;
     return () => {
       alive.current = false;
       // A link opens in a new tab. Closing/reloading the originating page must
       // not destroy its key before the new page can validate the receipt.
       // Pending invitations are bounded and expire in PairStore.
     };
-  }, [client]);
+  }, [client, active]);
   useEffect(() => {
     if (!request?.expires || saved) return;
     const timer = window.setTimeout(() => setExpired(true), Math.max(0, request.expires * 1000 - Date.now()));
@@ -75,7 +76,10 @@ export function QuickPairSetup({ returned, onSSH, onClose }: { returned?: PairRe
     try { await action(); }
     catch (reason) {
       const localFailure = reason instanceof Error && "status" in reason && [503, 504].includes(Number(reason.status));
-      if (alive.current) setError(`remote.errors.${localFailure ? "local_connection_unavailable" : reason instanceof Error ? reason.message : "unknown"}`);
+      if (alive.current) {
+        const code = localFailure ? "local_connection_unavailable" : reason instanceof Error ? reason.message : "unknown";
+        setError(`remote.errors.${code}`);
+      }
     } finally { if (alive.current) setBusy(false); }
   };
   const start = () => run(async () => {
@@ -106,7 +110,7 @@ export function QuickPairSetup({ returned, onSSH, onClose }: { returned?: PairRe
   });
 
   useEffect(() => {
-    if (initialized.current) return;
+    if (!active || initialized.current) return;
     // A return link mounts immediately after bootstrap, before the local socket
     // opens. Wait for it; rejecting here would mislabel a valid link as invalid.
     if (status !== "open") {
@@ -118,7 +122,7 @@ export function QuickPairSetup({ returned, onSSH, onClose }: { returned?: PairRe
     else void start();
     // One invitation per mounted dialog, never one per re-render. The returned
     // receipt is reviewed only; saving/connecting still requires a user click.
-  }, [status]);
+  }, [status, active]);
   const copyCommand = () => {
     if (!request) return;
     void copyTextToClipboard(request.command).then((ok) => {
@@ -128,44 +132,46 @@ export function QuickPairSetup({ returned, onSSH, onClose }: { returned?: PairRe
     });
   };
   const invalidReturn = ["pair_invalid", "pair_expired", "pair_used"].some((code) => error === `remote.errors.${code}`);
-  const restartAvailable = !saved && (expired || (!!error && !request?.command && !preview && (!returned || invalidReturn)));
-  const reviewingReturn = !!returned && !request?.command && !preview && !manual && !restartAvailable;
-  const title = preview ? preview.existing_connection ? "remote.sameInstance.title" : "remote.pair.confirmTitle" : reviewingReturn ? "remote.pair.review" : restartAvailable ? "remote.add"
+  const requestUnavailable = error === "remote.errors.pair_expired" || error === "remote.errors.pair_used";
+  const restartAvailable = !saved && (expired || requestUnavailable || (!!error && !request?.command && !preview && (!returned || invalidReturn)));
+  const visiblePreview = restartAvailable ? null : preview;
+  const reviewingReturn = !!returned && !request?.command && !visiblePreview && !manual && !restartAvailable;
+  const title = visiblePreview ? visiblePreview.existing_connection ? "remote.sameInstance.title" : "remote.pair.confirmTitle" : reviewingReturn ? "remote.pair.review" : restartAvailable ? "remote.add"
     : manual ? "remote.pair.code" : copied ? "remote.pair.copiedTitle" : "remote.add";
-  const description = preview || reviewingReturn ? "remote.pair.confirmLinkDescription" : restartAvailable ? "remote.pair.introHint"
+  const description = visiblePreview || reviewingReturn ? "remote.pair.confirmLinkDescription" : restartAvailable ? "remote.pair.introHint"
     : manual ? "remote.pair.codeHint" : copied ? "remote.pair.afterCopyHint" : "remote.pair.introHint";
-  const showCopied = copied && !manual && !preview && !restartAvailable;
-  const showIllustration = !preview && !manual && !reviewingReturn && !restartAvailable;
+  const showCopied = copied && !manual && !visiblePreview && !restartAvailable;
+  const showIllustration = !visiblePreview && !manual && !reviewingReturn && !restartAvailable;
   const showBusy = pending && busyVisible;
-  const actionLabel = restartAvailable ? "remote.pair.restart" : reviewingReturn ? error ? "remote.retry" : "remote.pair.review" : preview ? saved ? "remote.retry" : preview.existing_connection ? "remote.sameInstance.saveAndOpen" : "remote.connect"
+  const actionLabel = restartAvailable ? "remote.pair.restart" : reviewingReturn ? error ? "remote.retry" : "remote.pair.review" : visiblePreview ? saved ? "remote.retry" : visiblePreview.existing_connection ? "remote.sameInstance.saveAndOpen" : "remote.connect"
     : manual ? "remote.pair.review" : copied ? "remote.pair.copyAgain" : "remote.pair.copy";
-  const busyLabel = waitingForLocal ? "remote.pair.waitingForLocal" : preview ? "remote.connecting" : !restartAvailable && (manual || returned)
+  const busyLabel = waitingForLocal ? "remote.pair.waitingForLocal" : visiblePreview ? "remote.connecting" : !restartAvailable && (manual || returned)
     ? "remote.pair.checkingLink" : "remote.pair.preparing";
 
-  return <div className="flex min-h-0 flex-col">
+  return <div className="remote-pair flex min-h-0 flex-col">
     <div className="-mx-1 min-h-0 overflow-y-auto overscroll-contain px-1">
       <DialogHeader className={showIllustration ? "space-y-0 text-center sm:text-center" : "pr-5 text-left"}>
         {showIllustration && <RemoteConnectionIllustration />}
         <div aria-live="polite" aria-atomic="true" className="space-y-1.5">
           <DialogTitle className={showIllustration ? "flex min-h-5 items-center justify-center gap-2 text-xl leading-snug tracking-normal" : "flex min-h-5 items-center gap-2"}>
             {showCopied && <Check aria-hidden="true" className="h-5 w-5 shrink-0 motion-safe:animate-in motion-safe:fade-in duration-150" />}
-            {t(title)}
+            <span className="min-w-0 [overflow-wrap:anywhere]">{t(title)}</span>
           </DialogTitle>
           <DialogDescription>{t(description)}</DialogDescription>
         </div>
       </DialogHeader>
-      {preview ? <div className="space-y-4 pt-4">
+      {visiblePreview ? <div className="space-y-4 pt-4">
         <div className="rounded-2xl bg-muted/50 p-4">
-          <p className="font-medium">{preview.existing_connection?.name || preview.hostname}</p>
-          <p className="mt-1 break-all text-xs text-muted-foreground">{preview.host}</p>
+          <p className="font-medium [overflow-wrap:anywhere]">{visiblePreview.existing_connection?.name || visiblePreview.hostname}</p>
+          <p className="mt-1 break-all text-xs text-muted-foreground">{visiblePreview.host}</p>
         </div>
-        {preview.existing_connection && <p role="status" className="text-xs leading-5 text-muted-foreground">{t("remote.sameInstance.pairHint")}</p>}
+        {visiblePreview.existing_connection && <p role="status" className="text-xs leading-5 text-muted-foreground">{t("remote.sameInstance.pairHint")}</p>}
         <p className="text-[13px] leading-5">{t("remote.pair.access")}</p>
-        <p className="text-xs leading-5 text-muted-foreground">{t("remote.pair.expiry", { date: new Date(preview.authorized_until * 1000).toLocaleDateString() })}</p>
+        <p className="text-xs leading-5 text-muted-foreground">{t("remote.pair.expiry", { date: new Date(visiblePreview.authorized_until * 1000).toLocaleDateString() })}</p>
         <Disclosure className="text-xs text-muted-foreground" summaryClassName="flex min-h-9 items-center gap-2 rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           summary={<><ChevronDown aria-hidden className="h-3.5 w-3.5 shrink-0 transition-transform group-data-[state=open]/disclosure:rotate-180 motion-reduce:transition-none" />{t("remote.pair.security")}</>}>
-          <p className="my-2 leading-5">{t("remote.pair.fingerprint")}</p><code className="block break-all">{preview.fingerprint}</code>
-          <p className="mb-2 mt-4 leading-5">{t("remote.pair.revoke")}</p><CodeBlock language="bash" code={preview.revoke_command} highlight={false} className="min-w-0 [&_pre]:[overflow-wrap:anywhere]" />
+          <p className="my-2 leading-5">{t("remote.pair.fingerprint")}</p><code className="block break-all">{visiblePreview.fingerprint}</code>
+          <p className="mb-2 mt-4 leading-5">{t("remote.pair.revoke")}</p><CodeBlock language="bash" code={visiblePreview.revoke_command} highlight={false} className="min-w-0 [&_pre]:[overflow-wrap:anywhere]" />
         </Disclosure>
         {saved && error && <div className="space-y-2"><p className="text-xs leading-5 text-muted-foreground">{t("remote.pair.retryHint")}</p>
           <Disclosure summaryClassName="flex min-h-9 items-center gap-2 rounded-xl text-xs text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" contentClassName="pt-2"
@@ -178,7 +184,7 @@ export function QuickPairSetup({ returned, onSSH, onClose }: { returned?: PairRe
         <div>
           <DisclosureContent id={panelId} open={panel === "command" && !!request?.command} className="pt-4">
             <div className="rounded-2xl bg-muted/50 p-3">
-              <code className="block max-h-32 select-text overflow-y-auto break-all text-[11px] leading-5" aria-label={t("remote.pair.command")}>{request?.command}</code>
+              <code className="block max-h-32 select-text overflow-y-auto text-[11px] leading-5 [overflow-wrap:anywhere]" aria-label={t("remote.pair.command")}>{request?.command}</code>
             </div>
           </DisclosureContent>
           <DisclosureContent open={panel === "help"} className="pt-4">
@@ -192,21 +198,21 @@ export function QuickPairSetup({ returned, onSSH, onClose }: { returned?: PairRe
         </div>
       </>}
       {expired && !saved && <p role="status" className="mt-4 text-xs leading-5 text-muted-foreground">{t("remote.pair.expired")}</p>}
-      {error && <p role="alert" className="mt-4 flex items-start gap-2 text-[13px] leading-5 text-foreground"><AlertCircle aria-hidden="true" className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />{t(error, { defaultValue: t("remote.errors.unknown") })}</p>}
+      {error && <p role="alert" className="remote-alert mt-4 items-start gap-2 text-[13px] leading-5 text-foreground"><AlertCircle aria-hidden="true" className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" /><span>{t(error, { defaultValue: t("remote.errors.unknown") })}</span></p>}
     </div>
-    <div className={preview ? "flex shrink-0 flex-col-reverse gap-2 pt-5 sm:flex-row sm:items-center sm:justify-between" : "flex shrink-0 flex-col gap-2 pt-5"}>
-      {preview && (!saved ? <Button variant="ghost" disabled={busy} onClick={() => { setPreview(null); setError(""); if (!request?.command) setManual(true); }}><ArrowLeft className="mr-1 h-4 w-4" />{t("remote.back")}</Button>
-          : <Button variant="ghost" onClick={() => { connections?.cancel(); onClose(); }}>{t("common.cancel")}</Button>
+    <div className={visiblePreview ? "remote-dialog-actions shrink-0 pt-5" : "flex shrink-0 flex-col gap-2 pt-5"}>
+      {visiblePreview && (!saved ? <Button className="remote-action" variant="ghost" disabled={busy} onClick={() => { setPreview(null); setError(""); if (!request?.command) setManual(true); }}><ArrowLeft className="mr-1 h-4 w-4" />{t("remote.back")}</Button>
+          : <Button className="remote-action" variant="ghost" onClick={() => { connections?.cancel(); onClose(); }}>{t("common.cancel")}</Button>
       )}
-      <Button variant={showCopied ? "outline" : "default"} className={showCopied ? "bg-transparent" : undefined} aria-label={t(showBusy ? busyLabel : actionLabel)} aria-busy={pending} disabled={busy || waitingForLocal || (!restartAvailable && (!request || (!preview && (manual || reviewingReturn ? !code.trim() : !request.command))))} onClick={() => { if (restartAvailable) void start(); else if (preview) void connect(); else if (manual || reviewingReturn) void review(); else copyCommand(); }}>
-        {showBusy ? <Loader2 aria-hidden="true" className="mr-2 h-4 w-4 shrink-0 animate-spin motion-reduce:animate-none" /> : !restartAvailable && !preview && !manual && !reviewingReturn ? <Copy aria-hidden="true" className="mr-2 h-4 w-4 shrink-0" /> : null}
-        <span role="status" className="min-w-0 truncate">{t(showBusy ? busyLabel : actionLabel)}</span>
+      <Button variant={showCopied ? "outline" : "default"} className={showCopied ? "remote-action bg-transparent" : "remote-action"} aria-label={t(showBusy ? busyLabel : actionLabel)} aria-busy={pending} disabled={busy || waitingForLocal || (!restartAvailable && (!request || (!visiblePreview && (manual || reviewingReturn ? !code.trim() : !request.command))))} onClick={() => { if (restartAvailable) void start(); else if (visiblePreview) void connect(); else if (manual || reviewingReturn) void review(); else copyCommand(); }}>
+        {showBusy ? <Loader2 aria-hidden="true" className="mr-2 h-4 w-4 shrink-0 animate-spin motion-reduce:animate-none" /> : !restartAvailable && !visiblePreview && !manual && !reviewingReturn ? <Copy aria-hidden="true" className="mr-2 h-4 w-4 shrink-0" /> : null}
+        <span role="status" className="min-w-0">{t(showBusy ? busyLabel : actionLabel)}</span>
       </Button>
-      {!preview && <div className="-mx-3 flex items-center justify-between gap-1">
-        {request?.command ? manual ? <Button variant="ghost" size="sm" disabled={busy} onClick={() => { setManual(false); setPanel(null); setError(""); }}>{t("remote.back")}</Button>
-          : <Button variant="ghost" size="sm" className="text-xs text-muted-foreground" disabled={expired} aria-expanded={panel === "command"} aria-controls={panelId} onClick={() => setPanel(panel === "command" ? null : "command")}>{t("remote.pair.showCommand")}</Button> : <span />}
+      {!visiblePreview && <div className="remote-pair-alternatives -mx-3 gap-1">
+        {!restartAvailable && request?.command ? manual ? <Button className="remote-action" variant="ghost" size="sm" disabled={busy} onClick={() => { setManual(false); setPanel(null); setError(""); }}>{t("remote.back")}</Button>
+          : <Button variant="ghost" size="sm" className="remote-action justify-start text-left text-xs text-muted-foreground" disabled={expired} aria-expanded={panel === "command"} aria-controls={panelId} onClick={() => setPanel(panel === "command" ? null : "command")}>{t("remote.pair.showCommand")}</Button> : <span />}
         <DropdownMenu>
-          <DropdownMenuTrigger asChild><Button variant="ghost" size="sm" className="text-xs text-muted-foreground">{t("remote.pair.otherWays")}<ChevronDown aria-hidden="true" className="ml-1 h-3.5 w-3.5" /></Button></DropdownMenuTrigger>
+          <DropdownMenuTrigger asChild><Button variant="ghost" size="sm" className="remote-action justify-end text-right text-xs text-muted-foreground">{t("remote.pair.otherWays")}<ChevronDown aria-hidden="true" className="ml-1 h-3.5 w-3.5 shrink-0" /></Button></DropdownMenuTrigger>
           <DropdownMenuContent align="end" onCloseAutoFocus={(event) => {
             if (focusManual.current) { event.preventDefault(); focusManual.current = false; manualInput.current?.focus(); }
           }}>

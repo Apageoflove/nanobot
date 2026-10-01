@@ -32,6 +32,24 @@ beforeEach(() => window.localStorage.clear());
 afterEach(() => { cleanup(); vi.restoreAllMocks(); });
 
 describe("host switcher", () => {
+  it("announces the host only once when its display name is the hostname", () => {
+    const value = { ...picker(1), name: "team-host", hostname: "team-host" };
+    render(<HostNavigationContext.Provider value={value}><HostSwitcher /></HostNavigationContext.Provider>);
+    expect(screen.getByRole("status").textContent).toBe("team-host · Connected");
+    expect(screen.getByRole("button", { name: "Switch host" })).toHaveAttribute("title", "team-host · Connected");
+  });
+
+  it("does not borrow the local socket's Connected status while restoring a remote", () => {
+    const value = picker(1);
+    value.currentId = value.profiles[0].id;
+    value.name = value.profiles[0].name;
+    value.profiles[0].state = "connecting";
+    value.pending = value.profiles[0];
+    render(<HostNavigationContext.Provider value={value}><HostSwitcher /></HostNavigationContext.Provider>);
+    expect(screen.getByRole("status")).not.toHaveTextContent("Connected");
+    expect(screen.getByRole("status")).toHaveTextContent("Connecting");
+  });
+
   it("keeps the current host identity visible until a pending switch is ready", async () => {
     const value = picker(2);
     value.pending = value.profiles[0];

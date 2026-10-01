@@ -1,10 +1,30 @@
 {
   "remote": {
+    "compatibility": {
+      "title": "バージョンと互換性",
+      "client": "このコンピューター",
+      "host": "このサーバー",
+      "unreported": "未報告",
+      "compatible": "互換性あり",
+      "compatibleHint": "更新せずに接続できます。",
+      "unknown": "互換性を確認できません",
+      "unknownHint": "このサーバーから対応する WebUI プロトコル情報が提供されていません。サーバー上の nanobot を更新して再接続してください。",
+      "update_host": "サーバーの更新が必要",
+      "update_hostHint": "このサーバーはクライアントが必要とする機能に対応していません。サーバー上の nanobot を更新してください。",
+      "update_client": "このコンピューターの更新が必要",
+      "update_clientHint": "このサーバーはより新しいクライアントプロトコルを要求します。このコンピューターの nanobot を更新してください。サーバーのダウングレードは不要です。",
+      "unchecked": "未確認",
+      "uncheckedHint": "このサーバーに接続すると互換性を確認できます。バージョン不明は古いバージョンという意味ではありません。",
+      "localUpdateHint": "ローカルの nanobot を更新し、WebUI を開き直してください。リモートサーバーは変更されません。",
+      "serverUpdateHint": "サーバーで nanobot を実行している環境で更新してください。設定とデータをバックアップし、再起動が必要な場合は実行中のタスクを終了してください。このコンピューターの更新ではサーバーは更新されません。",
+      "guide": "更新ガイド",
+      "preparation": "更新前の確認"
+    },
     "rename": {
       "action": "名前を変更",
       "title": "サーバー名を変更",
       "name": "名前",
-      "hint": "接続の表示名です。サーバーや SSH 設定は変更されません。"
+      "hint": "ここに表示する名前だけを変更します。"
     },
     "sameInstance": {
       "forgetAction": "Forget",
@@ -76,7 +96,7 @@
       "fingerprint": "接続先の SSH サーバーは、サーバー端末のこの指紋と一致する必要があります：",
       "revoke": "新規接続の認可を取り消すには、サーバーで次を実行し、開いているリモートセッションも閉じてください：",
       "retryHint": "ペアリングは保存済みです。サーバーのコマンドを再実行せずに再試行できます。ネットワークや VPN による SSH の遮断は回避できません。",
-      "forgetHint": "削除するのはローカル一覧の接続だけで、サーバーの認可は残ります。取消にはサーバーで次を実行してください："
+      "forgetHint": "この端末のサーバー認可も取り消すには、サーバーで次を実行してください："
     },
     "setup": {
       "progress": "接続設定",
@@ -166,6 +186,10 @@
     "forgetTitle": "Forget {{name}}?",
     "forgetDescription": "Only this saved connection will be removed. nanobot, its keys and conversations on the server will stay untouched.",
     "errors": {
+      "webui_compatibility_unknown": "このサーバーから対応する WebUI プロトコル情報が提供されていません。サーバー上の nanobot を更新して再接続してください。",
+      "host_update_required": "このサーバーはクライアントが必要とする機能に対応していません。サーバー上の nanobot を更新してください。",
+      "client_update_required": "このサーバーはより新しいクライアントプロトコルを要求します。このコンピューターの nanobot を更新してください。サーバーのダウングレードは不要です。",
+      "local_webui_unavailable": "ローカル WebUI ファイルがありません。このコンピューターの nanobot を修復または再ビルドしてください。サーバー側の画面ファイルは不要です。",
       "invalid_name": "改行を含まない1～64文字の名前を入力してください。",
       "local_connection_unavailable": "このコンピューターの nanobot に接続できませんでした。起動していることを確認して、もう一度お試しください。",
       "disconnected": "この共有接続は閉じられました。必要なときに再接続できます。",

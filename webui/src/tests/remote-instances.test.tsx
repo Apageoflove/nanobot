@@ -92,6 +92,63 @@ function chooseExistingSSH() {
 }
 
 describe("remote instance UX", () => {
+  it.each([
+    ["webui_compatibility_unknown", "unknown"],
+    ["host_update_required", "update_host"],
+    ["client_update_required", "update_client"],
+  ])("a restored host with %s offers version guidance, not a network diagnosis", async (code, status) => {
+    rememberSelectedRemote(connection);
+    mocks.read.mockResolvedValue({ available: true, client_version: "1.0.0", profiles: [{ ...profile,
+      compatibility: { status, client_version: "1.0.0", host_version: "2.0.0" } }] });
+    mocks.request.mockRejectedValue(new Error(code));
+    view();
+    await screen.findByText(i18n.t(`remote.compatibility.${status}`));
+    expect(screen.queryByText("Server connection lost", { exact: true })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Version & compatibility" }));
+    expect(within(await screen.findByRole("dialog")).getByRole("status")).toHaveTextContent(i18n.t(`remote.compatibility.${status}`));
+    expect(screen.queryByRole("textbox", { name: "SSH address" })).not.toBeInTheDocument();
+    expect(readSelectedRemote()?.id).toBe(profile.id);
+  });
+
+  it.each(["compatible", "unknown", "update_host", "update_client"] as const)("explains %s compatibility without updating either machine", async (status) => {
+    mocks.read.mockResolvedValue({ available: true, client_version: "1.0.0", profiles: [{ ...profile,
+      compatibility: { status, client_version: "1.0.0", host_version: "2.0.0" } }] });
+    view(); await openDirectory();
+    fireEvent.pointerDown(screen.getByRole("button", { name: "Manage Team server" }), { button: 0, ctrlKey: false });
+    fireEvent.click(screen.getByRole("menuitem", { name: "Version & compatibility" }));
+    const dialog = await screen.findByRole("dialog");
+    expect(within(dialog).getByText("1.0.0")).toBeVisible();
+    expect(within(dialog).getByText("2.0.0")).toBeVisible();
+    expect(within(dialog).getByRole("status")).toHaveTextContent(i18n.t(`remote.compatibility.${status}`));
+    if (status === "compatible") expect(within(dialog).queryByRole("link")).not.toBeInTheDocument();
+    else expect(within(dialog).getByRole("link", { name: "Update guide" })).toHaveAttribute("rel", "noopener noreferrer");
+    expect(mocks.request).not.toHaveBeenCalled();
+  });
+
+  it("keeps an unchecked host distinct from an incompatible host", async () => {
+    view(); await openDirectory();
+    fireEvent.pointerDown(screen.getByRole("button", { name: "Manage Team server" }), { button: 0, ctrlKey: false });
+    fireEvent.click(screen.getByRole("menuitem", { name: "Version & compatibility" }));
+    const dialog = await screen.findByRole("dialog");
+    expect(within(dialog).getByRole("status")).toHaveTextContent("Not checked yet");
+    expect(within(dialog).queryByRole("link")).not.toBeInTheDocument();
+    expect(mocks.request).not.toHaveBeenCalled();
+  });
+
+  it("opens version guidance after an incompatible connection without opening SSH configuration", async () => {
+    mocks.read.mockResolvedValue({ available: true, profiles: [{ ...profile, compatibility: {
+      status: "update_client", client_version: "1.0.0", host_version: "2.0.0",
+    } }] });
+    mocks.request.mockRejectedValueOnce(new Error("client_update_required"));
+    view(false, true);
+    fireEvent.click(await screen.findByRole("button", { name: "Team server ubuntu@example.test" }));
+    const dialog = await screen.findByRole("dialog");
+    expect(within(dialog).getByRole("status")).toHaveTextContent("Update this computer");
+    expect(within(dialog).queryByRole("textbox", { name: "SSH address" })).not.toBeInTheDocument();
+    expect(readSelectedRemote()).toBeNull();
+    expect(mocks.request).toHaveBeenCalledTimes(1);
+  });
+
   it.each([false, true])("renames an open server without reloading its view (paired: %s)", async (paired) => {
     let saved = { ...profile, paired, connected: true };
     mocks.read.mockImplementation(async () => ({ available: true, profiles: [saved] }));
@@ -112,6 +169,8 @@ describe("remote instance UX", () => {
     fireEvent.click(screen.getByRole("menuitem", { name: "Rename", exact: true }));
     const input = await screen.findByRole("textbox", { name: "Name", exact: true });
     expect(input).toHaveValue("Team server");
+    expect(input).toHaveAccessibleName("Name");
+    expect(within(screen.getByRole("dialog")).queryByText("Name", { exact: true })).not.toBeInTheDocument();
     expect(input).toHaveFocus();
     expect(input).toHaveAttribute("maxlength", "64");
     expect(screen.getByRole("button", { name: "Save changes" })).toBeDisabled();
@@ -125,9 +184,22 @@ describe("remote instance UX", () => {
     expect(document.title).toBe("腾讯云 nanobot · nanobot");
     expect(source.postMessage).toHaveBeenLastCalledWith(expect.objectContaining({ type: "init", name: "腾讯云 nanobot" }), "http://127.0.0.1:23456");
     expect(mocks.request.mock.calls.map(([action]) => action)).toEqual(["remote.connect", "remote.rename"]);
-    await chooseHost("腾讯云 nanobot ubuntu@example.test");
+    fireEvent.click(screen.getByRole("button", { name: "腾讯云 nanobot ubuntu@example.test" }));
     expect(screen.getByTitle("nanobot on 腾讯云 nanobot")).toBe(frame);
     expect(mocks.request).toHaveBeenCalledTimes(2);
+  });
+
+  it("explains a paired route once while preserving its credentials boundary", async () => {
+    mocks.read.mockResolvedValue({ available: true, profiles: [{ ...profile, paired: true }] });
+    view(); await openDirectory();
+    fireEvent.pointerDown(screen.getByRole("button", { name: "Manage Team server" }), { button: 0, ctrlKey: false });
+    fireEvent.click(screen.getByRole("menuitem", { name: i18n.t("remote.pair.route") }));
+    const dialog = await screen.findByRole("dialog", { name: i18n.t("remote.pair.route") });
+    expect(within(dialog).getAllByText(i18n.t("remote.pair.routeHint"))).toHaveLength(1);
+    expect(dialog).toHaveAccessibleDescription(i18n.t("remote.pair.routeHint"));
+    expect(within(dialog).queryByText(i18n.t("remote.pair.routeDescription"))).not.toBeInTheDocument();
+    expect(within(dialog).getByRole("combobox", { name: i18n.t("remote.pair.route") })).toBeEnabled();
+    expect(mocks.request).not.toHaveBeenCalled();
   });
 
   it("rejects a blank name, preserves input on failure and lets the user retry or cancel", async () => {
@@ -143,6 +215,7 @@ describe("remote instance UX", () => {
     fireEvent.change(input, { target: { value: "Cloud" } });
     fireEvent.click(screen.getByRole("button", { name: "Save changes" }));
     expect(await screen.findByRole("alert")).toHaveTextContent(i18n.t("remote.errors.local_io_error"));
+    expect(input).toHaveAccessibleDescription(i18n.t("remote.errors.local_io_error"));
     expect(input).toHaveValue("Cloud");
     expect(screen.getByRole("button", { name: "Save changes" })).toBeEnabled();
     fireEvent.click(screen.getByRole("button", { name: "Cancel", exact: true }));
@@ -311,15 +384,15 @@ describe("remote instance UX", () => {
     expect(readSelectedRemote()?.id).toBe(profile.id);
   });
 
-  it("treats local sidebar navigation as an explicit host choice without disconnecting the server", async () => {
+  it("does not expose local sidebar actions while managing a remote", async () => {
     view();
     await chooseHost("Team server ubuntu@example.test");
     const frame = await readyRemote();
     await openDirectory();
-    fireEvent.click(screen.getByRole("button", { name: "New topic" }));
-    expect(screen.queryByRole("region", { name: "Remote connections" })).not.toBeInTheDocument();
-    expect(screen.getByText("Local conversations")).toBeVisible();
-    expect(readSelectedRemote()).toBeNull();
+    expect(screen.queryByRole("button", { name: "New topic" })).not.toBeInTheDocument();
+    expect(screen.getByRole("region", { name: "Remote connections" })).toBeVisible();
+    expect(screen.getByText("Local conversations")).not.toBeVisible();
+    expect(readSelectedRemote()?.id).toBe(profile.id);
     expect(frame).toBeInTheDocument();
     expect(mocks.request.mock.calls.some(([action]) => action === "remote.disconnect")).toBe(false);
   });
@@ -663,6 +736,46 @@ describe("remote instance UX", () => {
     await waitFor(() => expect(screen.getByText("Local conversations")).toBeVisible());
     expect(frame).toBeInTheDocument();
     expect(mocks.request.mock.calls.some(([action]) => action === "remote.disconnect")).toBe(false);
+  });
+
+  it("keeps the remote sidebar and scopes management layout messages to its verified frame", async () => {
+    view();
+    await chooseHost("Team server ubuntu@example.test");
+    const frame = await readyRemote();
+    const source = { postMessage: vi.fn() };
+    Object.defineProperty(frame, "contentWindow", { value: source });
+    act(() => fireEvent.load(frame));
+    const nonce = source.postMessage.mock.calls[0][0].nonce;
+    const message = (data: Record<string, unknown>, origin = "http://127.0.0.1:23456") => act(() => {
+      window.dispatchEvent(new MessageEvent("message", { source: source as unknown as Window,
+        origin, data: { channel: HOST_BRIDGE, nonce, ...data } }));
+    });
+    message({ type: "ready" });
+    document.documentElement.classList.remove("dark");
+    message({ type: "surface", theme: "dark", rect: { left: 272, top: 0, width: 900, height: 800 } });
+    expect(document.documentElement).not.toHaveClass("dark");
+    message({ type: "open", anchor: { left: 40, top: 500, width: 150, height: 32 } });
+    fireEvent.click(await screen.findByRole("menuitem", { name: "Manage connections…" }));
+    const panel = screen.getByTestId("remote-management-surface");
+    expect(panel).toHaveStyle({ left: "272px" });
+    expect(document.documentElement).toHaveClass("dark");
+    expect(frame).toBeVisible();
+    expect(screen.getByText("Local conversations")).not.toBeVisible();
+    expect(source.postMessage).toHaveBeenLastCalledWith(expect.objectContaining({ managing: true }), "http://127.0.0.1:23456");
+    message({ type: "surface", rect: { left: 500, top: 0, width: 900, height: 800 } }, "https://untrusted.example");
+    message({ type: "surface", nonce: "wrong", rect: { left: 500, top: 0, width: 900, height: 800 } });
+    message({ type: "surface", rect: { left: -20, top: 0, width: 900, height: 800 } });
+    expect(panel).toHaveStyle({ left: "272px" });
+    message({ type: "surface", theme: "dark", rect: { left: 64, top: 0, width: 1100, height: 800 } });
+    expect(panel).toHaveStyle({ left: "64px" });
+    message({ type: "leave-management", nonce: "wrong" });
+    expect(panel).toBeInTheDocument();
+    message({ type: "leave-management" });
+    expect(panel).not.toBeInTheDocument();
+    expect(document.documentElement).not.toHaveClass("dark");
+    expect(frame).toBeVisible();
+    expect(readSelectedRemote()?.id).toBe(profile.id);
+    expect(mocks.request.mock.calls.map(([action]) => action)).toEqual(["remote.connect"]);
   });
 
   it("uses clear Chinese navigation and returns from the connection form without saving", async () => {

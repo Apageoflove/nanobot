@@ -1,6 +1,16 @@
 import type { WebUIMutationTransport } from "./api";
 import { fetchWithTimeout } from "./http";
 
+export interface HostCompatibility {
+  status: "compatible" | "unknown" | "update_host" | "update_client";
+  client_version: string;
+  host_version: string;
+}
+
+export function isCompatibilityError(code: string): boolean {
+  return ["webui_compatibility_unknown", "host_update_required", "client_update_required"].includes(code);
+}
+
 export interface RemoteProfile {
   id: string;
   name: string;
@@ -19,6 +29,7 @@ export interface RemoteProfile {
   instance_id?: string;
   revoke_command?: string;
   authorized_until?: number;
+  compatibility?: HostCompatibility;
 }
 
 export interface RemoteProfileGroup {
@@ -47,12 +58,13 @@ export function groupRemoteProfiles(profiles: RemoteProfile[], currentId: string
 
 /** Persistent setup problems need a repair path, not an endless Retry button. */
 export function needsRemoteSetup(code: string): boolean {
-  return /^(pair_|host_key_|ssh_auth_failed$|ssh_agent_refused$|ssh_key_permissions$|ssh_config_|local_file_not_found$|remote_auth_failed$|incompatible_gateway$|webui_disabled$|profile_not_found$)/.test(code);
+  return isCompatibilityError(code) || /^(pair_|host_key_|ssh_auth_failed$|ssh_agent_refused$|ssh_key_permissions$|ssh_config_|local_file_not_found$|local_webui_unavailable$|remote_auth_failed$|incompatible_gateway$|webui_disabled$|profile_not_found$)/.test(code);
 }
 
 export interface RemoteDirectory {
   available: boolean;
   machine_name?: string;
+  client_version?: string;
   profiles: RemoteProfile[];
 }
 

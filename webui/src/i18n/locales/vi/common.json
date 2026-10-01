@@ -1,10 +1,30 @@
 {
   "remote": {
+    "compatibility": {
+      "title": "Phiên bản và tương thích",
+      "client": "Trên máy tính này",
+      "host": "Trên máy chủ này",
+      "unreported": "Chưa báo cáo",
+      "compatible": "Tương thích",
+      "compatibleHint": "Không cần cập nhật để kết nối.",
+      "unknown": "Chưa xác nhận tương thích",
+      "unknownHint": "Máy chủ này chưa cung cấp thông tin giao thức WebUI được hỗ trợ. Hãy cập nhật nanobot trên máy chủ này rồi kết nối lại.",
+      "update_host": "Cần cập nhật máy chủ này",
+      "update_hostHint": "Máy chủ này không hỗ trợ các chức năng mà máy khách yêu cầu. Hãy cập nhật nanobot trên máy chủ này.",
+      "update_client": "Cần cập nhật máy tính này",
+      "update_clientHint": "Máy chủ này yêu cầu giao thức máy khách mới hơn. Hãy cập nhật nanobot trên máy tính này; không cần hạ phiên bản máy chủ.",
+      "unchecked": "Chưa kiểm tra",
+      "uncheckedHint": "Kết nối với máy chủ này để kiểm tra tương thích. Không biết phiên bản không có nghĩa là phiên bản đã cũ.",
+      "localUpdateHint": "Cập nhật nanobot cục bộ rồi mở lại WebUI. Máy chủ từ xa sẽ không bị thay đổi.",
+      "serverUpdateHint": "Cập nhật trong môi trường đang chạy nanobot trên máy chủ này. Sao lưu cấu hình và dữ liệu, hoàn tất tác vụ đang chạy trước khi khởi động lại nếu cần. Cập nhật máy tính này không cập nhật máy chủ này.",
+      "guide": "Hướng dẫn cập nhật",
+      "preparation": "Trước khi cập nhật"
+    },
     "rename": {
       "action": "Đổi tên",
       "title": "Đổi tên máy chủ",
       "name": "Tên",
-      "hint": "Tên cho kết nối này. Máy chủ và cài đặt SSH không thay đổi."
+      "hint": "Chỉ thay đổi tên hiển thị tại đây."
     },
     "sameInstance": {
       "forgetAction": "Forget",
@@ -76,7 +96,7 @@
       "fingerprint": "Máy chủ SSH phải khớp với dấu vân tay từ bảng điều khiển này:",
       "revoke": "Để thu hồi kết nối mới, chạy lệnh này trên máy chủ và đóng các phiên từ xa đang mở:",
       "retryHint": "Đã lưu ghép nối. Bạn có thể thử lại mà không chạy lại lệnh trên máy chủ. Ghép nối không vượt qua việc chặn SSH của mạng hoặc VPN.",
-      "forgetHint": "Quên chỉ xóa kết nối khỏi danh sách, không thu hồi quyền trên máy chủ. Để thu hồi, chạy trên máy chủ:"
+      "forgetHint": "Để thu hồi cả quyền của thiết bị này, hãy chạy trên máy chủ:"
     },
     "setup": {
       "progress": "Thiết lập kết nối",
@@ -166,6 +186,10 @@
     "forgetTitle": "Forget {{name}}?",
     "forgetDescription": "Only this saved connection will be removed. nanobot, its keys and conversations on the server will stay untouched.",
     "errors": {
+      "webui_compatibility_unknown": "Máy chủ này chưa cung cấp thông tin giao thức WebUI được hỗ trợ. Hãy cập nhật nanobot trên máy chủ này rồi kết nối lại.",
+      "host_update_required": "Máy chủ này không hỗ trợ các chức năng mà máy khách yêu cầu. Hãy cập nhật nanobot trên máy chủ này.",
+      "client_update_required": "Máy chủ này yêu cầu giao thức máy khách mới hơn. Hãy cập nhật nanobot trên máy tính này; không cần hạ phiên bản máy chủ.",
+      "local_webui_unavailable": "Thiếu tệp WebUI cục bộ. Hãy sửa hoặc dựng lại nanobot trên máy tính này; máy chủ không cần tệp giao diện.",
       "invalid_name": "Nhập tên từ 1–64 ký tự, không chứa dấu xuống dòng.",
       "local_connection_unavailable": "Không thể kết nối với nanobot trên máy tính này. Hãy đảm bảo nanobot đang chạy rồi thử lại.",
       "disconnected": "Kết nối dùng chung này đã đóng. Bạn có thể kết nối lại khi sẵn sàng.",
