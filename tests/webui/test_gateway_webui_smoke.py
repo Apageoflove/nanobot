@@ -19,14 +19,24 @@ import websockets
 from nanobot.config.loader import load_config
 from nanobot.session.manager import SessionManager
 from nanobot.session.recovery import PENDING_USER_TURN_KEY, RUNTIME_CHECKPOINT_KEY
+from nanobot.webui.local_client_assets import LocalClientAssets
 from nanobot.webui.remote_proxy import RemoteProxy
 from nanobot.webui.remote_ssh import Tunnel
 
 _BOOTSTRAP_SECRET = "smoke-secret"
 
 
-async def test_remote_proxy_with_real_gateway_chat_settings_and_renewal(tmp_path: Path) -> None:
+async def test_remote_proxy_with_real_gateway_chat_settings_and_renewal(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
     """The auth proxy must preserve the actual gateway's WebUI mutation audience."""
+    # Python CI runs from a clean source tree without a frontend build. Supply
+    # this transport smoke's own local shell instead of relying on build leftovers.
+    assets = tmp_path / "local-dist"
+    assets.mkdir()
+    shell = "<!doctype html><title>Local smoke client</title>"
+    (assets / "index.html").write_text(shell, encoding="utf-8")
+    monkeypatch.setattr("nanobot.webui.remote_proxy.LocalClientAssets", lambda: LocalClientAssets(assets))
     ws_port, gateway_port = _free_port(), _free_port()
     workspace = tmp_path / "workspace"
     workspace.mkdir()
@@ -42,6 +52,7 @@ async def test_remote_proxy_with_real_gateway_chat_settings_and_renewal(tmp_path
                               pause=AsyncMock(), close=AsyncMock())
         proxy = await RemoteProxy.open(transport, _BOOTSTRAP_SECRET, upstream["terminal"]["gatewayId"])
         async with httpx.AsyncClient(trust_env=False) as client:
+            assert (await client.get(proxy.origin + "/")).text == shell
             first = (await client.get(proxy.origin + "/webui/bootstrap", headers={
                 "X-Nanobot-Auth": proxy.secret,
             })).json()
