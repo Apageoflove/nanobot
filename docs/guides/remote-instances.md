@@ -2,7 +2,7 @@
 
 Open your local **nanobot WebUI**, click the current host (initially **Local**)
 at the bottom of the sidebar, and choose **Manage connections…**. This is the
-single entry point for switching and managing hosts. The panel lists this computer
+single entry point for switching and managing hosts. The page lists this computer
 and your saved servers. Choose
 **Connect to remote nanobot** to copy a prepared pairing command, or choose **Other ways → Use existing SSH settings**
 to enter an SSH address such as
@@ -340,12 +340,12 @@ attempt leaves the original host selected. Remote
 connection setup is hidden inside the embedded remote view, and connecting back
 to the same gateway is rejected rather than creating a nested local session.
 
-Updated remote WebUIs put the switcher in the same sidebar location. A narrowly
-scoped, origin- and frame-checked bridge sends only the current host's display
-identity and allows its button to open the local shell's menu. The remote page
-does not receive your host directory, SSH configuration, or connection commands.
-Older remote WebUIs retain a compact bottom-strip switcher so you can always
-return local without covering their controls.
+Each isolated host view loads the same local WebUI and puts the switcher in the
+same sidebar location. A narrowly scoped, origin-, frame- and nonce-checked
+bridge sends the current host's display identity and coordinates menu placement,
+management layout and focus. The embedded view does not receive your host
+directory, SSH configuration or connection commands; the local shell owns those
+actions. This does not depend on the server's static WebUI bundle.
 
 Refreshing restores the selected remote instance. A failed connection stays
 on a remote error screen; it never silently redirects work to your local agent.
@@ -367,8 +367,8 @@ nanobot instances on one server can still use separate profiles and config paths
   usable. It switches after the page loads; **Cancel switch** keeps you where
   you are. The most recent choice wins even if an earlier SSH request finishes
   later. Cancelling navigation does not stop an in-flight server connection.
-  Older server WebUIs can still show their own sign-in/startup indicator after
-  the initial page load; returning to an already loaded view avoids that startup.
+  The host view may still show a sign-in/startup indicator while its data connection
+  initializes; returning to an already loaded view avoids that startup.
 - **Disconnect** in a server's menu confirms before closing its view and shared
   SSH tunnel. Unsaved view-only work can be lost; the remote bot keeps running.
   Idle views do not automatically close a tunnel another tab might be using.
