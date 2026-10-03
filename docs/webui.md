@@ -180,6 +180,14 @@ File previews follow the active topic's access mode. Restricted workspace access
 previews only files under the selected workspace. Full Access can preview files
 outside the workspace when that access mode is allowed by the gateway.
 
+Website links normally open in a new browser tab. Right-click a link (or press
+**Shift+F10** while it is focused) for link actions. On mobile, use the reply's
+**Message actions → View links** menu. **Preview website** appears only when the
+current browser and URL allow credential-isolated embedding; otherwise the menu
+explains the restriction and keeps **Open in browser** and **Copy link** available.
+Sites can still refuse embedding through their own security headers. nanobot
+does not proxy pages or bypass those restrictions; use **Open in browser** instead.
+
 Open the context indicator beside the composer model badge to see how much of
 the model's context window is in use. The **Recent rounds** chart shows input
 tokens for each logical model round, including tool-call rounds. Hover or focus
