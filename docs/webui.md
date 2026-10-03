@@ -188,6 +188,12 @@ explains the restriction and keeps **Open in browser** and **Copy link** availab
 Sites can still refuse embedding through their own security headers. nanobot
 does not proxy pages or bypass those restrictions; use **Open in browser** instead.
 
+On touch devices with Visual Viewport support, the app follows the visible area
+when the on-screen keyboard opens or pans the page. Navigation and the composer
+stay in view while messages scroll independently. Pinch zoom keeps the existing
+layout instead of resizing it to the magnified area; normal fitting resumes when
+you return to the default zoom. Desktop and native-host layout remain unchanged.
+
 Open the context indicator beside the composer model badge to see how much of
 the model's context window is in use. The **Recent rounds** chart shows input
 tokens for each logical model round, including tool-call rounds. Hover or focus
