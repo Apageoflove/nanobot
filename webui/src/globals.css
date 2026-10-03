@@ -136,7 +136,7 @@
     min-height: 2.75rem;
   }
 
-  #root.visual-viewport .workbench-composer-footer {
+  #root.short-visual-viewport .workbench-composer-footer {
     max-height: max(0px, calc(var(--app-viewport-height) - 2.75rem));
     overflow-y: auto;
   }
