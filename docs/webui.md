@@ -198,6 +198,11 @@ magnified area; normal fitting resumes when
 you return to the default zoom. Non-touch desktop and native-host layout remain
 unchanged.
 
+On touch devices, preview tab controls and
+the full-screen image viewer's close button use larger touch areas without
+enlarging the icons. Preview tabs remain horizontally scrollable when space is
+limited.
+
 Open the context indicator beside the composer model badge to see how much of
 the model's context window is in use. The **Recent rounds** chart shows input
 tokens for each logical model round, including tool-call rounds. Hover or focus

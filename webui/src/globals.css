@@ -878,6 +878,10 @@
     min-width: 2.75rem;
     min-height: 2.75rem;
   }
+
+  .touch-target.preview-tab-close {
+    opacity: 1;
+  }
 }
 
 /* On phones, actions follow the message instead of taking a separate gutter. */
