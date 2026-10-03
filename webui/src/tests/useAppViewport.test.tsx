@@ -62,6 +62,17 @@ describe("app visual viewport", () => {
     expect(root.style.getPropertyValue("--app-viewport-height")).toBe("320px");
   });
 
+  it("keeps navigation below the top edge when a focused PWA rotates with negative WebKit overscroll", () => {
+    render(<AppSurface />, { container: root });
+    resize(128, -68);
+    expect(root).toHaveClass("short-visual-viewport");
+    expect(root.style.getPropertyValue("--app-viewport-height")).toBe("128px");
+    expect(root.style.getPropertyValue("--app-viewport-top")).toBe("0px");
+    resize(428, 416);
+    expect(root).not.toHaveClass("short-visual-viewport");
+    expect(root.style.getPropertyValue("--app-viewport-top")).toBe("416px");
+  });
+
   it.each(["desktop", "native", "unsupported"])("leaves %s layout ownership unchanged", (kind) => {
     touch = kind !== "desktop";
     native = kind === "native";
@@ -85,6 +96,7 @@ describe("app visual viewport", () => {
     unmount();
     resize(746, 0);
     expect(root).not.toHaveClass("visual-viewport");
+    expect(root).not.toHaveClass("short-visual-viewport");
     expect(root.style.getPropertyValue("--app-viewport-top")).toBe("");
   });
 });
