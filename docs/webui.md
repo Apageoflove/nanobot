@@ -194,7 +194,8 @@ stay in view while messages scroll independently. In very short viewports (such
 as landscape with the keyboard open), scroll within the composer to reach its
 controls. Pinch zoom keeps the existing layout instead of resizing it to the
 magnified area; normal fitting resumes when
-you return to the default zoom. Desktop and native-host layout remain unchanged.
+you return to the default zoom. Non-touch desktop and native-host layout remain
+unchanged.
 
 Open the context indicator beside the composer model badge to see how much of
 the model's context window is in use. The **Recent rounds** chart shows input
