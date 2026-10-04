@@ -25,12 +25,19 @@ Production must still distinguish real same-name chats or topics when needed.
 
 1. Keep the saved chat selected by default. Do not infer it from the latest chat.
 2. Selecting another chat opens a review step in the same dialog.
-3. Show the old and new chats. Explain that future runs use the new chat's
-   history and reply there by default. Old chat history stays where it is.
+3. Keep the new chat editable in that step. Show the original chat below it.
+   Explain that future runs use the new chat's history and reply there by default.
 4. Let the user review and edit the task prompt. Warn when the target is a group.
-5. Require confirmation that the prompt is suitable for the new chat.
+5. Use one explicit “确认并更换” (“Confirm and change”) action. Do not add a
+   second confirmation checkbox. Put history and schedule details in a disclosure.
 6. Change the displayed saved chat only after the save succeeds. Keep the draft
-   after a conflict or when the user returns to select another chat.
+   after a conflict or when the user returns to the task details.
+
+Keep “Edit” and “Run now” visible in the detail footer. Put enable/disable,
+delete, and the existing open-chat link in “More”. Keep the existing delete
+confirmation. Reuse the shared Disclosure and DropdownMenu controls, as the
+remote-connection screens do; do not add another style system. The menu is
+non-modal because the detail dialog already owns the modal interaction lock.
 
 Changing a chat must not run the task, change its schedule, or enable a paused
 task. Keep the page mounted during review and show save progress next to the
@@ -93,7 +100,7 @@ Use existing session/channel ownership to resolve identities and routes. Keep
 the atomic update in the cron owner, not the client. Do not introduce WebUI
 policy in `agent/loop.py` or `agent/runner.py`.
 
-At base `948ce382`, `nanobot/webui/session_automations.py::_origin_payload`
+At base `6b24ed80`, `nanobot/webui/session_automations.py::_origin_payload`
 returns only channel and empty display text for non-WebSocket jobs. The detail
 panel renders that channel label. `nanobot/agent/tools/cron.py` captures the
 creation route; `nanobot/cron/bound_runner.py` and `session_delivery.py` consume
@@ -150,7 +157,8 @@ conflict, queued task, or old host. Refresh resets all changes.
 
 The prototype imports the real Sidebar, Automations page, dialogs, channel
 logos, UI controls, translations, CSS, and Tailwind configuration. An opt-in
-Vite transform replaces only the linked-chat slot and review frame in memory.
+Vite transform replaces the linked-chat and detail-action slots and wraps the
+review frame in memory.
 The build fails if those source anchors change. The transform is not used by
 the product build and is not a proposed production extension point.
 
@@ -165,8 +173,12 @@ the product build and is not a proposed production extension point.
   click. It does not detect arbitrary routing instructions or sensitive text.
 - The preview is Chinese-first. Production copy still needs all supported
   locales, including verified accessibility labels.
-- Earlier UI-only browser checks covered desktop, 320/390 px layouts, draft
-  retention, save acknowledgement, conflict, cancellation, and keyboard flow.
-  Those checks do not prove real delivery, persistence, or physical iOS behavior.
+- UI-only browser checks covered desktop, 320/390 px layouts, draft retention,
+  save acknowledgement, conflict, cancellation, keyboard flow, and the original
+  UI comparison. The narrow layouts have visible 44 px confirmation buttons and
+  16 px prompt input text. A delete-menu handoff exposed a stale pointer lock;
+  the non-modal menu fix was verified by cancelling deletion, closing details,
+  and opening another task. These checks do not prove real delivery,
+  persistence, or physical iOS behavior.
 - No production runtime, wire schema, saved data, or package dependencies change
   in this draft. This proposal is not merge-ready as a routing feature.
