@@ -48,6 +48,14 @@ describe("SessionSearchDialog", () => {
     expect(dialog).toHaveClass("bg-background");
     expect(dialog.className).not.toContain("bg-popover/");
     expect(dialog.className).not.toContain("backdrop-blur");
+    // The body portal must share the app's keyboard-fitted frame. Its list
+    // height is bounded by that frame, not by the layout viewport's 100vh.
+    expect(dialog.parentElement).toHaveStyle({
+      top: "var(--app-viewport-top, 0px)",
+      height: "var(--app-viewport-height, 100%)",
+      bottom: "auto",
+    });
+    expect(dialog).toHaveClass("max-h-[min(40rem,100%)]");
     expect(screen.getByTestId("session-search-scroll")).toHaveClass("overflow-y-auto");
     expect(screen.queryByText("/model fast")).not.toBeInTheDocument();
     fireEvent.change(screen.getByRole("textbox", { name: "Search" }), {
