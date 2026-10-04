@@ -5,6 +5,8 @@ from __future__ import annotations
 from collections.abc import Collection
 from typing import Any, Protocol, cast
 
+from nanobot.cron.binding import binding_revision
+from nanobot.cron.session_turns import is_bound_cron_job
 from nanobot.cron.types import CronJob
 from nanobot.session.history_visibility import is_hidden_history_message
 from nanobot.session.manager import (
@@ -187,6 +189,8 @@ def _serialize_job(
         }
     )
     payload["origin"] = _origin_payload(job, session_manager)
+    if is_bound_cron_job(job):
+        payload["chat_binding_revision"] = binding_revision(job)
     return payload
 
 

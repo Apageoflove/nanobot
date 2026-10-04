@@ -1194,6 +1194,29 @@
       "notEnabled": "Chưa bật"
     },
     "automations": {
+      "chat": {
+        "conflict": "Tác vụ đã được đổi ở nơi khác. Bản nháp được giữ lại. Mở lại tác vụ để kiểm tra cài đặt mới nhất.",
+        "unavailable": "Cuộc trò chuyện này không còn khả dụng với cùng không gian làm việc và quyền truy cập. Hãy chọn cuộc trò chuyện khác.",
+        "schedulerBusy": "Có tác vụ đang chạy hoặc chờ. Hãy đợi hoàn tất rồi thử lại.",
+        "label": "Cuộc trò chuyện của tác vụ",
+        "new": "Cuộc trò chuyện mới",
+        "current": "Cuộc trò chuyện hiện tại",
+        "web": "Trò chuyện web",
+        "change": "Đổi cuộc trò chuyện",
+        "previous": "Cuộc trò chuyện cũ:",
+        "hint": "Dùng lịch sử trò chuyện này. Mặc định kết quả được gửi về đây.",
+        "effect": "Các lần chạy sau sẽ dùng lịch sử trò chuyện mới và mặc định gửi kết quả đến đó.",
+        "message": "Hướng dẫn tác vụ",
+        "review": "Kiểm tra hướng dẫn gửi đến cuộc trò chuyện khác. Thành viên trong cuộc trò chuyện mới có thể thấy tác vụ và kết quả.",
+        "history": "Tin nhắn cũ vẫn ở cuộc trò chuyện cũ. Lịch chạy không đổi. Tác vụ không chạy ngay.",
+        "busy": "Không thể đổi khi tác vụ đang chạy hoặc chờ trong hàng đợi.",
+        "saved": "Đã đổi. Áp dụng từ lần chạy tiếp theo.",
+        "failed": "Chưa thể xác nhận thay đổi. Bản nháp được giữ lại.",
+        "retry": "Tải lại cuộc trò chuyện",
+        "confirm": "Xác nhận thay đổi",
+        "saving": "Đang đổi…",
+        "available": "Trước tiên hãy gửi tin nhắn cho nanobot trong cuộc trò chuyện đích. Chỉ hiển thị cuộc trò chuyện đã kết nối, có cùng không gian làm việc và chế độ truy cập."
+      },
       "taskInfo": "Thông tin tác vụ",
       "runDetails": {
         "loading": "Đang tải phản hồi…",
