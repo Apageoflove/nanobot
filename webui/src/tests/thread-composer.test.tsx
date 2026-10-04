@@ -2436,6 +2436,9 @@ describe("ThreadComposer", () => {
     expect(screen.queryByText("MCP servers")).not.toBeInTheDocument();
     const gimp = screen.getByRole("option", { name: /GIMP @gimp .* CLI/i });
     const browserbase = screen.getByRole("option", { name: /Browserbase @browserbase .* MCP/i });
+    // Reuse the app's 44px coarse-pointer targets without changing desktop density.
+    expect(gimp).toHaveClass("touch-target");
+    expect(browserbase).toHaveClass("touch-target");
     expect(within(gimp).getByText("CLI")).toBeInTheDocument();
     expect(within(browserbase).getByText("MCP")).toBeInTheDocument();
     expect(within(gimp).getByText("@gimp")).toBeInTheDocument();
