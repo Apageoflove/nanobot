@@ -614,7 +614,13 @@ function visualViewportBounds(): { top: number; bottom: number; height: number }
 }
 
 function getVisibleBounds(el: HTMLElement): { top: number; bottom: number } {
-  const viewport = visualViewportBounds();
+  // The app already follows the visual viewport on touch browsers. Measure
+  // its frame in the same coordinates as the composer, not WebKit's pan offset.
+  // During pinch zoom the app stops fitting, so use the zoomed viewport again.
+  const fittedRoot = window.visualViewport?.scale === 1
+    ? el.closest("#root.visual-viewport")
+    : null;
+  const viewport = fittedRoot?.getBoundingClientRect() ?? visualViewportBounds();
   let top = viewport.top;
   let bottom = viewport.bottom;
   let parent = el.parentElement;

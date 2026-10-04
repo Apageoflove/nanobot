@@ -2740,6 +2740,54 @@ describe("ThreadComposer", () => {
     });
   });
 
+  it.each(["/", "@"]) ("fits %s suggestions in the app frame while iOS pans the keyboard", (trigger) => {
+    stubVisualViewport({ height: 396, offsetTop: 350 });
+    let formTop = 274;
+    let frameHeight = 396;
+    vi.spyOn(HTMLFormElement.prototype, "getBoundingClientRect").mockImplementation(
+      () => rect({ top: formTop, width: 388, height: 112 }),
+    );
+    vi.spyOn(HTMLDivElement.prototype, "getBoundingClientRect").mockImplementation(
+      () => rect({ top: 0, width: 420, height: frameHeight }),
+    );
+    render(
+      <div id="root" className="visual-viewport" style={{ overflowY: "hidden" }}>
+        <ThreadComposer onSend={vi.fn()} slashCommands={COMMANDS} cliApps={CLI_APPS} />
+      </div>,
+    );
+    const input = screen.getByLabelText("Message input");
+    fireEvent.change(input, { target: { value: trigger, selectionStart: 1 } });
+    const palette = screen.getByRole("listbox");
+    expect(palette).toHaveClass("bottom-full");
+    expect(palette).toHaveStyle({ maxHeight: "266px" });
+
+    // Keyboard dismissal moves the composer; keep measuring the same frame.
+    formTop = 620;
+    frameHeight = 746;
+    Object.assign(window.visualViewport!, { height: 746, offsetTop: 0 });
+    act(() => window.visualViewport!.dispatchEvent(new Event("resize")));
+    expect(palette).toHaveStyle({ maxHeight: "288px" });
+    fireEvent.keyDown(input, { key: "Enter" });
+    expect(screen.queryByRole("listbox")).not.toBeInTheDocument();
+    expect(input).not.toHaveValue(trigger);
+  });
+
+  it.each([false, true])("uses visual bounds outside fitting (pinch zoom: %s)", (zoomed) => {
+    stubVisualViewport({ height: 300, offsetTop: 100 });
+    if (zoomed) Object.assign(window.visualViewport!, { scale: 2 });
+    vi.spyOn(HTMLFormElement.prototype, "getBoundingClientRect").mockReturnValue(
+      rect({ top: 220, width: 390, height: 100 }),
+    );
+    render(
+      <div id="root" className={zoomed ? "visual-viewport" : undefined}>
+        <ThreadComposer onSend={vi.fn()} slashCommands={COMMANDS} />
+      </div>,
+    );
+    fireEvent.change(screen.getByLabelText("Message input"), { target: { value: "/" } });
+    expect(screen.getByRole("listbox")).toHaveStyle({ maxHeight: "112px" });
+    expect(screen.getByRole("listbox")).toHaveClass("bottom-full");
+  });
+
   it("dismisses the slash command palette on outside click", () => {
     render(
       <div>
