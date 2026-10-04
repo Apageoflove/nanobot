@@ -156,7 +156,7 @@ describe("AgentActivityCluster", () => {
     expect(screen.getByText(`正在读取文件 ${path}`)).toBeInTheDocument();
     expect(screen.getByText("正在使用 Blender · --json --background scene.blend")).toBeInTheDocument();
     expect(screen.getByText("正在打开 example.com · Browserbase")).toBeInTheDocument();
-    expect(screen.getByText("已编辑")).toBeInTheDocument();
+    expect(screen.getByText("编辑")).toBeInTheDocument();
     expect(screen.getByTestId("activity-file-reference")).toHaveTextContent(path);
 
     await act(async () => setAppLanguage("ja"));
@@ -166,7 +166,7 @@ describe("AgentActivityCluster", () => {
     expect(screen.getByText("Blender を使用中 · --json --background scene.blend")).toBeInTheDocument();
     expect(screen.getByText("example.com · 開いています · Browserbase")).toBeInTheDocument();
     expect(screen.getByTestId("activity-file-reference").closest('[data-testid="activity-step"]'))
-      .toHaveTextContent(`${path} · 編集しました`);
+      .toHaveTextContent(`${path} · 編集`);
   });
 
   it("loads deferred trace details only after completed activity is expanded", async () => {
