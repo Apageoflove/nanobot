@@ -1305,6 +1305,7 @@ class GatewayHTTPHandler:
                 self.cron_service,
                 decoded_key,
                 local_trigger_store=self.local_trigger_store,
+                session_manager=self.session_manager,
                 pending_job_ids=pending_job_ids,
             )
         )

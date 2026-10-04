@@ -14,6 +14,7 @@ import websockets
 from nanobot.agent.loop import AgentLoop
 from nanobot.bus.queue import MessageBus
 from nanobot.channels.websocket.runtime import WebSocketChannel, WebSocketConfig
+from nanobot.config.schema import Config
 from nanobot.cron.binding import CronBinding, binding_revision
 from nanobot.cron.bound_runner import run_bound_cron_job
 from nanobot.cron.service import CronService
@@ -198,7 +199,7 @@ async def test_real_gateway_move_run_reload_and_previous_result(tmp_path):
     provider.chat_stream_with_retry = reply
     bus = MessageBus()
     agent = AgentLoop(bus=bus, provider=provider, workspace=tmp_path / "workspace",
-        model="test-model", session_manager=sessions)
+        model="test-model", session_manager=sessions, tools_config=Config().tools)
     agent.tools.get_definitions = MagicMock(return_value=[])
     async def execute(job):
         return await run_bound_cron_job(job, agent=agent, cron=cron)
@@ -230,6 +231,17 @@ async def test_real_gateway_move_run_reload_and_previous_result(tmp_path):
         assert json.loads(await client.recv())["event"] == "ready"
         api_token = gateway.tokens.issue_api_token(60)
         async with httpx.AsyncClient(trust_env=False) as http:
+            session_jobs = await http.get(
+                f"http://127.0.0.1:{port}/api/sessions/websocket%3Asource/automations",
+                headers={"Authorization": f"Bearer {api_token}"},
+            )
+            assert session_jobs.status_code == 200
+            detail = session_jobs.json()["jobs"][0]
+            assert detail["origin"]["session_key"] == "websocket:source"
+            assert detail["origin"]["title"] == "Daily report"
+            assert detail["protected"] is False
+            assert detail["chat_binding_revision"] == binding_revision(old)
+            assert detail["state"]["run_history"][0]["status"] == "ok"
             url = f"http://127.0.0.1:{port}/api/webui/automations/chats?id={job.id}"
             assert (await http.get(url)).status_code == 401
             result = await http.get(url, headers={"Authorization": f"Bearer {api_token}"})

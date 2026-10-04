@@ -31,7 +31,7 @@ it("keeps the original route until acknowledgement and saves the reviewed prompt
   let finish!: () => void;
   const save = vi.fn(() => new Promise<void>(resolve => { finish = resolve; }));
   const user = userEvent.setup();
-  render(<AutomationDetailDialog {...props} job={job} onChangeChat={save} />);
+  const { rerender } = render(<AutomationDetailDialog {...props} job={job} onChangeChat={save} />);
   await choose();
   expect(save).not.toHaveBeenCalled();
   expect(screen.getByText(/Previous chat:/)).toHaveTextContent("My planning");
@@ -41,8 +41,17 @@ it("keeps the original route until acknowledgement and saves the reviewed prompt
   expect(save).toHaveBeenCalledWith(job, { target_id: "target", revision: "rev-1", message: "New instructions" });
   expect(screen.getByRole("button", { name: "Changing…" })).toBeDisabled();
   expect(screen.queryByRole("status")).not.toBeInTheDocument();
-  await act(async () => finish());
+  let refresh!: (value: AutomationChatsPayload) => void;
+  vi.mocked(fetchAutomationChats).mockImplementation(() => new Promise(resolve => { refresh = resolve; }));
+  await act(async () => {
+    rerender(<AutomationDetailDialog {...props} job={{ ...job, chat_binding_revision: "rev-2" }} onChangeChat={save} />);
+    finish();
+  });
   expect(await screen.findByRole("status")).toHaveTextContent("Applies to future runs");
+  expect(screen.getByRole("combobox", { name: "Task chat" })).toHaveTextContent("Product team");
+  expect(screen.getByRole("combobox", { name: "Task chat" })).toBeDisabled();
+  await act(async () => refresh({ ...choices, current: target, revision: "rev-2" }));
+  expect(screen.getByRole("combobox", { name: "Task chat" })).toHaveFocus();
   expect(props.onAction).not.toHaveBeenCalled();
 });
 
@@ -69,6 +78,26 @@ it("does not send the new request to an old host and locks a pending task", asyn
   rerender(<AutomationDetailDialog {...props} job={{ ...job, state: { pending: true } }} onChangeChat={save} />);
   expect(await screen.findByRole("combobox", { name: "Task chat" })).toBeDisabled();
   expect(save).not.toHaveBeenCalled();
+});
+
+it("keeps the reviewed chat identity when refreshed choices no longer contain it", async () => {
+  const user = userEvent.setup();
+  const save = vi.fn();
+  const { rerender } = render(<AutomationDetailDialog {...props} job={job} onChangeChat={save} />);
+  await choose();
+  await user.type(screen.getByRole("textbox", { name: "Task instructions" }), " Reviewed");
+  vi.mocked(fetchAutomationChats).mockResolvedValue({
+    revision: "rev-2", current: { ...source, title: "Renamed planning" }, chats: [source],
+  });
+  rerender(<AutomationDetailDialog {...props} job={{ ...job, chat_binding_revision: "rev-2" }} onChangeChat={save} />);
+  expect(await screen.findByRole("alert")).toHaveTextContent("no longer available");
+  expect(screen.getByRole("combobox", { name: "New chat" })).toHaveTextContent("Product team");
+  expect(screen.getByText(/Previous chat:/)).toHaveTextContent("My planning");
+  expect(screen.getByRole("textbox", { name: "Task instructions" })).toHaveValue("Summarize the work. Reviewed");
+  expect(screen.getByRole("button", { name: "Confirm change" })).toBeDisabled();
+  expect(save).not.toHaveBeenCalled();
+  await user.click(screen.getByRole("button", { name: "Cancel" }));
+  expect(screen.getByRole("combobox", { name: "Task chat" })).toHaveTextContent("Renamed planning");
 });
 
 it("keeps the current chat visible when discovery fails and permits a retry", async () => {

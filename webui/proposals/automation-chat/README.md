@@ -46,6 +46,13 @@ No new execution path, agent-loop policy, dependencies, or separate CSS system
 are added. The dialog uses the existing Select, Dialog, Button, Textarea, channel
 logos, and DropdownMenu. The detail dialog owns the modal lock. Confirmation is
 explicit and progress stays local to that action. The page remains visible.
+The review keeps the selected chat and original chat name stable across refreshes.
+If refreshed choices omit the selected chat, its name remains visible and saving
+is disabled. The gateway still checks the route at save time.
+
+The session details endpoint uses the same complete task serializer as the
+Automations page. Both shared-dialog entry points receive the binding needed to
+enable Run now and resume; neither client invents a missing route.
 
 ## Compatibility
 
