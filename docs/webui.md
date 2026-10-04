@@ -190,7 +190,10 @@ does not proxy pages or bypass those restrictions; use **Open in browser** inste
 
 On touch devices with Visual Viewport support, the app follows the visible area
 when the on-screen keyboard opens or pans the page. Navigation and the composer
-stay in view while messages scroll independently. In very short viewports (such
+stay in view while messages scroll independently. The `@` mention and `/` command
+menus use the visible app area above or below the composer, including when the
+keyboard pans the page. Scroll within a menu to reach more results.
+In very short viewports (such
 as landscape with the keyboard open), scroll within the composer to reach its
 controls. If the browser bars and keyboard leave no usable page area, dismiss
 the keyboard or return to portrait. Pinch zoom keeps the existing layout instead of resizing it to the
