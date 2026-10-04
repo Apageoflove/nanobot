@@ -24,7 +24,7 @@ const DialogOverlay = React.forwardRef<
     ref={ref}
     className={cn(
       modalOverlayClassName,
-      "motion-reduce:animate-none",
+      "duration-200 motion-reduce:animate-none",
       className,
     )}
     {...props}
@@ -34,6 +34,8 @@ DialogOverlay.displayName = DialogPrimitive.Overlay.displayName;
 
 // The portal's presence ref must reach the animated content, not the plain
 // positioning wrapper; otherwise the wrapper unmounts before the exit finishes.
+// Auto margins center/bottom-align surfaces when they fit, but collapse to zero
+// when they overflow so the beginning of a tall dialog remains scrollable.
 const DialogPositionedContent = React.forwardRef<
   React.ElementRef<typeof DialogPrimitive.Content>,
   React.ComponentPropsWithoutRef<typeof DialogPrimitive.Content> & {
@@ -41,7 +43,7 @@ const DialogPositionedContent = React.forwardRef<
     placement?: "center" | "bottom";
   }
 >(({ positionerStyle, placement, ...props }, ref) => (
-  <div className={cn("fixed inset-0 z-50 flex justify-center", placement === "bottom" ? "items-end" : "items-center p-4")} style={{
+  <div className={cn("fixed inset-0 z-50 flex items-start justify-center overflow-y-auto overscroll-contain", placement !== "bottom" && "p-4")} style={{
     top: "var(--app-viewport-top, 0px)",
     height: "var(--app-viewport-height, 100%)",
     bottom: "auto",
@@ -97,7 +99,7 @@ const DialogContent = React.forwardRef<
   }, [ref]);
   return (
     <DialogPortal>
-      <DialogOverlay className={overlayClassName} />
+      <DialogOverlay className={overlayClassName}>
         <DialogPositionedContent
           positionerStyle={layout}
           placement={placement}
@@ -113,8 +115,8 @@ const DialogContent = React.forwardRef<
             modalSurfaceClassName,
             "relative grid w-full max-w-lg gap-4 p-6 duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 motion-reduce:animate-none",
             placement === "bottom"
-              ? "max-h-[85dvh] overflow-y-auto overscroll-contain rounded-t-modal pb-[max(1rem,env(safe-area-inset-bottom))] data-[state=open]:slide-in-from-bottom-4 data-[state=closed]:slide-out-to-bottom-4"
-              : "origin-center rounded-modal data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95",
+              ? "mt-auto max-h-[85dvh] overflow-y-auto overscroll-contain rounded-t-modal pb-[max(1rem,env(safe-area-inset-bottom))] data-[state=open]:slide-in-from-bottom-4 data-[state=closed]:slide-out-to-bottom-4"
+              : "my-auto origin-center rounded-modal data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95",
             className,
           )}
           {...props}
@@ -129,6 +131,7 @@ const DialogContent = React.forwardRef<
             </DialogPrimitive.Close>
           ) : null}
         </DialogPositionedContent>
+      </DialogOverlay>
     </DialogPortal>
   );
 });
