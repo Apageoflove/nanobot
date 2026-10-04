@@ -41,6 +41,8 @@ is pending, so the PR remains a draft.
 - Each run retains its session identity. Before the first supported move, older
   run records are stamped with the known unchanged original binding. Audit result
   checks still verify job, run, session, status, and file path.
+  History links use that run's WebUI chat key, not the task's current chat.
+  External runs expose no recipient key and have no WebUI chat link.
 
 No new execution path, agent-loop policy, dependencies, or separate CSS system
 are added. The dialog uses the existing Select, Dialog, Button, Textarea, channel

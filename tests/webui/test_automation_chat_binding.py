@@ -24,6 +24,7 @@ from nanobot.session.manager import SessionManager
 from nanobot.webui.automation_chats import automation_chats
 from nanobot.webui.automation_results import cron_run_response
 from nanobot.webui.gateway_services import build_gateway_services
+from nanobot.webui.session_automations import serialize_automation_jobs
 from nanobot.webui.workspaces import WebUIWorkspaceController
 
 
@@ -277,6 +278,13 @@ async def test_real_gateway_move_run_reload_and_previous_result(tmp_path):
         moved = CronService(cron.store_path).get_job(job.id)
         for run in moved.state.run_history:
             assert cron_run_response(cron.store_path.parent / "runs", moved, run) == "Synthetic result"
+        history = serialize_automation_jobs([moved], include_details=True)[0]["state"]["run_history"]
+        assert [run["webui_session_key"] for run in history] == ["websocket:source", None]
+        cron.change_binding(job.id, revision=binding_revision(moved),
+                            binding=CronBinding("websocket:source", "websocket", "source", {}), message="Back")
+        # Moving back must not turn the external run's link into the current chat.
+        history = serialize_automation_jobs([cron.get_job(job.id)], include_details=True)[0]["state"]["run_history"]
+        assert [run["webui_session_key"] for run in history] == ["websocket:source", None]
     finally:
         if client is not None:
             await client.close()
