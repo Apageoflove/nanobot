@@ -207,6 +207,10 @@ magnified area; normal fitting resumes when
 you return to the default zoom. Non-touch desktop and native-host layout remain
 unchanged.
 
+On touch devices, compact text fields use a readable 16px minimum baseline to
+avoid Safari automatically zooming the page on focus. Desktop field density
+and manual page zoom remain unchanged.
+
 On touch devices, preview tab controls and
 the full-screen image viewer's close button use larger touch areas without
 enlarging the icons. Preview tabs remain horizontally scrollable when space is
