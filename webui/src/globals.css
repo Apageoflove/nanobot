@@ -141,6 +141,25 @@
     overflow-y: auto;
   }
 
+  /* Body portals share the viewport owner's short-frame state. A landscape
+     keyboard needs input and results beside each other, not stacked. */
+  @media (min-width: 640px) {
+    body:has(> #root.short-visual-viewport) .session-search-dialog {
+      flex-direction: row;
+    }
+
+    body:has(> #root.short-visual-viewport) .session-search-input {
+      width: 40%;
+      height: auto;
+      border-bottom-width: 0;
+      border-right-width: 1px;
+    }
+
+    body:has(> #root.short-visual-viewport) .session-search-label {
+      @apply sr-only;
+    }
+  }
+
   * {
     scrollbar-color: var(--scrollbar-thumb) transparent;
     scrollbar-width: thin;
