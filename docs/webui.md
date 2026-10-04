@@ -111,6 +111,11 @@ workspace selection, and linked automations. Use a new topic when you want a
 separate context; use fork when you want to continue from an existing point
 without changing the original thread.
 
+On touch devices, sidebar action buttons stay visible with larger touch areas
+for topics, conversation groups, panes, and projects. Tap a title to select it
+or the adjacent action button for its menu. Desktop actions still appear on
+hover or keyboard focus.
+
 Drag a topic within its current sidebar group to keep frequently used work in
 your preferred order. Drag a topic from the sidebar into the composer when you
 want to reference it in the next message instead of switching to it.

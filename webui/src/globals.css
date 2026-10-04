@@ -909,6 +909,11 @@
   .touch-target.preview-tab-close {
     opacity: 1;
   }
+
+  /* Touch users cannot hover a sidebar row to discover its actions. */
+  .sidebar-action-trigger {
+    opacity: 1;
+  }
 }
 
 /* On phones, actions follow the message instead of taking a separate gutter. */
