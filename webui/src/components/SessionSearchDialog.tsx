@@ -140,7 +140,7 @@ export function SessionSearchDialog({
       <DialogContent
         showCloseButton={false}
         className={cn(
-          "flex max-h-[min(40rem,calc(100vh-2rem))] w-[calc(100vw-2rem)] max-w-[42rem] flex-col gap-0 overflow-hidden p-0",
+          "flex max-h-[min(40rem,100%)] w-[calc(100vw-2rem)] max-w-[42rem] flex-col gap-0 overflow-hidden p-0",
         )}
       >
         <DialogTitle className="sr-only">{t("sidebar.searchAria")}</DialogTitle>

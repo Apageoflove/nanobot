@@ -190,7 +190,9 @@ does not proxy pages or bypass those restrictions; use **Open in browser** inste
 
 On touch devices with Visual Viewport support, the app follows the visible area
 when the on-screen keyboard opens or pans the page. Navigation and the composer
-stay in view while messages scroll independently. The `@` mention and `/` command
+stay in view while messages scroll independently. Session search also follows
+the visible area: the search field stays above the keyboard and results scroll
+inside the dialog. The `@` mention and `/` command
 menus use the visible app area above or below the composer, including when the
 keyboard pans the page. Scroll within a menu to reach more results. Mention rows
 use the app's larger touch targets on phones while retaining desktop density.

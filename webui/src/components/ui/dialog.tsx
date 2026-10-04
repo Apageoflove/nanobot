@@ -41,7 +41,12 @@ const DialogPositionedContent = React.forwardRef<
     placement?: "center" | "bottom";
   }
 >(({ positionerStyle, placement, ...props }, ref) => (
-  <div className={cn("fixed inset-0 z-50 flex justify-center", placement === "bottom" ? "items-end" : "items-center p-4")} style={positionerStyle}>
+  <div className={cn("fixed inset-0 z-50 flex justify-center", placement === "bottom" ? "items-end" : "items-center p-4")} style={{
+    top: "var(--app-viewport-top, 0px)",
+    height: "var(--app-viewport-height, 100%)",
+    bottom: "auto",
+    ...positionerStyle,
+  }}>
     <DialogPrimitive.Content ref={ref} {...props} />
   </div>
 ));
