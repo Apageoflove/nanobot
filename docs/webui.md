@@ -194,9 +194,10 @@ stay in view while messages scroll independently. The `@` mention and `/` comman
 menus use the visible app area above or below the composer, including when the
 keyboard pans the page. Scroll within a menu to reach more results. Mention rows
 use the app's larger touch targets on phones while retaining desktop density.
-In very short viewports (such
-as landscape with the keyboard open), scroll within the composer to reach its
-controls. If the browser bars and keyboard leave no usable page area, dismiss
+In very short, wide viewports (such as landscape with the keyboard open), menus
+sit beside the input instead of overflowing the scrollable composer. Scroll the
+menu for more candidates and the input area for its controls. If the browser
+bars and keyboard leave no usable page area, dismiss
 the keyboard or return to portrait. Pinch zoom keeps the existing layout instead of resizing it to the
 magnified area; normal fitting resumes when
 you return to the default zoom. Non-touch desktop and native-host layout remain
