@@ -1007,7 +1007,7 @@ export const ChatList = memo(function ChatList({
                                   toggleDeleteSelection(tabDeleteKeys, event.shiftKey, s.key);
                                   return;
                                 }
-                                if (!topicActive) onSelect(s.key);
+                                onSelect(s.key);
                               }}
                               draggable={canDragSession}
                               onDragStart={(event) => {
