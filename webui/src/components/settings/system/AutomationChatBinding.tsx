@@ -43,7 +43,7 @@ export function AutomationChatBinding({ job, token, onSave, children }: {
   const [data, setData] = useState<AutomationChatsPayload | null>(null);
   const [loadError, setLoadError] = useState(false);
   const [reload, setReload] = useState(0);
-  const [draft, setDraft] = useState<{ target: string; revision: string; message: string } | null>(null);
+  const [draft, setDraft] = useState<{ target: AutomationChat; previousTitle: string; revision: string; message: string } | null>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [saved, setSaved] = useState(false);
@@ -59,25 +59,33 @@ export function AutomationChatBinding({ job, token, onSave, children }: {
     return () => controller.abort();
   }, [token, job.id, job.chat_binding_revision, reload]);
   const reviewing = draft !== null;
+  const locked = saving || Boolean(job.state.pending);
+  const pickerDisabled = locked || !data?.chats.length || loadError || (!reviewing && data.revision !== job.chat_binding_revision);
   useEffect(() => {
     if (reviewing) heading.current?.focus();
-    else if (returning.current) { trigger.current?.focus(); returning.current = false; }
   }, [reviewing]);
+  useEffect(() => {
+    if (!reviewing && !pickerDisabled && returning.current) {
+      trigger.current?.focus(); returning.current = false;
+    }
+  }, [reviewing, pickerDisabled]);
   const back = () => { returning.current = true; setDraft(null); };
   const current = data?.current;
   const fallback: AutomationChat = { id: "current", title: job.origin?.title || tx("current"), channel: job.origin?.channel || "websocket" };
-  const locked = saving || Boolean(job.state.pending);
-  const picker = (review: boolean) => <Select value={review ? draft?.target : current?.id ?? "current"}
-    disabled={locked || !data?.chats.length || loadError || (!review && data.revision !== job.chat_binding_revision)} onValueChange={target => {
-      if (target === current?.id) return;
+  const targetUnavailable = Boolean(draft && data && !data.chats.some(chat => chat.id === draft.target.id && !chat.unavailable));
+  const picker = (review: boolean) => <Select value={review ? draft?.target.id : current?.id ?? "current"}
+    disabled={pickerDisabled} onValueChange={id => {
+      const target = data?.chats.find(chat => chat.id === id);
+      if (!target || target.unavailable || id === current?.id) return;
       setError(""); setSaved(false);
       setDraft(previous => previous ? { ...previous, target } : {
-        target, revision: job.chat_binding_revision!, message: job.payload.message,
+        target, previousTitle: current?.title || fallback.title,
+        revision: job.chat_binding_revision!, message: job.payload.message,
       });
     }}>
     <SelectTrigger ref={review ? undefined : trigger} aria-label={tx(review ? "new" : "label")}
       className={`h-auto min-h-11 w-full py-2 [&>span:first-child]:min-w-0 [&>span:first-child]:flex-1 [&>span:first-child]:text-start ${review ? "" : "border-transparent bg-transparent hover:bg-muted/50"}`}>
-      <SelectValue><ChatIdentity chat={data?.chats.find(chat => chat.id === (review ? draft?.target : current?.id)) ?? fallback} /></SelectValue>
+      <SelectValue><ChatIdentity chat={(review ? draft?.target : current) ?? fallback} /></SelectValue>
     </SelectTrigger>
     <SelectContent>
       {!current ? <SelectItem value="current" disabled><ChatIdentity chat={fallback} /></SelectItem> : null}
@@ -87,11 +95,11 @@ export function AutomationChatBinding({ job, token, onSave, children }: {
     </SelectContent>
   </Select>;
   const save = async () => {
-    if (!draft || locked || !draft.message.trim()) return;
+    if (!draft || locked || targetUnavailable || !draft.message.trim()) return;
     setSaving(true); setError("");
     try {
-      await onSave(job, { target_id: draft.target, revision: draft.revision, message: draft.message });
-      setData(previous => previous ? { ...previous, current: previous.chats.find(chat => chat.id === draft.target) ?? null } : previous);
+      await onSave(job, { target_id: draft.target.id, revision: draft.revision, message: draft.message });
+      setData(previous => previous ? { ...previous, current: draft.target } : previous);
       setSaved(true); back(); setReload(value => value + 1);
     } catch (cause) {
       const reasons: Record<string, string> = {
@@ -119,7 +127,7 @@ export function AutomationChatBinding({ job, token, onSave, children }: {
     <div className="min-h-0 space-y-4 overflow-y-auto overscroll-contain px-6">
       <div className="space-y-2">
         {picker(true)}
-        <p className="text-[12px] leading-5 text-muted-foreground">{tx("previous")} {current?.title || fallback.title}</p>
+        <p className="text-[12px] leading-5 text-muted-foreground">{tx("previous")} {draft.previousTitle}</p>
         <p className="text-[13px] leading-5">{tx("effect")}</p>
       </div>
       <label className="block space-y-2"><span className="text-[13px] font-medium">{tx("message")}</span>
@@ -128,11 +136,11 @@ export function AutomationChatBinding({ job, token, onSave, children }: {
       </label>
       <p className="text-[12px] leading-5 text-muted-foreground">{tx("review")}</p>
       <p className="text-[12px] leading-5 text-muted-foreground">{tx("history")}</p>
-      {error ? <p role="alert" className="text-[12px] leading-5 text-destructive">{error}</p> : null}
+      {error || targetUnavailable ? <p role="alert" className="text-[12px] leading-5 text-destructive">{error || tx("unavailable")}</p> : null}
     </div>
     <DialogFooter className="shrink-0 flex-row justify-end gap-2 px-6 pb-5 pt-3">
       <Button variant="ghost" size="sm" disabled={saving} className="h-11 font-normal text-muted-foreground sm:h-9" onClick={back}>{t("settings.automations.cancel")}</Button>
-      <Button size="sm" className="h-11 sm:h-9" disabled={locked || !draft.message.trim()} aria-busy={saving} onClick={() => void save()}>{tx(saving ? "saving" : "confirm")}</Button>
+      <Button size="sm" className="h-11 sm:h-9" disabled={locked || targetUnavailable || !draft.message.trim()} aria-busy={saving} onClick={() => void save()}>{tx(saving ? "saving" : "confirm")}</Button>
     </DialogFooter>
   </>;
 }

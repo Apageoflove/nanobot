@@ -74,6 +74,7 @@ def session_automations_payload(
     session_key: str,
     *,
     local_trigger_store: _LocalTriggerStoreLike | None = None,
+    session_manager: _SessionManagerLike | None = None,
     pending_job_ids: Collection[str] | None = None,
 ) -> dict[str, Any]:
     """Return user-created automation jobs attached to a WebUI session."""
@@ -85,6 +86,8 @@ def session_automations_payload(
                 local_trigger_store=local_trigger_store,
             ),
             pending_job_ids=pending_job_ids,
+            include_details=True,
+            session_manager=session_manager,
         )
     }
 
