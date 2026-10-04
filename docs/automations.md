@@ -132,6 +132,50 @@ Local triggers do not have a WebUI "Run now" action because each run needs a
 message. Copy the `nanobot trigger ...` command from the WebUI and replace
 `"message"` with the content that should be delivered.
 
+### Change the Chat for a Scheduled Task
+
+Open a scheduled task in **Automations**. **Task chat** shows its saved chat,
+with the channel logo and name. To change it:
+
+1. Select another chat from **Task chat**.
+2. Review the task instructions. Remove old instructions that send messages to
+   a different chat. Members of the new chat can see future task messages and results.
+3. Select **Confirm change**. Wait for the saved confirmation.
+
+Future runs use the new chat's history and reply there by default. Previous
+messages stay in their original chat. Previous run results remain available.
+Changing the chat does not run the task, enable it, or change its schedule.
+
+The list contains existing chats on the same gateway with the same effective
+workspace and access mode. Chat-app targets need a running channel and a saved
+reply route from an earlier incoming message. If a chat is missing, send nanobot
+a message there and check that its channel is running. Raw recipient IDs,
+cross-host moves, unified sessions, system jobs, and local triggers are not
+supported by this selector. An older gateway keeps the existing read-only view.
+
+If a scheduled turn is running or queued, wait for it to finish before changing
+the chat. The current scheduler also rejects a change while another scheduled
+turn is active. If another editor changes the task, reopen the task and review
+the latest instructions. A rejected save leaves the draft visible.
+
+This changes the whole task chat, not a separate forwarding address. Explicit
+`message` tool instructions can still send elsewhere. Shared workspace files
+and memory remain shared; changing the chat does not create a new security boundary.
+
+### Back Up Before Downgrading
+
+Chat changes store a binding version and the session used by each previous run.
+Existing jobs do not need a manual migration when upgrading. Older nanobot
+versions can discard these new fields when they write the cron store. After a
+chat change, that can make old run results unavailable in the WebUI and remove
+protection against stale CLI updates.
+
+Before trying this feature, stop the gateway and other cron writers, then back
+up the complete cron directory in the active instance's data directory. For a
+downgrade after changing a chat, stop those processes again and restore that
+coherent pre-change cron backup. This also restores the old schedules and task
+settings; later changes are not included. Chat messages are not moved or deleted.
+
 ## Delivery and Reliability
 
 Automation delivery is workspace-local. Scheduled jobs and local trigger

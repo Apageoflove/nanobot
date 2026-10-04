@@ -121,6 +121,7 @@ export function SettingsPage({
     handleApiServiceAction,
     handleAutomationAction,
     handleAutomationEdit,
+    handleAutomationChat,
     handleCliAppAction,
     handleDeleteModelConfiguration,
     handleImportMcpConfig,
@@ -596,6 +597,7 @@ export function SettingsPage({
                 setAutomationPendingEdit(job);
               }}
               onRequestDelete={setAutomationPendingDelete}
+              onChangeChat={handleAutomationChat}
               onManageModels={() => selectSection("models")}
               returnToDetailJob={automationDetailReturn}
               onReturnToDetailHandled={() => setAutomationDetailReturn(null)}

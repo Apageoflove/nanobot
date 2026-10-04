@@ -1195,6 +1195,29 @@
       "notEnabled": "No activado"
     },
     "automations": {
+      "chat": {
+        "conflict": "La tarea cambió en otro lugar. Se conserva el borrador. Abre la tarea de nuevo para revisar los ajustes.",
+        "unavailable": "Este chat ya no está disponible con el mismo espacio de trabajo y modo de acceso. Elige otro chat.",
+        "schedulerBusy": "Hay una tarea en ejecución o en cola. Espera a que termine e inténtalo de nuevo.",
+        "label": "Chat de la tarea",
+        "new": "Nuevo chat",
+        "current": "Chat actual",
+        "web": "Chat web",
+        "change": "Cambiar chat",
+        "previous": "Chat anterior:",
+        "hint": "Usa el historial de este chat. Los resultados se envían aquí por defecto.",
+        "effect": "Las próximas ejecuciones usarán el historial del nuevo chat y enviarán allí los resultados por defecto.",
+        "message": "Instrucciones de la tarea",
+        "review": "Revisa las instrucciones que envíen a otro chat. Los miembros del nuevo chat pueden ver la tarea y sus resultados.",
+        "history": "Los mensajes anteriores permanecen en el chat original. El horario no cambia. La tarea no se ejecuta ahora.",
+        "busy": "No se puede cambiar mientras la tarea se ejecuta o espera en la cola.",
+        "saved": "Cambiado. Se aplica a las próximas ejecuciones.",
+        "failed": "No se pudo confirmar el cambio. Se conserva el borrador.",
+        "retry": "Volver a cargar chats",
+        "confirm": "Confirmar cambio",
+        "saving": "Cambiando…",
+        "available": "Primero envía un mensaje a nanobot en el chat de destino. Solo se muestran chats conectados con el mismo espacio de trabajo y modo de acceso."
+      },
       "taskInfo": "Información de la tarea",
       "runDetails": {
         "loading": "Cargando respuesta…",

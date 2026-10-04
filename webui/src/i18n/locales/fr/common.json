@@ -1194,6 +1194,29 @@
       "notEnabled": "Non activé"
     },
     "automations": {
+      "chat": {
+        "conflict": "La tâche a été modifiée ailleurs. Le brouillon est conservé. Rouvrez la tâche pour vérifier ses paramètres.",
+        "unavailable": "Cette discussion n’est plus disponible avec le même espace de travail et mode d’accès. Choisissez-en une autre.",
+        "schedulerBusy": "Une tâche est en cours ou en attente. Attendez la fin, puis réessayez.",
+        "label": "Discussion de la tâche",
+        "new": "Nouvelle discussion",
+        "current": "Discussion actuelle",
+        "web": "Discussion web",
+        "change": "Changer de discussion",
+        "previous": "Ancienne discussion :",
+        "hint": "Utilise l’historique de cette discussion et y envoie les résultats par défaut.",
+        "effect": "Les prochaines exécutions utiliseront l’historique de la nouvelle discussion et y enverront les résultats par défaut.",
+        "message": "Instructions de la tâche",
+        "review": "Vérifiez les instructions qui envoient vers une autre discussion. Les membres de la nouvelle discussion peuvent voir la tâche et ses résultats.",
+        "history": "Les anciens messages restent dans la discussion d’origine. L’horaire ne change pas. La tâche ne démarre pas maintenant.",
+        "busy": "Modification impossible si la tâche est en cours ou en attente.",
+        "saved": "Modifié. S’applique aux prochaines exécutions.",
+        "failed": "Impossible de confirmer la modification. Le brouillon est conservé.",
+        "retry": "Recharger les discussions",
+        "confirm": "Confirmer",
+        "saving": "Modification…",
+        "available": "Envoyez d’abord un message à nanobot dans la discussion cible. Seules les discussions connectées avec le même espace de travail et mode d’accès sont proposées."
+      },
       "taskInfo": "Informations sur la tâche",
       "runDetails": {
         "loading": "Chargement de la réponse…",
