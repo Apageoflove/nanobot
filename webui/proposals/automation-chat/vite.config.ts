@@ -19,8 +19,10 @@ const linkedChat = `        <dl>
         </dl>`;
 const panelStart = '          <AutomationDetailPanel\n';
 const panelEnd = '            onRequestDelete={onRequestDelete}\n          />';
+const actionsStart = '      {canManage ? (\n        <div className="flex shrink-0 flex-wrap items-center gap-x-6 gap-y-2 border-t border-border/45 px-6 py-3">';
+const actionsEnd = '\n      ) : null}';
 
-// This opt-in build replaces one slot in memory. It never edits product source.
+// These opt-in slots never edit product source or enter the production build.
 export default defineConfig({
   root,
   publicDir: path.join(webui, 'public'),
@@ -31,16 +33,23 @@ export default defineConfig({
     transform(source, id) {
       if (normalizePath(id.split('?')[0]) !== realAutomations) return;
       const code = source.replace(/\r\n/g, '\n');
-      for (const anchor of [linkedChat, panelStart, panelEnd]) {
+      for (const anchor of [linkedChat, panelStart, panelEnd, actionsStart]) {
         if (code.split(anchor).length !== 2) {
           throw new Error('Automation detail markup changed. Update the proposal seam.');
         }
       }
+      const from = code.indexOf(actionsStart);
+      const to = code.indexOf(actionsEnd, from);
+      if (to < 0) throw new Error('Automation detail actions changed. Update the proposal seam.');
+      const actions = code.slice(from, to + actionsEnd.length);
       return {
-        code: `import { BindingControls, BindingDialogFrame } from ${JSON.stringify(normalizePath(path.join(root, 'BindingControls.tsx')))};\n`
+        code: `import { BindingControls, BindingDialogFrame, BindingDetailActions } from ${JSON.stringify(normalizePath(path.join(root, 'BindingControls.tsx')))};\n`
           + code.replace(linkedChat, `        <BindingControls job={job} currentUi={${linkedChat.trim()}} />`)
             .replace(panelStart, '          <BindingDialogFrame key={job.id} job={job}><AutomationDetailPanel\n')
-            .replace(panelEnd, '            onRequestDelete={onRequestDelete}\n          /></BindingDialogFrame>'),
+            .replace(panelEnd, '            onRequestDelete={onRequestDelete}\n          /></BindingDialogFrame>')
+            .replace(actions, `      {canManage ? <BindingDetailActions job={job} busy={busy} canToggle={canToggle} canRun={canRun} localTrigger={localTrigger} originHref={originHref}
+              onToggle={() => void onAction(job.enabled ? "disable" : "enable", job)} onRun={() => void onAction("run", job)}
+              onEdit={() => onRequestEdit(job)} onDelete={() => onRequestDelete(job)} currentUi={<>{${actions.trim().slice(1, -1)}}</>} /> : null}`),
         map: null,
       };
     },
