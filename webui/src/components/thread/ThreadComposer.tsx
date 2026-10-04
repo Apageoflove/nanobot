@@ -307,7 +307,7 @@ function VoiceRecordingMeter({
   );
 }
 
-type SlashPalettePlacement = "above" | "below";
+type SlashPalettePlacement = "above" | "below" | "beside";
 
 interface SlashPaletteLayout {
   placement: SlashPalettePlacement;
@@ -1553,11 +1553,18 @@ export function ThreadComposer({
       const bounds = getVisibleBounds(form);
       const spaceAbove = Math.max(0, rect.top - bounds.top - SLASH_PALETTE_GAP_PX);
       const spaceBelow = Math.max(0, bounds.bottom - rect.bottom - SLASH_PALETTE_GAP_PX);
+      // A landscape keyboard can leave less height than one input and option.
+      // Use the available width instead of clipping an absolute menu in the
+      // short viewport's scrollable composer footer.
+      const beside = rect.width >= 640
+        && !!form.closest("#root.short-visual-viewport");
       const placement: SlashPalettePlacement =
-        spaceAbove >= SLASH_PALETTE_MIN_HEIGHT_PX || spaceAbove >= spaceBelow
+        beside ? "beside" : spaceAbove >= SLASH_PALETTE_MIN_HEIGHT_PX || spaceAbove >= spaceBelow
           ? "above"
           : "below";
-      const available = placement === "above" ? spaceAbove : spaceBelow;
+      const available = beside
+        ? Math.max(0, bounds.bottom - bounds.top)
+        : placement === "above" ? spaceAbove : spaceBelow;
       const maxHeight = Math.min(SLASH_PALETTE_MAX_HEIGHT_PX, available);
 
       setSlashPaletteLayout((current) =>
@@ -1573,7 +1580,10 @@ export function ThreadComposer({
     viewport?.addEventListener("scroll", updateLayout);
     window.addEventListener("resize", updateLayout);
     document.addEventListener("scroll", updateLayout, true);
+    const observer = typeof ResizeObserver === "undefined" ? null : new ResizeObserver(updateLayout);
+    if (formRef.current) observer?.observe(formRef.current);
     return () => {
+      observer?.disconnect();
       viewport?.removeEventListener("resize", updateLayout);
       viewport?.removeEventListener("scroll", updateLayout);
       window.removeEventListener("resize", updateLayout);
@@ -2360,11 +2370,13 @@ export function ThreadComposer({
           )
         : "min-h-[50px] px-3.5 pb-1.5 pt-3 text-[16px] leading-5 sm:px-4",
   );
+  const paletteBeside = showAnyPalette && slashPaletteLayout.placement === "beside";
 
   return (
     <form
       ref={formRef}
       data-compact-controls={compactControls ? "true" : undefined}
+      data-palette-beside={paletteBeside || undefined}
       onFocusCapture={() => {
         if (!compactWhenIdle) return;
         // Portaled model controls belong to this composer too: keep its layout
@@ -2406,6 +2418,7 @@ export function ThreadComposer({
         "relative w-full",
         isHero ? "px-0" : "px-1 pb-1.5 pt-1 sm:px-0",
         compactWhenIdle && "thread-composer-collapsible-layout",
+        paletteBeside && "grid grid-cols-2 items-start gap-2 p-0",
       )}
     >
       {showSlashMenu ? (
@@ -2431,8 +2444,10 @@ export function ThreadComposer({
       <div
         ref={surfaceRef}
         data-compact={compactIdle || undefined}
+        style={paletteBeside ? { maxHeight: slashPaletteLayout.maxHeight, overflowY: "auto" } : undefined}
         className={cn(
           "thread-composer-surface group/composer relative mx-auto flex w-full flex-col overflow-visible transition-all duration-200",
+          paletteBeside && "col-start-1 row-start-1",
           isHero
             ? "max-w-[58rem] rounded-prominent bg-muted/80 focus-within:bg-muted dark:bg-card dark:focus-within:bg-white/[0.06]"
             : "max-w-[49.5rem] rounded-panel bg-muted/80 focus-within:bg-muted dark:bg-card dark:focus-within:bg-white/[0.06]",
@@ -3072,8 +3087,11 @@ function CliAppMentionPalette({
       style={{ maxHeight: layout.maxHeight }}
       className={cn(
         floatingSurfaceVisualClassName,
-        "absolute left-1/2 z-30 w-[calc(100%-0.5rem)] -translate-x-1/2 overflow-hidden",
-        layout.placement === "above" ? "bottom-full mb-2" : "top-full mt-2",
+        "z-30 overflow-hidden",
+        layout.placement === "beside"
+          ? "relative col-start-2 row-start-1 w-full"
+          : cn("absolute left-1/2 w-[calc(100%-0.5rem)] -translate-x-1/2",
+            layout.placement === "above" ? "bottom-full mb-2" : "top-full mt-2"),
         isHero ? "max-w-[58rem]" : "max-w-[49.5rem]",
       )}
     >
@@ -3225,8 +3243,11 @@ function SlashCommandPalette({
       style={{ maxHeight: layout.maxHeight }}
       className={cn(
         floatingSurfaceVisualClassName,
-        "absolute left-1/2 z-30 w-[calc(100%-0.5rem)] -translate-x-1/2 overflow-hidden",
-        layout.placement === "above" ? "bottom-full mb-2" : "top-full mt-2",
+        "z-30 overflow-hidden",
+        layout.placement === "beside"
+          ? "relative col-start-2 row-start-1 w-full"
+          : cn("absolute left-1/2 w-[calc(100%-0.5rem)] -translate-x-1/2",
+            layout.placement === "above" ? "bottom-full mb-2" : "top-full mt-2"),
         isHero ? "max-w-[58rem]" : "max-w-[49.5rem]",
       )}
     >
