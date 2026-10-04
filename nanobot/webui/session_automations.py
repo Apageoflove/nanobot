@@ -14,6 +14,7 @@ from nanobot.session.manager import (
     _metadata_title,  # pyright: ignore[reportPrivateUsage]
 )
 from nanobot.triggers.local_types import LocalTrigger
+from nanobot.webui.session_identity import is_webui_session_key
 
 AutomationJob = CronJob | LocalTrigger
 
@@ -176,19 +177,21 @@ def _serialize_job(
     payload["created_at_ms"] = job.created_at_ms
     payload["updated_at_ms"] = job.updated_at_ms
     payload["payload"].update({"kind": job.payload.kind})
+    run_history: list[dict[str, Any]] = []
+    for record in job.state.run_history[-5:]:
+        session_key = record.session_key or job.payload.session_key or ""
+        run_history.append({
+            "run_at_ms": record.run_at_ms,
+            "status": record.status,
+            "duration_ms": record.duration_ms,
+            "error": record.error,
+            "webui_session_key": session_key if is_webui_session_key(session_key) else None,
+        })
     payload["state"].update(
         {
             "last_run_at_ms": job.state.last_run_at_ms,
             "last_error": job.state.last_error,
-            "run_history": [
-                {
-                    "run_at_ms": record.run_at_ms,
-                    "status": record.status,
-                    "duration_ms": record.duration_ms,
-                    "error": record.error,
-                }
-                for record in job.state.run_history[-5:]
-            ],
+            "run_history": run_history,
         }
     )
     payload["origin"] = _origin_payload(job, session_manager)

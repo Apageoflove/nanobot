@@ -252,6 +252,7 @@ export interface SessionAutomationJob {
       status: "ok" | "error" | "skipped" | string;
       duration_ms?: number;
       error?: string | null;
+      webui_session_key?: string | null; // null: external chat; absent: older host.
     }>;
   };
   origin?: {

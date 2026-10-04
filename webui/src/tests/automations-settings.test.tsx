@@ -323,6 +323,22 @@ describe("Automation task list and detail sheet", () => {
     expect(within(screen.getByRole("dialog", { name: "PR watch" })).getByRole("button", { name: "Edit" })).toBeVisible();
   });
 
+  it.each(["websocket:original-chat", null])("uses the recorded chat for a historical run (%s), not the task's current chat", async (webuiSessionKey) => {
+    const user = userEvent.setup();
+    render(<Harness payload={{ jobs: [{ ...task, state: { run_history: [{
+      run_at_ms: now - 60_000, status: "ok", webui_session_key: webuiSessionKey,
+    }] } }] }} />);
+    await user.click(screen.getByRole("button", { name: /PR watch.*Completed/ }));
+    const dialog = within(screen.getByRole("dialog", { name: "PR watch" }));
+    if (webuiSessionKey) {
+      expect(dialog.getByRole("link", { name: "Open a chat" })).toHaveAttribute(
+        "href", "#/chat/websocket%3Aoriginal-chat",
+      );
+    } else {
+      expect(dialog.queryByRole("link", { name: "Open a chat" })).not.toBeInTheDocument();
+    }
+  });
+
   it("keeps the selected historical result across refreshes and restores focus when its day button disappears", async () => {
     const user = userEvent.setup();
     const start = new Date(new Date(now).setHours(8, 0, 0, 0)).getTime();
