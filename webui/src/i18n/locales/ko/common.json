@@ -2073,6 +2073,7 @@
       "deletingFile": "삭제 중",
       "editingFileShort": "편집 중",
       "deletedFile": "삭제 완료",
+      "createdFile": "생성됨",
       "editedFileShort": "편집 완료"
     },
     "collapseActivity": "활동 세부 정보 접기",

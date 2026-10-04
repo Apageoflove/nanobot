@@ -2059,6 +2059,7 @@
       "deletingFile": "Excluindo",
       "editingFileShort": "Editando",
       "deletedFile": "Excluído",
+      "createdFile": "Criado",
       "editedFileShort": "Editado"
     },
     "collapseActivity": "Recolher detalhes da atividade",

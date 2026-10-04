@@ -2244,6 +2244,7 @@
       "deletingFile": "正在删除",
       "editingFileShort": "正在编辑",
       "deletedFile": "已删除",
+      "createdFile": "已创建",
       "editedFileShort": "已编辑"
     },
     "activityWorkedFor": "已处理 {{duration}}",

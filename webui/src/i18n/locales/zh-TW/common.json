@@ -2072,6 +2072,7 @@
       "deletingFile": "正在刪除",
       "editingFileShort": "正在編輯",
       "deletedFile": "已刪除",
+      "createdFile": "已建立",
       "editedFileShort": "已編輯"
     },
     "cliActivityRunningOne": "正在使用 {{name}}",

@@ -2073,6 +2073,7 @@
       "deletingFile": "削除中",
       "editingFileShort": "編集中",
       "deletedFile": "削除しました",
+      "createdFile": "作成済み",
       "editedFileShort": "編集しました"
     },
     "collapseActivity": "アクティビティの詳細を折りたたむ",

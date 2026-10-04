@@ -2073,6 +2073,7 @@
       "deletingFile": "Đang xóa",
       "editingFileShort": "Đang chỉnh sửa",
       "deletedFile": "Đã xóa",
+      "createdFile": "Đã tạo",
       "editedFileShort": "Đã chỉnh sửa"
     },
     "collapseActivity": "Thu gọn chi tiết hoạt động",

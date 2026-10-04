@@ -2073,6 +2073,7 @@
       "deletingFile": "Suppression",
       "editingFileShort": "Modification",
       "deletedFile": "Supprimé",
+      "createdFile": "Créé",
       "editedFileShort": "Modifié"
     },
     "collapseActivity": "Réduire les détails de l’activité",

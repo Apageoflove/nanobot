@@ -2073,6 +2073,7 @@
       "deletingFile": "Menghapus",
       "editingFileShort": "Mengedit",
       "deletedFile": "Dihapus",
+      "createdFile": "Dibuat",
       "editedFileShort": "Diedit"
     },
     "collapseActivity": "Ciutkan detail aktivitas",
