@@ -94,18 +94,6 @@ function FileEditRow({
   const action = fileEditAction(edit, editing, failed, t);
   const hasCountedDiff = !failed && !edit.binary && hasVisibleDiffStats(edit);
   const showDiff = canRenderDiff(edit, displayMode);
-  const fileReference = (
-    <FileReferenceChip
-      path={edit.path}
-      previewPath={edit.absolute_path || edit.path}
-      onOpen={onOpenFilePreview}
-      display="path"
-      active={editing}
-      className="min-w-0"
-      textClassName="truncate text-[12px]"
-      testId="activity-file-reference"
-    />
-  );
 
   return (
     <div className="min-w-0">
@@ -119,14 +107,25 @@ function FileEditRow({
           ? t("message.fileEditPreparing", { defaultValue: "Preparing file edit…" })
           : (
             <span className="flex min-w-0 items-center gap-1.5 overflow-hidden whitespace-nowrap">
-              {showDiff && edit.operation !== "delete" && edit.operation !== "create" ? fileReference : <Trans
+              <Trans
                 i18nKey="message.agentActivity.actionTargetRich"
                 values={{ action }}
                 components={{
                   action: <span className={cn("shrink-0", failed && "text-destructive/80")} />,
-                  target: fileReference,
+                  target: (
+                    <FileReferenceChip
+                      path={edit.path}
+                      previewPath={edit.absolute_path || edit.path}
+                      onOpen={onOpenFilePreview}
+                      display="path"
+                      active={editing}
+                      className="min-w-0"
+                      textClassName="truncate text-[12px]"
+                      testId="activity-file-reference"
+                    />
+                  ),
                 }}
-              />}
+              />
               {hasCountedDiff ? <DiffPair added={edit.added} deleted={edit.deleted} /> : null}
             </span>
           )}
