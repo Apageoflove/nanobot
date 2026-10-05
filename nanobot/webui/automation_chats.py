@@ -12,6 +12,7 @@ from nanobot.session.manager import (
     _metadata_title,  # pyright: ignore[reportPrivateUsage]
 )
 from nanobot.session.session_handles import SessionHandleResolver
+from nanobot.utils.helpers import truncate_text
 from nanobot.webui.session_identity import is_webui_session_key
 from nanobot.webui.workspaces import WebUIWorkspaceController
 
@@ -48,6 +49,7 @@ def automation_chats(
         job.payload.origin_metadata,
     )
     result: list[AutomationChat] = []
+    previews = {row["key"]: row.get("preview", "") for row in sessions.list_sessions()}
     for handle in SessionHandleResolver(sessions).list_all():
         key = handle.session_key
         data = sessions.read_session_metadata(key)
@@ -73,7 +75,10 @@ def automation_chats(
         if source.metadata() != target.metadata():
             continue
         result.append(AutomationChat(
-            id=handle.id, title=_metadata_title(metadata) or f"@{handle.name}",
+            id=handle.id,
+            title=(_metadata_title(metadata)
+                   or truncate_text(" ".join(previews.get(key, "").split()), 60)
+                   or f"@{handle.name}"),
             binding=CronBinding(key, channel, chat_id, route_metadata),
             handle=handle.name,
             available=available,
