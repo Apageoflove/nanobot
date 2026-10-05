@@ -3,17 +3,11 @@ import {
   WorkspaceIcon,
   RestrictedAccessIcon,
 } from "@/components/icons/product-icons";
-import { useCallback, useEffect, useId, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { Check, ChevronDown } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
 import { Button } from "@/components/ui/button";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import {
   floatingItemClassName,
   floatingItemFocusClassName,
@@ -25,7 +19,6 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import type {
-  WorkspaceAccessMode,
   WorkspaceScopePayload,
   WorkspacesPayload,
 } from "@/lib/types";
@@ -303,7 +296,7 @@ export function WorkspaceProjectPicker({
   );
 }
 
-export function WorkspaceAccessMenu({
+export function WorkspaceAccessToggle({
   scope,
   disabled,
   canUseFullAccess,
@@ -317,7 +310,6 @@ export function WorkspaceAccessMenu({
   onChange?: (scope: WorkspaceScopePayload) => void;
 }) {
   const { t } = useTranslation();
-  const dismissedByPointerRef = useRef(false);
   const mode = scope.access_mode;
   const isFull = mode === "full";
   const accessLabel = t(
@@ -328,98 +320,33 @@ export function WorkspaceAccessMenu({
   );
   const accessAriaLabel = `${t("thread.composer.workspace.accessAria")}: ${accessLabel}`;
 
-  const setMode = (value: WorkspaceAccessMode) => {
-    if (value === "full" && !canUseFullAccess) return;
-    if (value === mode) return;
-    onChange?.(scopeWithAccessMode(scope, value));
-  };
-
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild disabled={disabled || !onChange}>
-        <Button
-          type="button"
-          variant="ghost"
-          aria-label={accessAriaLabel}
-          className={cn(
-            "thread-composer-access touch-target min-w-0 max-w-[min(12.5rem,42vw)] whitespace-nowrap rounded-control border border-transparent font-semibold shadow-none",
-            isHero ? "h-8 px-2.5 text-[12px]" : "h-9 px-3 text-[12.5px]",
-            isFull
-              ? "bg-transparent text-orange-600 hover:text-orange-600 dark:text-orange-300 dark:hover:text-orange-300"
-              : "bg-transparent text-muted-foreground hover:text-foreground",
-          )}
-        >
-          {isFull ? (
-            <FullAccessIcon className={cn("thread-composer-access-icon mr-1.5 shrink-0", isHero ? "h-3.5 w-3.5" : "h-3.5 w-3.5")} />
-          ) : (
-            <RestrictedAccessIcon className={cn("thread-composer-access-icon mr-1.5 shrink-0", isHero ? "h-3.5 w-3.5" : "h-3.5 w-3.5")} />
-          )}
-          <span aria-hidden className="thread-composer-access-label-full min-w-0 truncate">
-            {accessLabel}
-          </span>
-          <span aria-hidden className="thread-composer-access-label-short hidden min-w-0 truncate">
-            {shortAccessLabel}
-          </span>
-          <ChevronDown className={cn("thread-composer-access-chevron ml-1.5 shrink-0", isHero ? "h-3 w-3" : "h-3 w-3")} />
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent
-        align="start"
-        className="w-56"
-        onPointerDownOutside={() => { dismissedByPointerRef.current = true; }}
-        onCloseAutoFocus={(event) => {
-          if (dismissedByPointerRef.current) event.preventDefault();
-          dismissedByPointerRef.current = false;
-        }}
-      >
-        <AccessMenuItem
-          icon={<RestrictedAccessIcon className="h-4 w-4" />}
-          label={t("thread.composer.workspace.default")}
-          selected={mode === "restricted"}
-          onSelect={() => setMode("restricted")}
-        />
-        <AccessMenuItem
-          icon={<FullAccessIcon className="h-4 w-4" />}
-          label={t("thread.composer.workspace.full")}
-          selected={mode === "full"}
-          disabled={!canUseFullAccess}
-          warning
-          onSelect={() => setMode("full")}
-        />
-      </DropdownMenuContent>
-    </DropdownMenu>
-  );
-}
-
-function AccessMenuItem({
-  icon,
-  label,
-  selected,
-  disabled,
-  warning,
-  onSelect,
-}: {
-  icon: ReactNode;
-  label: string;
-  selected: boolean;
-  disabled?: boolean;
-  warning?: boolean;
-  onSelect: () => void;
-}) {
-  return (
-    <DropdownMenuItem
-      disabled={disabled}
-      onSelect={onSelect}
+    <Button
+      type="button"
+      variant="ghost"
+      aria-label={accessAriaLabel}
+      aria-pressed={isFull}
+      disabled={disabled || !onChange || (!isFull && !canUseFullAccess)}
+      onClick={() => onChange?.(scopeWithAccessMode(scope, isFull ? "restricted" : "full"))}
       className={cn(
-        "flex h-10 items-center gap-3 px-3 text-[13.5px] font-semibold max-sm:min-h-11",
-        warning && "text-orange-600 focus:text-orange-600 dark:text-orange-300 dark:focus:text-orange-300",
+        "thread-composer-access touch-target min-w-0 max-w-[min(12.5rem,42vw)] whitespace-nowrap rounded-control border border-transparent font-semibold shadow-none",
+        isHero ? "h-8 px-2.5 text-[12px]" : "h-9 px-3 text-[12.5px]",
+        isFull
+          ? "bg-transparent text-orange-600 hover:text-orange-600 dark:text-orange-300 dark:hover:text-orange-300"
+          : "bg-transparent text-muted-foreground hover:text-foreground",
       )}
     >
-      <span className="grid h-5 w-5 shrink-0 place-items-center text-current" aria-hidden>
-        {icon}
+      {isFull ? (
+        <FullAccessIcon className={cn("thread-composer-access-icon mr-1.5 shrink-0", isHero ? "h-3.5 w-3.5" : "h-3.5 w-3.5")} />
+      ) : (
+        <RestrictedAccessIcon className={cn("thread-composer-access-icon mr-1.5 shrink-0", isHero ? "h-3.5 w-3.5" : "h-3.5 w-3.5")} />
+      )}
+      <span aria-hidden className="thread-composer-access-label-full min-w-0 truncate">
+        {accessLabel}
       </span>
-      <span className="min-w-0 flex-1 truncate">{label}</span>
-      {selected ? <Check className="h-4 w-4 shrink-0" aria-hidden /> : null}
-    </DropdownMenuItem>
+      <span aria-hidden className="thread-composer-access-label-short hidden min-w-0 truncate">
+        {shortAccessLabel}
+      </span>
+    </Button>
   );
 }

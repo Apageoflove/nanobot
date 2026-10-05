@@ -10,7 +10,6 @@ import {
   ToolRunIcon,
   ActivityIcon,
   ArchiveIcon,
-  SendIcon,
   SkillsIcon,
   MemoryIcon,
   HelpIcon,
@@ -48,6 +47,7 @@ import {
 } from "@/components/CliAppMentionText";
 import { INLINE_TOKEN_HIGHLIGHT_COLOR } from "@/components/InlineTokenHighlight";
 import {
+  ArrowUp,
   ChevronDown,
   ChevronUp,
   CornerDownRight,
@@ -75,7 +75,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import {
-  WorkspaceAccessMenu,
+  WorkspaceAccessToggle,
   WorkspaceProjectPicker,
 } from "@/components/thread/WorkspaceControls";
 import {
@@ -2354,7 +2354,7 @@ export function ThreadComposer({
     return () => observer?.disconnect();
   }, [compactControls, compactWhenIdle, modelLabel, voiceRecorder.isRecording, workspaceScope]);
   const accessControl = workspaceScope && !workspaceControlsHidden ? (
-    <WorkspaceAccessMenu
+    <WorkspaceAccessToggle
       scope={workspaceScope}
       disabled={interactionDisabled || workspaceScopeDisabled}
       canUseFullAccess={workspaceControls?.can_use_full_access !== false}
@@ -2752,7 +2752,7 @@ export function ThreadComposer({
               ) : modelNeedsSetup ? (
                 <ModelsIcon className="h-4 w-4" />
               ) : canSend || !isStreaming ? (
-                <SendIcon className={cn(isHero ? "h-4 w-4" : "h-4 w-4")} />
+                <ArrowUp className={cn(isHero ? "h-4 w-4" : "h-4 w-4")} />
               ) : (
                 <Loader2 className={cn(isHero ? "h-4 w-4" : "h-4 w-4", "animate-spin")} />
               )}

@@ -6,7 +6,7 @@ import { ThreadComposer } from "@/components/thread/ThreadComposer";
 import { ComposerDraftStore } from "@/lib/composer-draft";
 import { encodeImage } from "@/lib/imageEncode";
 import { SESSION_DRAG_TYPE } from "@/lib/session-drag";
-import type { ChatSummary, CliAppInfo, McpPresetInfo, SlashCommand } from "@/lib/types";
+import type { ChatSummary, CliAppInfo, McpPresetInfo, SlashCommand, WorkspaceScopePayload } from "@/lib/types";
 
 vi.mock("@/lib/imageEncode", () => ({
   encodeImage: vi.fn(async (file: File) => ({
@@ -1342,33 +1342,37 @@ describe("ThreadComposer", () => {
     expect(screen.getByRole("progressbar", { name: "Context 50%" })).toBeVisible();
   });
 
-  it("renders and changes workspace access mode", async () => {
+  it("toggles workspace access directly by click and keyboard", async () => {
+    const user = userEvent.setup();
     const onWorkspaceScopeChange = vi.fn();
-    render(
-      <ThreadComposer
-        onSend={vi.fn()}
-        placeholder="Type your message..."
-        workspaceScope={{
-          project_path: "/tmp/project",
-          project_name: "project",
-          access_mode: "restricted",
-          restrict_to_workspace: true,
-        }}
-        workspaceControls={{ can_change_project: true, can_use_full_access: true }}
-        onWorkspaceScopeChange={onWorkspaceScopeChange}
-      />,
+    const restricted: WorkspaceScopePayload = {
+      project_path: "/tmp/project", project_name: "project",
+      access_mode: "restricted", restrict_to_workspace: true,
+    };
+    const composer = (workspaceScope: WorkspaceScopePayload, canUseFullAccess = true) => (
+      <ThreadComposer onSend={vi.fn()} placeholder="Type your message..."
+        workspaceScope={workspaceScope}
+        workspaceControls={{ can_change_project: true, can_use_full_access: canUseFullAccess }}
+        onWorkspaceScopeChange={onWorkspaceScopeChange} />
     );
-
-    fireEvent.pointerDown(screen.getByRole("button", { name: /Workspace access mode/ }));
-    fireEvent.click(await screen.findByRole("menuitem", { name: /Full Access/ }));
-
-    expect(onWorkspaceScopeChange).toHaveBeenCalledWith(
-      expect.objectContaining({
-        project_path: "/tmp/project",
-        access_mode: "full",
-        restrict_to_workspace: false,
-      }),
-    );
+    const { rerender } = render(composer(restricted));
+    const access = screen.getByRole("button", { name: /Workspace access mode/ });
+    expect(access).toHaveAttribute("aria-pressed", "false");
+    await user.click(access);
+    expect(screen.queryByRole("menu")).not.toBeInTheDocument();
+    const full = { ...restricted, access_mode: "full" as const, restrict_to_workspace: false };
+    expect(onWorkspaceScopeChange).toHaveBeenLastCalledWith(full);
+    rerender(composer(full));
+    expect(access).toHaveAttribute("aria-pressed", "true");
+    expect(access).toHaveAccessibleName("Workspace access mode: Full Access");
+    expect(access).toHaveFocus();
+    await user.keyboard("{Enter}");
+    expect(onWorkspaceScopeChange).toHaveBeenLastCalledWith(restricted);
+    rerender(composer(restricted, false));
+    expect(access).toBeDisabled();
+    onWorkspaceScopeChange.mockClear();
+    await user.click(access);
+    expect(onWorkspaceScopeChange).not.toHaveBeenCalled();
   });
 
   it("exposes full and compact workspace labels for container-driven compression", () => {
