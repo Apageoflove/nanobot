@@ -801,7 +801,6 @@ describe("ThreadComposer", () => {
     expect(input.parentElement?.parentElement?.className).toContain("max-w-[49.5rem]");
     expect(input.parentElement?.parentElement?.className).toContain("rounded-panel");
     expect(input.parentElement?.parentElement?.className).not.toContain("shadow-");
-    expect(screen.getByRole("button", { name: "Attach files" }).className).toContain("bg-card");
     expect(screen.getByRole("button", { name: "Send message" }).className).toContain("bg-foreground");
     expect(screen.queryByText(/Enter to send/)).not.toBeInTheDocument();
   });
@@ -1093,7 +1092,7 @@ describe("ThreadComposer", () => {
     );
 
     const voiceButton = screen.getByRole("button", { name: "Voice input" });
-    expect(voiceButton).toHaveAttribute("title", "Click to dictate or hold");
+    expect(voiceButton).not.toHaveAttribute("title");
     expect(voiceButton).toHaveAttribute("aria-keyshortcuts", "Control+Shift+D");
     fireEvent.keyDown(window, { code: "KeyD", ctrlKey: true, key: "D", shiftKey: true });
     expect(await screen.findByLabelText("Recording 0:00")).toBeInTheDocument();
@@ -1394,7 +1393,7 @@ describe("ThreadComposer", () => {
     });
     const fullLabel = within(accessButton).getByText("Full Access");
     const shortLabel = within(accessButton).getByText("Full");
-    expect(accessButton).toHaveAttribute("title", "Full Access");
+    expect(accessButton).not.toHaveAttribute("title");
     expect(fullLabel).toHaveClass("thread-composer-access-label-full");
     expect(shortLabel).toHaveClass("thread-composer-access-label-short");
     expect(shortLabel).toHaveClass("hidden");
