@@ -21,6 +21,7 @@ beforeEach(async () => {
   vi.clearAllMocks();
   await i18n.changeLanguage("en");
   vi.spyOn(document, "visibilityState", "get").mockReturnValue("visible");
+  vi.spyOn(window, "open").mockReturnValue(null);
   action.mockResolvedValue({ show: true });
 });
 afterEach(() => { cleanup(); vi.restoreAllMocks(); });
@@ -168,6 +169,7 @@ it("keeps the GitHub action a real link and retries failed preference saves", as
   expect(link.querySelector(".star-prompt-decoration")).toHaveAttribute("aria-hidden", "true");
   action.mockRejectedValueOnce(new Error("offline"));
   await act(async () => fireEvent.click(link));
+  expect(window.open).toHaveBeenCalledWith("https://github.com/HKUDS/nanobot", "_blank", expect.any(String));
   expect(screen.getByRole("alert")).toBeVisible();
   expect(screen.getByRole("dialog")).toBeVisible();
   await act(async () => fireEvent.click(link));
