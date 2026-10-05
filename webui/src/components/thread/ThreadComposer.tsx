@@ -2738,7 +2738,7 @@ export function ThreadComposer({
               }
               onClick={showStopButton ? handleStop : modelNeedsSetup ? onModelBadgeClick : undefined}
               className={cn(
-                "thread-composer-action thread-composer-round-action touch-target rounded-xl",
+                "thread-composer-action thread-composer-round-action touch-target rounded-full",
                 showStopButton
                   ? "border border-border/70 bg-card text-foreground/85 hover:text-foreground disabled:text-muted-foreground/50"
                   : isHero
