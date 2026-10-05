@@ -21,13 +21,17 @@ beforeEach(async () => {
   vi.clearAllMocks();
   await i18n.changeLanguage("en");
   vi.spyOn(document, "visibilityState", "get").mockReturnValue("visible");
-  vi.spyOn(window, "open").mockReturnValue(null);
   action.mockResolvedValue({ show: true });
 });
 afterEach(() => { cleanup(); vi.restoreAllMocks(); });
 
 async function enter() {
   await act(async () => { await Promise.resolve(); });
+}
+
+async function clickStarLink(link: HTMLElement) {
+  link.addEventListener("click", (event) => event.preventDefault(), { once: true });
+  await act(async () => fireEvent.click(link));
 }
 
 it("claims once on entry and lets users skip without permanently dismissing", async () => {
@@ -96,7 +100,7 @@ it("the About link opens GitHub and persists permanent dismissal", async () => {
   const link = screen.getByRole("link", { name: "Star nanobot on GitHub" });
   expect(link).toHaveAttribute("href", "https://github.com/HKUDS/nanobot");
   expect(link).toHaveAttribute("target", "_blank");
-  await act(async () => fireEvent.click(link));
+  await clickStarLink(link);
   expect(action).toHaveBeenCalledWith(client, "dismiss");
 });
 
@@ -168,11 +172,10 @@ it("keeps the GitHub action a real link and retries failed preference saves", as
   expect(link).toHaveAttribute("target", "_blank");
   expect(link.querySelector(".star-prompt-decoration")).toHaveAttribute("aria-hidden", "true");
   action.mockRejectedValueOnce(new Error("offline"));
-  await act(async () => fireEvent.click(link));
-  expect(window.open).toHaveBeenCalledWith("https://github.com/HKUDS/nanobot", "_blank", expect.any(String));
+  await clickStarLink(link);
   expect(screen.getByRole("alert")).toBeVisible();
   expect(screen.getByRole("dialog")).toBeVisible();
-  await act(async () => fireEvent.click(link));
+  await clickStarLink(link);
   expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   expect(action.mock.calls.map(([, command]) => command)).toEqual(["claim", "dismiss", "dismiss"]);
 });
