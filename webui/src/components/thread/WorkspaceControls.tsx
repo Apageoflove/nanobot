@@ -323,13 +323,13 @@ export function WorkspaceAccessToggle({
   return (
     <Button
       type="button"
-      variant="ghost"
+      variant={null}
       aria-label={accessAriaLabel}
       aria-pressed={isFull}
       disabled={disabled || !onChange || (!isFull && !canUseFullAccess)}
       onClick={() => onChange?.(scopeWithAccessMode(scope, isFull ? "restricted" : "full"))}
       className={cn(
-        "thread-composer-access touch-target min-w-0 max-w-[min(12.5rem,42vw)] whitespace-nowrap rounded-control border border-transparent font-semibold shadow-none",
+        "settings-hover thread-composer-access touch-target min-w-0 max-w-[min(12.5rem,42vw)] whitespace-nowrap rounded-control border border-transparent font-semibold shadow-none",
         isHero ? "h-8 px-2.5 text-[12px]" : "h-9 px-3 text-[12.5px]",
         isFull
           ? "bg-transparent text-orange-600 hover:text-orange-600 dark:text-orange-300 dark:hover:text-orange-300"
