@@ -39,14 +39,14 @@ export function AutomationChatBinding({ job, token, onSave, children }: {
   children: (picker: ReactNode) => ReactNode;
 }) {
   const { t } = useTranslation();
-  const tx = (key: string) => t(`settings.automations.chat.${key}`);
+  const tx = (key: string, values?: Record<string, string>) => t(`settings.automations.chat.${key}`, values);
   const [data, setData] = useState<AutomationChatsPayload | null>(null);
   const [loadError, setLoadError] = useState(false);
   const [reload, setReload] = useState(0);
-  const [draft, setDraft] = useState<{ target: AutomationChat; previousTitle: string; revision: string; message: string } | null>(null);
+  const [draft, setDraft] = useState<{ target: AutomationChat; previous: AutomationChat; revision: string; message: string } | null>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
-  const [saved, setSaved] = useState(false);
+  const [saved, setSaved] = useState<string | null>(null);
   const heading = useRef<HTMLHeadingElement>(null);
   const trigger = useRef<HTMLButtonElement>(null);
   const returning = useRef(false);
@@ -77,21 +77,21 @@ export function AutomationChatBinding({ job, token, onSave, children }: {
     disabled={pickerDisabled} onValueChange={id => {
       const target = data?.chats.find(chat => chat.id === id);
       if (!target || target.unavailable || id === current?.id) return;
-      setError(""); setSaved(false);
+      setError(""); setSaved(null);
       setDraft(previous => previous ? { ...previous, target } : {
-        target, previousTitle: current?.title || fallback.title,
+        target, previous: current ?? fallback,
         revision: job.chat_binding_revision!, message: job.payload.message,
       });
     }}>
     <SelectTrigger ref={review ? undefined : trigger} aria-label={tx(review ? "new" : "label")}
-      className={`h-auto min-h-11 w-full py-2 [&>span:first-child]:min-w-0 [&>span:first-child]:flex-1 [&>span:first-child]:text-start ${review ? "" : "border-transparent bg-transparent hover:bg-muted/50"}`}>
+      className="h-auto min-h-11 w-full py-2 [&>span:first-child]:min-w-0 [&>span:first-child]:flex-1 [&>span:first-child]:text-start">
       <SelectValue><ChatIdentity chat={(review ? draft?.target : current) ?? fallback} /></SelectValue>
     </SelectTrigger>
     <SelectContent>
       {!current ? <SelectItem value="current" disabled><ChatIdentity chat={fallback} /></SelectItem> : null}
       {data?.chats.map(chat => <SelectItem key={chat.id} value={chat.id} textValue={`${chat.title} ${chat.channel}`}
         disabled={chat.unavailable || (review && chat.id === current?.id)}
-        className="h-auto min-h-11 py-2 [&>span:last-child]:min-w-0 [&>span:last-child]:max-w-[calc(100vw-5rem)] [&>span:last-child]:w-full"><ChatIdentity chat={chat} /></SelectItem>)}
+        className="h-auto min-h-11 py-2 [&>span:first-child]:min-w-0 [&>span:first-child]:max-w-[calc(100vw-5rem)] [&>span:first-child]:w-full"><ChatIdentity chat={chat} /></SelectItem>)}
     </SelectContent>
   </Select>;
   const save = async () => {
@@ -100,7 +100,7 @@ export function AutomationChatBinding({ job, token, onSave, children }: {
     try {
       await onSave(job, { target_id: draft.target.id, revision: draft.revision, message: draft.message });
       setData(previous => previous ? { ...previous, current: draft.target } : previous);
-      setSaved(true); back(); setReload(value => value + 1);
+      setSaved(draft.target.title); back(); setReload(value => value + 1);
     } catch (cause) {
       const reasons: Record<string, string> = {
         automation_chat_conflict: "conflict", automation_chat_busy: "schedulerBusy",
@@ -109,33 +109,37 @@ export function AutomationChatBinding({ job, token, onSave, children }: {
       setError(tx(cause instanceof Error ? reasons[cause.message] ?? "failed" : "failed"));
     } finally { setSaving(false); }
   };
-  if (!draft) return children(<div className="space-y-1">
-    <div className="grid min-w-0 grid-cols-1 items-start gap-1 py-1 min-[420px]:grid-cols-[6rem_minmax(0,1fr)] min-[420px]:gap-4">
-      <span className="text-[13px] text-muted-foreground min-[420px]:pt-3">{tx("label")}</span>
-      {picker(false)}
-    </div>
+  if (!draft) return children(<div className="space-y-2">
+    <p className="text-[13px] font-medium">{tx("label")}</p>
+    {picker(false)}
     <p role={saved ? "status" : undefined} className="text-[12px] leading-5 text-muted-foreground">
-      {job.state.pending ? tx("busy") : saved ? tx("saved") : tx("hint")}
+      {job.state.pending ? tx("busy") : saved ? tx("saved", { chat: saved }) : tx("hint")}
     </p>
     {loadError ? <Button variant="link" size="sm" onClick={() => setReload(value => value + 1)}>{tx("retry")}</Button> : null}
     {data && data.chats.length <= (current ? 1 : 0) ? <p className="text-[12px] leading-5 text-muted-foreground">{tx("available")}</p> : null}
   </div>);
   return <>
     <DialogHeader className="shrink-0 px-6 pb-4 pr-12 pt-5 text-left">
-      <DialogTitle ref={heading} tabIndex={-1} className="text-lg font-medium leading-snug tracking-normal outline-none">{tx("change")}</DialogTitle>
+      <DialogTitle ref={heading} tabIndex={-1} className="break-words text-lg font-medium leading-snug tracking-normal outline-none">{tx("change")}</DialogTitle>
     </DialogHeader>
     <div className="min-h-0 space-y-4 overflow-y-auto overscroll-contain px-6">
       <div className="space-y-2">
+        <div role="group" aria-label={tx("previous")} className="flex min-w-0 items-start gap-3 pb-1 text-muted-foreground">
+          <span className="shrink-0 text-[12px] leading-6">{tx("previous")}</span>
+          <ChatIdentity chat={draft.previous} />
+        </div>
+        <p className="text-[13px] font-medium">{tx("new")}</p>
         {picker(true)}
-        <p className="text-[12px] leading-5 text-muted-foreground">{tx("previous")} {draft.previousTitle}</p>
+      </div>
+      <div className="space-y-1">
         <p className="text-[13px] leading-5">{tx("effect")}</p>
+        <p className="text-[12px] leading-5 text-muted-foreground">{tx("history")}</p>
       </div>
       <label className="block space-y-2"><span className="text-[13px] font-medium">{tx("message")}</span>
         <Textarea rows={3} value={draft.message} disabled={saving} onChange={event => setDraft({ ...draft, message: event.target.value })}
           className="min-h-20 resize-y text-base leading-6 sm:text-[13px] sm:leading-5" />
       </label>
       <p className="text-[12px] leading-5 text-muted-foreground">{tx("review")}</p>
-      <p className="text-[12px] leading-5 text-muted-foreground">{tx("history")}</p>
       {error || targetUnavailable ? <p role="alert" className="text-[12px] leading-5 text-destructive">{error || tx("unavailable")}</p> : null}
     </div>
     <DialogFooter className="shrink-0 flex-row justify-end gap-2 px-6 pb-5 pt-3">

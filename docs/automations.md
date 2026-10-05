@@ -60,6 +60,14 @@ Scheduled automations normally deliver the result back to the session where they
 were created. Use them for work that should run on a predictable schedule and
 report each run.
 
+Write what the task should do, such as "Remind me to drink water". nanobot sends
+the final reply to the task's saved chat. You do not need to put a channel, chat
+ID, or a `message` tool call in the instructions for that reply.
+
+For separate sends, specify the recipients in the instructions. The agent can
+still use `message` to send to other chats, send to several recipients, or attach
+files. Existing tasks that explicitly request this tool remain supported.
+
 For background checks that should stay quiet unless there is something useful to
 report, use heartbeat instead of a user-created scheduled automation.
 
@@ -134,17 +142,21 @@ message. Copy the `nanobot trigger ...` command from the WebUI and replace
 
 ### Change the Chat for a Scheduled Task
 
-Open a scheduled task in **Automations**. **Task chat** shows its saved chat,
+Open a scheduled task in **Automations**. **Run and reply in** shows its saved chat,
 with the channel logo and name. To change it:
 
-1. Select another chat from **Task chat**.
-2. Review the task instructions. Remove old instructions that send messages to
-   a different chat. Members of the new chat can see future task messages and results.
+1. Select another chat from **Run and reply in**.
+2. Review the task instructions. Remove recipients you no longer want, but keep
+   any intended separate sends. Members of the new chat can see future task messages and results.
 3. Select **Confirm change**. Wait for the saved confirmation.
 
 Future runs use the new chat's history and reply there by default. Previous
 messages stay in their original chat. Previous run results remain available.
 Changing the chat does not run the task, enable it, or change its schedule.
+
+You can discuss each new result in that same chat. Background task results also
+return there. If you delete that chat, nanobot asks you to confirm deletion of
+its scheduled tasks as well. Cancelling the deletion keeps the chat and tasks.
 
 The list contains existing chats on the same gateway with the same effective
 workspace and access mode. Chat-app targets need a running channel and a saved
@@ -161,6 +173,8 @@ the latest instructions. A rejected save leaves the draft visible.
 This changes the whole task chat, not a separate forwarding address. Explicit
 `message` tool instructions can still send elsewhere. Shared workspace files
 and memory remain shared; changing the chat does not create a new security boundary.
+The confirmation screen lets you edit instructions such as "send to the original
+chat" before you save. nanobot does not silently rewrite those instructions.
 
 ### Back Up Before Downgrading
 

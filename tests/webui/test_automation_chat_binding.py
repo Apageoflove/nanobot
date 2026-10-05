@@ -4,6 +4,7 @@ import asyncio
 import json
 import socket
 import uuid
+from contextlib import suppress
 from dataclasses import asdict
 from unittest.mock import MagicMock
 
@@ -12,6 +13,7 @@ import pytest
 import websockets
 
 from nanobot.agent.loop import AgentLoop
+from nanobot.agent.tools.context import current_request_context
 from nanobot.bus.queue import MessageBus
 from nanobot.channels.websocket.runtime import WebSocketChannel, WebSocketConfig
 from nanobot.config.schema import Config
@@ -19,7 +21,7 @@ from nanobot.cron.binding import CronBinding, binding_revision
 from nanobot.cron.bound_runner import run_bound_cron_job
 from nanobot.cron.service import CronService
 from nanobot.cron.types import CronRunRecord, CronSchedule
-from nanobot.providers.base import GenerationSettings, LLMResponse
+from nanobot.providers.base import GenerationSettings, LLMResponse, ToolCallRequest
 from nanobot.session.manager import SessionManager
 from nanobot.webui.automation_chats import automation_chats
 from nanobot.webui.automation_results import cron_run_response
@@ -174,6 +176,24 @@ def test_target_identity_scope_and_channel_lifecycle(tmp_path):
     assert all(" · @" in chat.title for chat in duplicates)
 
 
+def test_untitled_chat_uses_message_preview_until_renamed(tmp_path):
+    sessions, _, job = seed(tmp_path)
+    chat = sessions.get_or_create("websocket:reminder")
+    chat.add_message("user", "十分钟后提醒我喝水")
+    sessions.save(chat)
+    workspaces = WebUIWorkspaceController(session_manager=sessions,
+        default_workspace=tmp_path / "workspace", default_restrict_to_workspace=False)
+    chats = automation_chats(job, sessions, workspaces, {})
+    choice = next(item for item in chats if item.binding.session_key == chat.key)
+    assert choice.public_payload()["title"] == "十分钟后提醒我喝水"
+    chat.metadata.update(title="My reminders", title_user_edited=True)
+    sessions.save(chat)
+    renamed = next(item for item in automation_chats(job, sessions, workspaces, {})
+                   if item.binding.session_key == chat.key)
+    assert renamed.id == choice.id
+    assert renamed.title == "My reminders"
+
+
 async def mutate(ws, values, job_id):
     request_id = str(uuid.uuid4())
     await ws.send(json.dumps({"type": "webui_request", "request_id": request_id,
@@ -186,8 +206,14 @@ async def mutate(ws, values, job_id):
 
 
 @pytest.mark.asyncio
-async def test_real_gateway_move_run_reload_and_previous_result(tmp_path):
+@pytest.mark.parametrize("target_channel", ["telegram", "websocket"])
+async def test_real_gateway_move_run_reload_and_previous_result(tmp_path, target_channel):
     sessions, cron, job = seed(tmp_path)
+    if target_channel == "websocket":
+        target_session = sessions.get_or_create("websocket:destination")
+        target_session.metadata["title"] = "Report inbox"
+        target_session.add_message("user", "Report inbox")
+        sessions.save(target_session)
     provider = MagicMock()
     provider.get_default_model.return_value = "test-model"
     provider.generation = GenerationSettings(max_tokens=100)
@@ -248,7 +274,8 @@ async def test_real_gateway_move_run_reload_and_previous_result(tmp_path):
             result = await http.get(url, headers={"Authorization": f"Bearer {api_token}"})
             assert result.status_code == 200
             data = result.json()
-            target = next(chat for chat in data["chats"] if chat["channel"] == "telegram")
+            target = next(chat for chat in data["chats"]
+                          if chat["title"] == ("Product team" if target_channel == "telegram" else "Report inbox"))
             direct = await http.get(
                 f"http://127.0.0.1:{port}/api/webui/automations/change-chat?id={job.id}",
                 headers={"Authorization": f"Bearer {api_token}"},
@@ -261,34 +288,138 @@ async def test_real_gateway_move_run_reload_and_previous_result(tmp_path):
         changed = await mutate(client, values, job.id)
         assert changed["ok"], changed
         moved = CronService(cron.store_path).get_job(job.id)
-        assert moved.payload.origin_metadata == {"message_thread_id": 42}
+        assert moved.payload.origin_metadata == ({"message_thread_id": 42} if target_channel == "telegram" else {})
         assert moved.state.next_run_at_ms == old.state.next_run_at_ms
         assert cron_run_response(cron.store_path.parent / "runs", moved, old_run) == "Synthetic result"
         assert not (await mutate(client, values, job.id))["ok"]
         assert await cron.run_job(job.id)
-        assert "Product team" in json.dumps(requests[-1])
+        assert target["title"] in json.dumps(requests[-1])
         assert "Daily report" not in json.dumps(requests[-1])
         outgoing = []
         while bus.outbound_size:
             outgoing.append(await bus.consume_outbound())
-        delivered = [msg for msg in outgoing if msg.content == "Synthetic result" and msg.channel == "telegram"]
+        target_chat_id = "-100" if target_channel == "telegram" else "destination"
+        delivered = [msg for msg in outgoing if msg.content == "Synthetic result" and msg.chat_id == target_chat_id]
         assert len(delivered) == 1
-        assert delivered[0].chat_id == "-100"
-        assert delivered[0].metadata["message_thread_id"] == 42
+        assert delivered[0].channel == target_channel
+        if target_channel == "telegram":
+            assert delivered[0].metadata["message_thread_id"] == 42
         moved = CronService(cron.store_path).get_job(job.id)
         for run in moved.state.run_history:
             assert cron_run_response(cron.store_path.parent / "runs", moved, run) == "Synthetic result"
         history = serialize_automation_jobs([moved], include_details=True)[0]["state"]["run_history"]
-        assert [run["webui_session_key"] for run in history] == ["websocket:source", None]
+        expected_history = ["websocket:source", None if target_channel == "telegram" else "websocket:destination"]
+        assert [run["webui_session_key"] for run in history] == expected_history
+        await agent.process_direct("Explain the report you just sent.",
+            session_key=moved.payload.session_key, channel=target_channel, chat_id=target_chat_id)
+        assert any(row.get("role") == "assistant" and row.get("content") == "Synthetic result"
+                   for row in requests[-1])
+        if target_channel == "websocket":
+            for msg in outgoing:
+                if msg.channel == "websocket":
+                    await channel.send(msg)
+            async with httpx.AsyncClient(trust_env=False) as http:
+                opened = await http.get(
+                    f"http://127.0.0.1:{port}/api/sessions/websocket%3Adestination/webui-thread",
+                    headers={"Authorization": f"Bearer {api_token}"},
+                )
+                assert opened.status_code == 200
+                assert "Synthetic result" in opened.text
+            async def delete(confirm=False):
+                request_id = str(uuid.uuid4())
+                await client.send(json.dumps({"type": "webui_request", "request_id": request_id,
+                    "action": "session.delete", "payload": {
+                        "key": "websocket:destination", "delete_automations": confirm,
+                    }}))
+                async with asyncio.timeout(5):
+                    while True:
+                        response = json.loads(await client.recv())
+                        if response.get("request_id") == request_id:
+                            assert response["ok"], response
+                            return response["result"]
+            blocked = await delete()
+            assert blocked["blocked_by_automations"]
+            assert blocked["automations"][0]["id"] == job.id
+            assert cron.get_job(job.id) is not None
+            assert (await delete(confirm=True))["deleted"]
+            assert cron.get_job(job.id) is None
+            assert sessions.read_session_file("websocket:destination") is None
+            assert sessions.read_session_file("websocket:source") is not None
+            assert not await cron.run_job(job.id)
+            return
         cron.change_binding(job.id, revision=binding_revision(moved),
                             binding=CronBinding("websocket:source", "websocket", "source", {}), message="Back")
         # Moving back must not turn the external run's link into the current chat.
         history = serialize_automation_jobs([cron.get_job(job.id)], include_details=True)[0]["state"]["run_history"]
-        assert [run["webui_session_key"] for run in history] == ["websocket:source", None]
+        assert [run["webui_session_key"] for run in history] == expected_history
     finally:
         if client is not None:
             await client.close()
         await channel.stop()
         await asyncio.wait_for(server, 5)
         cron.stop()
+        await agent.aclose()
+
+
+@pytest.mark.asyncio
+async def test_late_subagent_result_stays_with_moved_task(tmp_path, monkeypatch):
+    # A background result can arrive after the normal 300-second terminal wait.
+    monkeypatch.setattr("nanobot.agent.loop._SUBAGENT_TERMINAL_WAIT_SECONDS", 0.02)
+    sessions, cron, job = seed(tmp_path)
+    release = asyncio.Event()
+    entered = asyncio.Event()
+    started = False
+    provider = MagicMock()
+    provider.get_default_model.return_value = "test-model"
+    provider.generation = GenerationSettings(max_tokens=100)
+    provider.can_resume_conversation_state.return_value = False
+    provider.estimate_prompt_tokens.return_value = (100, "test")
+    async def reply(**kwargs):
+        nonlocal started
+        ctx = current_request_context()
+        assert ctx is not None
+        if ctx.session_key.startswith("subagent:"):
+            entered.set()
+            await release.wait()
+            return LLMResponse(content="37 items completed")
+        assert ctx.session_key == "telegram:-100:topic:42"
+        if ctx.sender_id == "subagent":
+            return LLMResponse(content="Final report: 37 items completed")
+        if not started:
+            started = True
+            return LLMResponse(content=None, tool_calls=[ToolCallRequest(
+                id="background-report", name="subagent", arguments={
+                    "action": "create", "task": "Prepare the report", "wait": False,
+                },
+            )], finish_reason="tool_calls")
+        return LLMResponse(content="Preparing the report")
+    provider.chat_stream_with_retry = reply
+    bus = MessageBus()
+    agent = AgentLoop(bus=bus, provider=provider, workspace=tmp_path / "workspace",
+        model="test-model", session_manager=sessions, tools_config=Config().tools)
+    consumer = asyncio.create_task(agent.run())
+    await cron.start()
+    try:
+        moved = cron.change_binding(job.id, revision=binding_revision(job),
+                                    binding=target_binding(), message="Prepare the report")
+        await asyncio.wait_for(run_bound_cron_job(moved, agent=agent, cron=cron), 5)
+        await asyncio.wait_for(entered.wait(), 5)
+        release.set()
+        delivered = []
+        async with asyncio.timeout(5):
+            while not any(msg.content.startswith("Final report:") for msg in delivered):
+                msg = await bus.consume_outbound()
+                if msg.event is None and msg.content:
+                    delivered.append(msg)
+        assert [(msg.channel, msg.chat_id) for msg in delivered] == [("telegram", "-100")] * 2
+        assert "Final report: 37 items completed" in json.dumps(
+            sessions.read_session_file("telegram:-100:topic:42"))
+        assert "37 items completed" not in json.dumps(sessions.read_session_file("websocket:source"))
+    finally:
+        release.set()
+        cron.stop()
+        agent.stop()
+        consumer.cancel()
+        with suppress(asyncio.CancelledError):
+            await consumer
         await agent.aclose()

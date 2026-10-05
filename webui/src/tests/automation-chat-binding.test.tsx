@@ -20,7 +20,7 @@ beforeEach(() => { vi.mocked(fetchAutomationChats).mockResolvedValue(choices); }
 afterEach(() => { cleanup(); vi.clearAllMocks(); });
 
 async function choose() {
-  const control = await screen.findByRole("combobox", { name: "Task chat" });
+  const control = await screen.findByRole("combobox", { name: "Run and reply in" });
   await waitFor(() => expect(control).toBeEnabled());
   fireEvent.keyDown(control, { key: "ArrowDown" });
   fireEvent.click(await screen.findByRole("option", { name: /Product team/ }));
@@ -34,7 +34,7 @@ it("keeps the original route until acknowledgement and saves the reviewed prompt
   const { rerender } = render(<AutomationDetailDialog {...props} job={job} onChangeChat={save} />);
   await choose();
   expect(save).not.toHaveBeenCalled();
-  expect(screen.getByText(/Previous chat:/)).toHaveTextContent("My planning");
+  expect(screen.getByRole("group", { name: "Now" })).toHaveTextContent("My planning");
   await user.clear(screen.getByRole("textbox", { name: "Task instructions" }));
   await user.type(screen.getByRole("textbox", { name: "Task instructions" }), "New instructions");
   await user.click(screen.getByRole("button", { name: "Confirm change" }));
@@ -47,12 +47,27 @@ it("keeps the original route until acknowledgement and saves the reviewed prompt
     rerender(<AutomationDetailDialog {...props} job={{ ...job, chat_binding_revision: "rev-2" }} onChangeChat={save} />);
     finish();
   });
-  expect(await screen.findByRole("status")).toHaveTextContent("Applies to future runs");
-  expect(screen.getByRole("combobox", { name: "Task chat" })).toHaveTextContent("Product team");
-  expect(screen.getByRole("combobox", { name: "Task chat" })).toBeDisabled();
+  expect(await screen.findByRole("status")).toHaveTextContent("Applies from the next run");
+  expect(screen.getByRole("combobox", { name: "Run and reply in" })).toHaveTextContent("Product team");
+  expect(screen.getByRole("combobox", { name: "Run and reply in" })).toBeDisabled();
   await act(async () => refresh({ ...choices, current: target, revision: "rev-2" }));
-  expect(screen.getByRole("combobox", { name: "Task chat" })).toHaveFocus();
+  expect(screen.getByRole("combobox", { name: "Run and reply in" })).toHaveFocus();
   expect(props.onAction).not.toHaveBeenCalled();
+});
+
+it("cancels a chat change without saving the edited instructions", async () => {
+  const user = userEvent.setup();
+  const save = vi.fn();
+  render(<AutomationDetailDialog {...props} job={job} onChangeChat={save} />);
+  await choose();
+  await user.clear(screen.getByRole("textbox", { name: "Task instructions" }));
+  await user.type(screen.getByRole("textbox", { name: "Task instructions" }), "Discard this draft");
+  await user.click(screen.getByRole("button", { name: "Cancel" }));
+  expect(save).not.toHaveBeenCalled();
+  expect(screen.getByRole("combobox", { name: "Run and reply in" })).toHaveTextContent("My planning");
+  expect(screen.getByRole("combobox", { name: "Run and reply in" })).toHaveFocus();
+  await choose();
+  expect(screen.getByRole("textbox", { name: "Task instructions" })).toHaveValue("Summarize the work.");
 });
 
 it("keeps a rejected draft and its original revision across polling", async () => {
@@ -67,7 +82,7 @@ it("keeps a rejected draft and its original revision across polling", async () =
   expect(await screen.findByRole("alert")).toHaveTextContent("draft is kept");
   expect(screen.getByRole("textbox", { name: "Task instructions" })).toHaveValue("Summarize the work. Reviewed");
   await user.click(screen.getByRole("button", { name: "Cancel" }));
-  expect(screen.getByRole("combobox", { name: "Task chat" })).toHaveTextContent("My planning");
+  expect(screen.getByRole("combobox", { name: "Run and reply in" })).toHaveTextContent("My planning");
 });
 
 it("does not send the new request to an old host and locks a pending task", async () => {
@@ -76,7 +91,7 @@ it("does not send the new request to an old host and locks a pending task", asyn
   expect(fetchAutomationChats).not.toHaveBeenCalled();
   expect(screen.queryByRole("combobox")).not.toBeInTheDocument();
   rerender(<AutomationDetailDialog {...props} job={{ ...job, state: { pending: true } }} onChangeChat={save} />);
-  expect(await screen.findByRole("combobox", { name: "Task chat" })).toBeDisabled();
+  expect(await screen.findByRole("combobox", { name: "Run and reply in" })).toBeDisabled();
   expect(save).not.toHaveBeenCalled();
 });
 
@@ -91,13 +106,13 @@ it("keeps the reviewed chat identity when refreshed choices no longer contain it
   });
   rerender(<AutomationDetailDialog {...props} job={{ ...job, chat_binding_revision: "rev-2" }} onChangeChat={save} />);
   expect(await screen.findByRole("alert")).toHaveTextContent("no longer available");
-  expect(screen.getByRole("combobox", { name: "New chat" })).toHaveTextContent("Product team");
-  expect(screen.getByText(/Previous chat:/)).toHaveTextContent("My planning");
+  expect(screen.getByRole("combobox", { name: "Change to" })).toHaveTextContent("Product team");
+  expect(screen.getByRole("group", { name: "Now" })).toHaveTextContent("My planning");
   expect(screen.getByRole("textbox", { name: "Task instructions" })).toHaveValue("Summarize the work. Reviewed");
   expect(screen.getByRole("button", { name: "Confirm change" })).toBeDisabled();
   expect(save).not.toHaveBeenCalled();
   await user.click(screen.getByRole("button", { name: "Cancel" }));
-  expect(screen.getByRole("combobox", { name: "Task chat" })).toHaveTextContent("Renamed planning");
+  expect(screen.getByRole("combobox", { name: "Run and reply in" })).toHaveTextContent("Renamed planning");
 });
 
 it("keeps the current chat visible when discovery fails and permits a retry", async () => {
@@ -105,6 +120,6 @@ it("keeps the current chat visible when discovery fails and permits a retry", as
   vi.mocked(fetchAutomationChats).mockRejectedValueOnce(new Error("offline"));
   render(<AutomationDetailDialog {...props} job={job} onChangeChat={vi.fn()} />);
   await user.click(await screen.findByRole("button", { name: "Retry loading chats" }));
-  await waitFor(() => expect(screen.getByRole("combobox", { name: "Task chat" })).toBeEnabled());
+  await waitFor(() => expect(screen.getByRole("combobox", { name: "Run and reply in" })).toBeEnabled());
   expect(fetchAutomationChats).toHaveBeenCalledTimes(2);
 });

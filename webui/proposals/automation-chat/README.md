@@ -17,6 +17,11 @@ recorded turn, and default reply route. It does not add a delivery override or
 copy old messages. It still changes the creation-chat rule. Maintainer agreement
 is pending, so the PR remains a draft.
 
+The detail panel has one control, **Run and reply in**. It does not offer a
+separate result recipient. The confirmation shows the current and new chats,
+explains that old messages stay where they are, and lets the user update task
+instructions. The user must review instructions that name an old recipient.
+
 ## Ownership and commit boundary
 
 - The gateway resolves existing session handles, titles, canonical reply routes,
@@ -75,6 +80,17 @@ Prompt review is required, not automatic rewriting. The selector does not create
 new isolation for shared workspace memory or files and does not guarantee that a
 remote platform will accept delivery.
 
+New reminders need only task instructions. The cron skill, tool descriptions,
+and scheduled-turn prompt agree that nanobot sends the final reply to the saved
+chat. Explicit separate sends and attachments still use `message`. Existing
+instructions and recipients are not rewritten. The confirmation asks users to
+check recipients, not remove intended broadcasts.
+
+These instructions are static. No per-run tool list, schema, or system prompt is
+added. Updated tool descriptions can cause a cache miss after the upgrade.
+Task-specific instructions remain in the current user turn. Moving to another
+chat intentionally changes the history; cache reuse must not override that.
+
 ## Verification
 
 The focused regression suite exercises the actual HTTP/WebSocket gateway,
@@ -82,6 +98,18 @@ session manager, scheduler, agent queue, persistence, and audit reader. It
 checks save/read-back, execution history and outbound topic routing, old results,
 revision conflict, pre/post-replace errors, stale CLI actions, running jobs,
 scope and route filtering, and old-host UI behavior.
+
+The regression suite also checks follow-up model input in the new chat, a
+background result after the parent turn's wait timeout, and confirmed or
+cancelled deletion of the new WebUI chat. These use the existing session owner;
+no separate delivery context is added to the agent loop.
+
+The reply-contract test covers normal replies, legacy same-chat `message` calls
+without duplicate replies, and multiple explicit recipients with attachments.
+It compares serialized tools and system messages across ordinary turns, two
+scheduled runs, and tool continuations. It also checks that continuation history
+keeps structured tool calls and results. This is not a live provider cache-hit
+measurement or proof that every model will follow the prompt.
 
 Browser checks use the normal production build served by an isolated real
 gateway. Chat data, model replies, and channel status are synthetic. Saves are
@@ -95,6 +123,6 @@ acceptance. Raw test logs and local fixture state are kept outside the repositor
 
 Both screenshots show the production app connected to that isolated gateway.
 
-![Saved task chat with its channel logo](detail.png)
+![Saved task chat with its channel logo](detail.jpg)
 
-![Review a chat change before saving](review.png)
+![Review a chat change before saving](review.jpg)
