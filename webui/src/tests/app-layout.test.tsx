@@ -990,7 +990,7 @@ describe("App layout", () => {
     expect(within(temporaryToggle).queryByText("Temporary chat")).not.toBeInTheDocument();
     fireEvent.click(temporaryToggle);
     expect(temporaryToggle).toHaveAttribute("aria-pressed", "true");
-    expect(temporaryToggle).toHaveClass("bg-transparent", "shadow-none", "hover:bg-transparent");
+    expect(temporaryToggle).toHaveClass("icon-action");
     expect(within(temporaryToggle).getByTestId("temporary-chat-icon")).toHaveClass(
       "motion-safe:duration-150",
       "text-[var(--temporary-control-active)]",
