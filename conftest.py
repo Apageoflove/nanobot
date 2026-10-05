@@ -58,10 +58,11 @@ def _isolate_sessions_root(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> I
 
 
 @pytest.fixture(autouse=True)
-def _isolate_star_prompt_store(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def _isolate_star_prompt_store(
+    tmp_path_factory: pytest.TempPathFactory, monkeypatch: pytest.MonkeyPatch
+) -> None:
     """Keep WebUI completion events out of the user's invitation state and lock."""
-    webui_dir = tmp_path / "star-prompt-webui"
-    webui_dir.mkdir()
+    webui_dir = tmp_path_factory.mktemp("star-prompt-webui")
     monkeypatch.setattr("nanobot.webui.star_prompt.get_webui_dir", lambda: webui_dir)
 
 
