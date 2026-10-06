@@ -56,7 +56,10 @@ export function AutomationChatBinding({ job, token, chatNames, onSave, children 
     const controller = new AbortController();
     setLoadError(false);
     void fetchAutomationChats(token, job.id, controller.signal).then(value => {
-      if (!controller.signal.aborted) setData(value);
+      if (!controller.signal.aborted) {
+        setData(value);
+        setSaved(previous => previous?.target.id === value.current?.id ? previous : null);
+      }
     }).catch(() => { if (!controller.signal.aborted) setLoadError(true); });
     return () => controller.abort();
   }, [token, job.id, job.chat_binding_revision, reload]);
@@ -91,7 +94,7 @@ export function AutomationChatBinding({ job, token, chatNames, onSave, children 
     disabled={pickerDisabled} onValueChange={id => {
       const target = data?.chats.find(chat => chat.id === id);
       if (!target || target.unavailable || id === current?.id) return;
-      setError(""); setSaved(null);
+      setError("");
       setDraft(previous => previous ? { ...previous, target } : {
         target, previous: current ?? fallback,
         revision: job.chat_binding_revision!, message: job.payload.message,
