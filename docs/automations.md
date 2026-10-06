@@ -143,7 +143,11 @@ message. Copy the `nanobot trigger ...` command from the WebUI and replace
 ### Change the Chat for a Scheduled Task
 
 Open a scheduled task in **Automations**. **Run and reply in** shows its saved chat,
-with the channel logo and name. To change it:
+with the channel logo and name. WebUI chats use the same display names as the
+sidebar. A renamed chat keeps its identity and task binding. Chats with the same
+name show an `@handle` to help you tell them apart.
+
+To change the chat:
 
 1. Select another chat from **Run and reply in**.
 2. Review the task instructions. Remove recipients you no longer want, but keep

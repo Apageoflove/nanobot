@@ -1538,7 +1538,7 @@
     "unpin": "Desafixar",
     "rename": "Renomear",
     "renameTitle": "Renomear tópico",
-    "renameDescription": "Escolha um nome local da barra lateral para este tópico.",
+    "renameDescription": "Escolha um nome de exibição para este tópico na WebUI.",
     "renamePlaceholder": "Nome do tópico",
     "renameProjectTitle": "Renomear projeto",
     "renameProjectDescription": "Escolha um nome local da barra lateral para este projeto.",

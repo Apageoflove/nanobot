@@ -15,7 +15,7 @@ import { useTranslation } from "react-i18next";
 import { channelTranslator } from "@/channel-plugins/i18n";
 import { channelUiOwner, channelUiPresentation } from "@/channel-plugins/registry";
 import { AutomationCalendar } from "@/components/settings/system/AutomationCalendar";
-import { AutomationChatBinding, type ChangeAutomationChat } from "@/components/settings/system/AutomationChatBinding";
+import { AutomationChatBinding, type AutomationChatNames, type ChangeAutomationChat } from "@/components/settings/system/AutomationChatBinding";
 import { AutomationRunAtPicker, parseAutomationRunAt } from "@/components/settings/system/AutomationRunAtPicker";
 import {
   modelPresetOptionsFromSettings,
@@ -46,6 +46,7 @@ import type { SendAttachment, SendOptions } from "@/hooks/useNanobotStream";
 import type {
   AutomationsPayload,
   AutomationUpdatePayload,
+  ChatSummary,
   SessionAutomationJob,
   SettingsPayload,
 } from "@/lib/types";
@@ -55,11 +56,13 @@ export type AutomationFilter = "all" | "active" | "paused" | "failed" | "system"
 export type AutomationAction = "enable" | "disable" | "delete" | "run";
 
 const EMPTY_TITLE_OVERRIDES: Record<string, string> = {};
+const EMPTY_SESSIONS: ChatSummary[] = [];
 
 export function AutomationsSettings({
   token = "",
   payload, loading, filter, actionKey, error,
   titleOverrides = EMPTY_TITLE_OVERRIDES,
+  sessions = EMPTY_SESSIONS,
   settingsSnapshot = null,
   onFilterChange, onAction,
   onRequestEdit, onRequestDelete, onStartChat, onManageModels,
@@ -69,6 +72,7 @@ export function AutomationsSettings({
   token?: string;
   payload: AutomationsPayload | null;
   titleOverrides?: Record<string, string>;
+  sessions?: ChatSummary[];
   settingsSnapshot?: SettingsPayload | null;
   loading: boolean;
   filter: AutomationFilter;
@@ -92,6 +96,13 @@ export function AutomationsSettings({
   const { t, i18n } = useTranslation();
   const tx = (key: string, fallback: string, values?: Record<string, unknown>) =>
     t(key, { defaultValue: fallback, ...(values ?? {}) });
+  // Join display names by the server-owned handle ID, never by a mutable title.
+  const chatNames: AutomationChatNames = useMemo(() => new Map(sessions.flatMap(session => (
+    session.handle ? [[session.handle.id, {
+      title: displayTitle(session, titleOverrides, t("chat.newChat")),
+      handle: session.handle.name,
+    }] as const] : []
+  ))), [sessions, titleOverrides, t]);
   const jobs = useMemo(() => (payload?.jobs ?? []).map((job) => {
     const origin = job.origin;
     if (origin?.channel !== "websocket") return job;
@@ -367,6 +378,7 @@ export function AutomationsSettings({
 
       <AutomationDetailDialog
         token={token}
+        chatNames={chatNames}
         onChangeChat={onChangeChat}
         job={selectedJob}
         open={detailOpen}
@@ -395,6 +407,7 @@ export function AutomationsSettings({
 
 export function AutomationDetailDialog({
   token = "",
+  chatNames,
   onChangeChat,
   job,
   open,
@@ -408,6 +421,7 @@ export function AutomationDetailDialog({
   onCloseAutoFocus,
 }: {
   token?: string;
+  chatNames?: AutomationChatNames;
   onChangeChat?: ChangeAutomationChat;
   job: SessionAutomationJob | null;
   open: boolean;
@@ -438,7 +452,7 @@ export function AutomationDetailDialog({
           onCloseAutoFocus={onCloseAutoFocus}
         >
           {job.chat_binding_revision && onChangeChat ? (
-            <AutomationChatBinding key={job.id} job={job} token={token} onSave={onChangeChat}>{panel}</AutomationChatBinding>
+            <AutomationChatBinding key={job.id} job={job} token={token} chatNames={chatNames} onSave={onChangeChat}>{panel}</AutomationChatBinding>
           ) : panel()}
         </DialogContent>
       ) : null}

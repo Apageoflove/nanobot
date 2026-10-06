@@ -1724,7 +1724,7 @@
     "unpin": "Unpin",
     "rename": "Rename",
     "renameTitle": "Rename topic",
-    "renameDescription": "Choose a local sidebar name for this topic.",
+    "renameDescription": "Choose a display name for this topic in WebUI.",
     "renamePlaceholder": "Topic name",
     "renameProjectTitle": "Rename project",
     "renameProjectDescription": "Choose a local sidebar name for this project.",
