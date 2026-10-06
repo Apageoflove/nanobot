@@ -1195,6 +1195,7 @@
     },
     "automations": {
       "chat": {
+        "changeBack": "Chuyển lại về “{{chat}}”",
         "conflict": "Tác vụ đã được đổi ở nơi khác. Bản nháp được giữ lại. Mở lại tác vụ để kiểm tra cài đặt mới nhất.",
         "unavailable": "Cuộc trò chuyện này không còn khả dụng với cùng không gian làm việc và quyền truy cập. Hãy chọn cuộc trò chuyện khác.",
         "schedulerBusy": "Có tác vụ đang chạy hoặc chờ. Hãy đợi hoàn tất rồi thử lại.",

@@ -1395,6 +1395,7 @@
     },
     "automations": {
       "chat": {
+        "changeBack": "Change back to “{{chat}}”",
         "conflict": "The task changed elsewhere. Your draft is kept. Reopen the task to review the latest settings.",
         "unavailable": "This chat is no longer available with the same workspace and access mode. Select another chat.",
         "schedulerBusy": "A task is running or queued. Wait for it to finish, then try again.",

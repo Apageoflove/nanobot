@@ -46,7 +46,7 @@ export function AutomationChatBinding({ job, token, onSave, children }: {
   const [draft, setDraft] = useState<{ target: AutomationChat; previous: AutomationChat; revision: string; message: string } | null>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
-  const [saved, setSaved] = useState<string | null>(null);
+  const [saved, setSaved] = useState<{ target: AutomationChat; previous: AutomationChat } | null>(null);
   const heading = useRef<HTMLHeadingElement>(null);
   const trigger = useRef<HTMLButtonElement>(null);
   const returning = useRef(false);
@@ -100,7 +100,7 @@ export function AutomationChatBinding({ job, token, onSave, children }: {
     try {
       await onSave(job, { target_id: draft.target.id, revision: draft.revision, message: draft.message });
       setData(previous => previous ? { ...previous, current: draft.target } : previous);
-      setSaved(draft.target.title); back(); setReload(value => value + 1);
+      setSaved({ target: draft.target, previous: draft.previous }); back(); setReload(value => value + 1);
     } catch (cause) {
       const reasons: Record<string, string> = {
         automation_chat_conflict: "conflict", automation_chat_busy: "schedulerBusy",
@@ -113,8 +113,15 @@ export function AutomationChatBinding({ job, token, onSave, children }: {
     <p className="text-[13px] font-medium">{tx("label")}</p>
     {picker(false)}
     <p role={saved ? "status" : undefined} className="text-[12px] leading-5 text-muted-foreground">
-      {job.state.pending ? tx("busy") : saved ? tx("saved", { chat: saved }) : tx("hint")}
+      {job.state.pending ? tx("busy") : saved ? tx("saved", { chat: saved.target.title }) : tx("hint")}
     </p>
+    {saved && current?.id === saved.target.id && data?.chats.some(chat => chat.id === saved.previous.id && !chat.unavailable) ? (
+      <Button variant="link" size="sm" className="h-11 justify-start whitespace-normal p-0 text-start text-[12px] sm:h-auto" disabled={pickerDisabled}
+        onClick={() => {
+          setError("");
+          setDraft({ target: saved.previous, previous: current, revision: data.revision, message: job.payload.message });
+        }}>{tx("changeBack", { chat: saved.previous.title })}</Button>
+    ) : null}
     {loadError ? <Button variant="link" size="sm" onClick={() => setReload(value => value + 1)}>{tx("retry")}</Button> : null}
     {data && data.chats.length <= (current ? 1 : 0) ? <p className="text-[12px] leading-5 text-muted-foreground">{tx("available")}</p> : null}
   </div>);

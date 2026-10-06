@@ -1195,6 +1195,7 @@
     },
     "automations": {
       "chat": {
+        "changeBack": "Revenir à « {{chat}} »",
         "conflict": "La tâche a été modifiée ailleurs. Le brouillon est conservé. Rouvrez la tâche pour vérifier ses paramètres.",
         "unavailable": "Cette discussion n’est plus disponible avec le même espace de travail et mode d’accès. Choisissez-en une autre.",
         "schedulerBusy": "Une tâche est en cours ou en attente. Attendez la fin, puis réessayez.",
