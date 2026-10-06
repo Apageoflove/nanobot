@@ -840,7 +840,7 @@ describe("App layout", () => {
     const newTopicButton = within(sidebar).getByRole("button", { name: "New topic" });
 
     expect(newTopicButton).toHaveAttribute("aria-current", "page");
-    expect(newTopicButton).toHaveClass("transition-[width,padding,color]");
+    expect(newTopicButton).toHaveClass("transition-[width,padding,color,background-color]");
     expect(newTopicButton).toBeEnabled();
   });
 
@@ -986,11 +986,11 @@ describe("App layout", () => {
 
     fireEvent.click(within(sidebar).getByRole("button", { name: "New topic" }));
     const temporaryToggle = screen.getByRole("button", { name: "Temporary chat" });
-    expect(temporaryToggle).toHaveClass("h-8", "w-8", "rounded-full");
+    expect(temporaryToggle).toHaveClass("h-8", "w-8", "rounded-xl");
     expect(within(temporaryToggle).queryByText("Temporary chat")).not.toBeInTheDocument();
     fireEvent.click(temporaryToggle);
     expect(temporaryToggle).toHaveAttribute("aria-pressed", "true");
-    expect(temporaryToggle).toHaveClass("bg-transparent", "shadow-none", "hover:bg-transparent");
+    expect(temporaryToggle).toHaveClass("icon-action");
     expect(within(temporaryToggle).getByTestId("temporary-chat-icon")).toHaveClass(
       "motion-safe:duration-150",
       "text-[var(--temporary-control-active)]",
@@ -2985,7 +2985,7 @@ describe("App layout", () => {
 
     expect(overviewButton).toHaveAttribute("aria-current", "page");
     expect(overviewButton).not.toHaveClass("bg-sidebar-accent");
-    expect(overviewButton).toHaveClass("transition-[color]");
+    expect(overviewButton).toHaveClass("transition-[color,background-color]");
     expect(settingsHighlight).toHaveAttribute("data-active-id", "overview");
 
     fireEvent.click(modelsButton);
