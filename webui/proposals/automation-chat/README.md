@@ -1,7 +1,7 @@
 # Automation chat selection
 
-This draft now implements chat selection in the production WebUI and Python
-gateway. The earlier in-memory preview and its build transform have been removed.
+Chat selection uses the production WebUI and Python gateway. The earlier
+in-memory preview and its build transform have been removed.
 See [the user guide](../../../docs/automations.md#change-the-chat-for-a-scheduled-task)
 for the interaction, limits, and downgrade warning.
 
@@ -14,8 +14,8 @@ the reply from its history and can expose context from A.
 
 This implementation changes the whole binding for future runs: execution chat,
 recorded turn, and default reply route. It does not add a delivery override or
-copy old messages. It still changes the creation-chat rule. Maintainer agreement
-is pending, so the PR remains a draft.
+copy old messages. New tasks start in their creation chat. A user can explicitly
+change the whole binding for future runs.
 
 The detail panel has one control, **Run and reply in**. It does not offer a
 separate result recipient. The confirmation shows the current and new chats,
