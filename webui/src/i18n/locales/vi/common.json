@@ -1524,7 +1524,7 @@
     "unpin": "Bỏ ghim",
     "rename": "Đổi tên",
     "renameTitle": "Đổi tên chủ đề",
-    "renameDescription": "Chọn tên hiển thị trong thanh bên cho chủ đề này.",
+    "renameDescription": "Chọn tên hiển thị cho chủ đề này trong WebUI.",
     "renamePlaceholder": "Tên chủ đề",
     "renameProjectTitle": "Đổi tên dự án",
     "renameProjectDescription": "Chọn tên hiển thị cục bộ cho dự án này trên thanh bên.",

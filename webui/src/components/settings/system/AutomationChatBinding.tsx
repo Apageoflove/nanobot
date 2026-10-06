@@ -12,8 +12,9 @@ import { readLocalPreferences } from "@/lib/local-preferences";
 import type { AutomationChat, AutomationChatsPayload, AutomationChatUpdate, NanobotFeatureInfo, SessionAutomationJob } from "@/lib/types";
 
 export type ChangeAutomationChat = (job: SessionAutomationJob, values: AutomationChatUpdate) => Promise<void>;
+export type AutomationChatNames = ReadonlyMap<string, { title: string; handle: string }>;
 
-function ChatIdentity({ chat }: { chat: AutomationChat }) {
+function ChatIdentity({ chat, title }: { chat: AutomationChat; title: string }) {
   const { t } = useTranslation();
   const owner = channelUiOwner(chat.channel);
   const presentation = channelUiPresentation(chat.channel);
@@ -29,13 +30,14 @@ function ChatIdentity({ chat }: { chat: AutomationChat }) {
         : <span className="absolute left-0 top-0 origin-top-left scale-75"><ChannelLogo feature={feature} showBrandLogos={readLocalPreferences().brandLogos} /></span>}
     </span>
     <span className="flex min-w-0 flex-wrap items-baseline gap-x-2 text-[13px] leading-5">
-      <span className="min-w-0 break-words">{chat.title}</span><span className="text-[12px] text-muted-foreground">{platform}</span>
+      <span className="min-w-0 break-words">{title}</span><span className="text-[12px] text-muted-foreground">{platform}</span>
     </span>
   </span>;
 }
 
-export function AutomationChatBinding({ job, token, onSave, children }: {
+export function AutomationChatBinding({ job, token, chatNames, onSave, children }: {
   job: SessionAutomationJob; token: string; onSave: ChangeAutomationChat;
+  chatNames?: AutomationChatNames;
   children: (picker: ReactNode) => ReactNode;
 }) {
   const { t } = useTranslation();
@@ -72,6 +74,18 @@ export function AutomationChatBinding({ job, token, onSave, children }: {
   const back = () => { returning.current = true; setDraft(null); };
   const current = data?.current;
   const fallback: AutomationChat = { id: "current", title: job.origin?.title || tx("current"), channel: job.origin?.channel || "websocket" };
+  const baseTitle = (chat: AutomationChat) => chatNames?.get(chat.id)?.title ?? chat.title;
+  const counts = new Map<string, number>();
+  for (const chat of data?.chats ?? []) {
+    const title = baseTitle(chat);
+    counts.set(title, (counts.get(title) ?? 0) + 1);
+  }
+  const chatTitle = (chat: AutomationChat) => {
+    const title = baseTitle(chat);
+    const name = chatNames?.get(chat.id);
+    return name && (counts.get(title) ?? 0) > 1 ? `${title} · @${name.handle}` : title;
+  };
+  const identity = (chat: AutomationChat) => <ChatIdentity chat={chat} title={chatTitle(chat)} />;
   const targetUnavailable = Boolean(draft && data && !data.chats.some(chat => chat.id === draft.target.id && !chat.unavailable));
   const picker = (review: boolean) => <Select value={review ? draft?.target.id : current?.id ?? "current"}
     disabled={pickerDisabled} onValueChange={id => {
@@ -85,13 +99,13 @@ export function AutomationChatBinding({ job, token, onSave, children }: {
     }}>
     <SelectTrigger ref={review ? undefined : trigger} aria-label={tx(review ? "new" : "label")}
       className="h-auto min-h-11 w-full py-2 [&>span:first-child]:min-w-0 [&>span:first-child]:flex-1 [&>span:first-child]:text-start">
-      <SelectValue><ChatIdentity chat={(review ? draft?.target : current) ?? fallback} /></SelectValue>
+      <SelectValue>{identity((review ? draft?.target : current) ?? fallback)}</SelectValue>
     </SelectTrigger>
     <SelectContent>
-      {!current ? <SelectItem value="current" disabled><ChatIdentity chat={fallback} /></SelectItem> : null}
-      {data?.chats.map(chat => <SelectItem key={chat.id} value={chat.id} textValue={`${chat.title} ${chat.channel}`}
+      {!current ? <SelectItem value="current" disabled>{identity(fallback)}</SelectItem> : null}
+      {data?.chats.map(chat => <SelectItem key={chat.id} value={chat.id} textValue={`${chatTitle(chat)} ${chat.channel}`}
         disabled={chat.unavailable || (review && chat.id === current?.id)}
-        className="h-auto min-h-11 py-2 [&>span:first-child]:min-w-0 [&>span:first-child]:max-w-[calc(100vw-5rem)] [&>span:first-child]:w-full"><ChatIdentity chat={chat} /></SelectItem>)}
+        className="h-auto min-h-11 py-2 [&>span:first-child]:min-w-0 [&>span:first-child]:max-w-[calc(100vw-5rem)] [&>span:first-child]:w-full">{identity(chat)}</SelectItem>)}
     </SelectContent>
   </Select>;
   const save = async () => {
@@ -113,14 +127,14 @@ export function AutomationChatBinding({ job, token, onSave, children }: {
     <p className="text-[13px] font-medium">{tx("label")}</p>
     {picker(false)}
     <p role={saved ? "status" : undefined} className="text-[12px] leading-5 text-muted-foreground">
-      {job.state.pending ? tx("busy") : saved ? tx("saved", { chat: saved.target.title }) : tx("hint")}
+      {job.state.pending ? tx("busy") : saved ? tx("saved", { chat: chatTitle(saved.target) }) : tx("hint")}
     </p>
     {saved && current?.id === saved.target.id && data?.chats.some(chat => chat.id === saved.previous.id && !chat.unavailable) ? (
       <Button variant="link" size="sm" className="h-11 justify-start whitespace-normal p-0 text-start text-[12px] sm:h-auto" disabled={pickerDisabled}
         onClick={() => {
           setError("");
           setDraft({ target: saved.previous, previous: current, revision: data.revision, message: job.payload.message });
-        }}>{tx("changeBack", { chat: saved.previous.title })}</Button>
+        }}>{tx("changeBack", { chat: chatTitle(saved.previous) })}</Button>
     ) : null}
     {loadError ? <Button variant="link" size="sm" onClick={() => setReload(value => value + 1)}>{tx("retry")}</Button> : null}
     {data && data.chats.length <= (current ? 1 : 0) ? <p className="text-[12px] leading-5 text-muted-foreground">{tx("available")}</p> : null}
@@ -133,7 +147,7 @@ export function AutomationChatBinding({ job, token, onSave, children }: {
       <div className="space-y-2">
         <div role="group" aria-label={tx("previous")} className="flex min-w-0 items-start gap-3 pb-1 text-muted-foreground">
           <span className="shrink-0 text-[12px] leading-6">{tx("previous")}</span>
-          <ChatIdentity chat={draft.previous} />
+          {identity(draft.previous)}
         </div>
         <p className="text-[13px] font-medium">{tx("new")}</p>
         {picker(true)}

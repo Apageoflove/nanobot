@@ -1,10 +1,10 @@
 import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
-import { AutomationDetailDialog } from "@/components/settings/system/AutomationsSettings";
+import { AutomationDetailDialog, AutomationsSettings } from "@/components/settings/system/AutomationsSettings";
 import { fetchAutomationChats } from "@/lib/api";
 import { setAppLanguage } from "@/i18n";
-import type { AutomationChatsPayload, SessionAutomationJob } from "@/lib/types";
+import type { AutomationChatsPayload, ChatSummary, SessionAutomationJob } from "@/lib/types";
 
 vi.mock("@/lib/api", () => ({ fetchAutomationChats: vi.fn() }));
 const source = { id: "source", title: "My planning", channel: "websocket" };
@@ -157,4 +157,76 @@ it("keeps the current chat visible when discovery fails and permits a retry", as
   await user.click(await screen.findByRole("button", { name: "Retry loading chats" }));
   await waitFor(() => expect(screen.getByRole("combobox", { name: "Run and reply in" })).toBeEnabled());
   expect(fetchAutomationChats).toHaveBeenCalledTimes(2);
+});
+
+const webTarget = { ...target, channel: "websocket" };
+const namedSessions: ChatSummary[] = [source, webTarget].map((chat) => ({
+  key: `websocket:${chat.id}`, channel: "websocket", chatId: chat.id,
+  title: chat.title, preview: "", createdAt: null, updatedAt: null,
+  handle: { id: chat.id, name: chat.id === source.id ? "nime" : "jeno" },
+}));
+
+function NamedChats({ titles, onSave, task = job }: {
+  titles: Record<string, string>;
+  onSave: React.ComponentProps<typeof AutomationsSettings>["onChangeChat"];
+  task?: SessionAutomationJob;
+}) {
+  return <AutomationsSettings payload={{ jobs: [task] }} sessions={namedSessions} titleOverrides={titles}
+    loading={false} filter="all" actionKey={null} error={null} returnToDetailJob={task}
+    onFilterChange={vi.fn()} onAction={vi.fn()} onRequestEdit={vi.fn()} onRequestDelete={vi.fn()}
+    onChangeChat={onSave} />;
+}
+
+it("uses live sidebar names through loading, review, save and change-back without changing identity", async () => {
+  const user = userEvent.setup();
+  const save = vi.fn().mockResolvedValue(undefined);
+  let resolve!: (value: AutomationChatsPayload) => void;
+  vi.mocked(fetchAutomationChats).mockImplementationOnce(() => new Promise(done => { resolve = done; }));
+  const titles = { "websocket:source": "推特大战场", "websocket:target": "产品讨论" };
+  const { rerender } = render(<NamedChats titles={titles} onSave={save} />);
+  expect(await screen.findByRole("combobox", { name: "Run and reply in" })).toHaveTextContent("推特大战场");
+  await act(async () => resolve({ ...choices, chats: [source, webTarget] }));
+  const control = screen.getByRole("combobox", { name: "Run and reply in" });
+  expect(control).toHaveTextContent("推特大战场");
+  fireEvent.keyDown(control, { key: "ArrowDown" });
+  expect(await screen.findByRole("option", { name: /推特大战场/ })).toBeInTheDocument();
+  await user.click(screen.getByRole("option", { name: /产品讨论/ }));
+  expect(screen.getByRole("group", { name: "Now" })).toHaveTextContent("推特大战场");
+  const renamed = { "websocket:source": "工作笔记", "websocket:target": "研发讨论" };
+  rerender(<NamedChats titles={renamed} onSave={save} />);
+  expect(screen.getByRole("group", { name: "Now" })).toHaveTextContent("工作笔记");
+  expect(screen.getByRole("combobox", { name: "Change to" })).toHaveTextContent("研发讨论");
+  expect(save).not.toHaveBeenCalled();
+  expect(fetchAutomationChats).toHaveBeenCalledTimes(1);
+  vi.mocked(fetchAutomationChats).mockResolvedValue({ ...choices, current: webTarget, chats: [source, webTarget] });
+  await user.click(screen.getByRole("button", { name: "Confirm change" }));
+  expect(save).toHaveBeenCalledWith(expect.objectContaining({ id: job.id }), {
+    target_id: "target", revision: "rev-1", message: job.payload.message,
+  });
+  expect(await screen.findByRole("status")).toHaveTextContent("研发讨论");
+  await user.click(await screen.findByRole("button", { name: "Change back to “工作笔记”" }));
+  expect(screen.getByRole("group", { name: "Now" })).toHaveTextContent("研发讨论");
+  expect(screen.getByRole("combobox", { name: "Change to" })).toHaveTextContent("工作笔记");
+  await user.click(screen.getByRole("button", { name: "Cancel" }));
+  expect(save).toHaveBeenCalledTimes(1);
+  expect(job.origin?.session_key).toBe("websocket:source");
+  expect(choices.current?.title).toBe("My planning");
+});
+
+it("distinguishes identical renamed chats by handle and uses the original title when the override is removed", async () => {
+  const user = userEvent.setup();
+  const save = vi.fn();
+  vi.mocked(fetchAutomationChats).mockResolvedValue({ ...choices, chats: [source, webTarget] });
+  const { rerender } = render(<NamedChats titles={{ "websocket:source": "日报", "websocket:target": "日报" }} onSave={save} />);
+  const control = await screen.findByRole("combobox", { name: "Run and reply in" });
+  await waitFor(() => expect(control).toBeEnabled());
+  expect(control).toHaveTextContent("日报 · @nime");
+  fireEvent.keyDown(control, { key: "ArrowDown" });
+  expect(await screen.findByRole("option", { name: /日报 · @nime/ })).toBeInTheDocument();
+  await user.click(screen.getByRole("option", { name: /日报 · @jeno/ }));
+  expect(screen.getByRole("combobox", { name: "Change to" })).toHaveTextContent("日报 · @jeno");
+  await user.click(screen.getByRole("button", { name: "Cancel" }));
+  rerender(<NamedChats titles={{}} onSave={save} />);
+  expect(screen.getByRole("combobox", { name: "Run and reply in" })).toHaveTextContent("My planning");
+  expect(save).not.toHaveBeenCalled();
 });

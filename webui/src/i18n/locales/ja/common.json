@@ -1524,7 +1524,7 @@
     "unpin": "ピン留めを解除",
     "rename": "名前を変更",
     "renameTitle": "トピック名を変更",
-    "renameDescription": "このトピックのサイドバー表示名を選択します。",
+    "renameDescription": "このトピックの WebUI での表示名を設定します。",
     "renamePlaceholder": "トピック名",
     "renameProjectTitle": "プロジェクト名を変更",
     "renameProjectDescription": "このプロジェクトのサイドバー表示名を選択します。",

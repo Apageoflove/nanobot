@@ -1524,7 +1524,7 @@
     "unpin": "Désépingler",
     "rename": "Renommer",
     "renameTitle": "Renommer le sujet",
-    "renameDescription": "Choisissez un nom local dans la barre latérale pour ce sujet.",
+    "renameDescription": "Choisissez le nom affiché pour ce sujet dans WebUI.",
     "renamePlaceholder": "Nom du sujet",
     "renameProjectTitle": "Renommer le projet",
     "renameProjectDescription": "Choisissez un nom local dans la barre latérale pour ce projet.",

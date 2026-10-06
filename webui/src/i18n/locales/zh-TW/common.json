@@ -1524,7 +1524,7 @@
     "unpin": "取消置頂",
     "rename": "重新命名",
     "renameTitle": "重新命名話題",
-    "renameDescription": "為這個話題選擇僅顯示於本機側邊欄的名稱。",
+    "renameDescription": "設定這個話題在 WebUI 中顯示的名稱。",
     "renamePlaceholder": "話題名稱",
     "renameProjectTitle": "重新命名專案",
     "renameProjectDescription": "為這個專案選擇僅顯示於本機側邊欄的名稱。",
