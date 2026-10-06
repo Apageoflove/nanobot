@@ -29,8 +29,9 @@ function ChatIdentity({ chat, title }: { chat: AutomationChat; title: string }) 
       {chat.channel === "websocket" ? <img src="/brand/nanobot_mark.svg" alt="" className="h-6 w-6" />
         : <span className="absolute left-0 top-0 origin-top-left scale-75"><ChannelLogo feature={feature} showBrandLogos={readLocalPreferences().brandLogos} /></span>}
     </span>
-    <span className="flex min-w-0 flex-wrap items-baseline gap-x-2 text-[13px] leading-5">
-      <span className="min-w-0 break-words">{title}</span><span className="text-[12px] text-muted-foreground">{platform}</span>
+    <span className="flex min-w-0 flex-col gap-0.5">
+      <span className="break-words text-sm leading-5 [overflow-wrap:anywhere]">{title}</span>
+      <span className="text-xs leading-4 text-muted-foreground">{platform}</span>
     </span>
   </span>;
 }
@@ -101,7 +102,8 @@ export function AutomationChatBinding({ job, token, chatNames, onSave, children 
       });
     }}>
     <SelectTrigger ref={review ? undefined : trigger} aria-label={tx(review ? "new" : "label")}
-      className="h-auto min-h-11 w-full py-2 [&>span:first-child]:min-w-0 [&>span:first-child]:flex-1 [&>span:first-child]:text-start">
+      aria-busy={!loadError && (!data || data.revision !== job.chat_binding_revision)}
+      className="h-auto min-h-14 w-full py-2 disabled:opacity-100 disabled:[&>svg]:opacity-40 [&>span:first-child]:min-w-0 [&>span:first-child]:flex-1 [&>span:first-child]:text-start">
       <SelectValue>{identity((review ? draft?.target : current) ?? fallback)}</SelectValue>
     </SelectTrigger>
     <SelectContent>
@@ -129,16 +131,18 @@ export function AutomationChatBinding({ job, token, chatNames, onSave, children 
   if (!draft) return children(<div className="space-y-2">
     <p className="text-[13px] font-medium">{tx("label")}</p>
     {picker(false)}
-    <p role={saved ? "status" : undefined} className="text-[12px] leading-5 text-muted-foreground">
-      {job.state.pending ? tx("busy") : saved ? tx("saved", { chat: chatTitle(saved.target) }) : tx("hint")}
-    </p>
-    {saved && current?.id === saved.target.id && data?.chats.some(chat => chat.id === saved.previous.id && !chat.unavailable) ? (
-      <Button variant="link" size="sm" className="h-11 justify-start whitespace-normal p-0 text-start text-[12px] sm:h-auto" disabled={pickerDisabled}
-        onClick={() => {
-          setError("");
-          setDraft({ target: saved.previous, previous: current, revision: data.revision, message: job.payload.message });
-        }}>{tx("changeBack", { chat: chatTitle(saved.previous) })}</Button>
-    ) : null}
+    <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+      <p role={saved ? "status" : undefined} className="text-[12px] leading-5 text-muted-foreground">
+        {job.state.pending ? tx("busy") : saved ? tx("saved", { chat: chatTitle(saved.target) }) : tx("hint")}
+      </p>
+      {saved && current?.id === saved.target.id && data?.chats.some(chat => chat.id === saved.previous.id && !chat.unavailable) ? (
+        <Button variant="link" size="sm" className="h-11 justify-start whitespace-normal p-0 text-start text-[12px] sm:h-auto" disabled={pickerDisabled}
+          onClick={() => {
+            setError("");
+            setDraft({ target: saved.previous, previous: current, revision: data.revision, message: job.payload.message });
+          }}>{tx("changeBack", { chat: chatTitle(saved.previous) })}</Button>
+      ) : null}
+    </div>
     {loadError ? <Button variant="link" size="sm" onClick={() => setReload(value => value + 1)}>{tx("retry")}</Button> : null}
     {data && data.chats.length <= (current ? 1 : 0) ? <p className="text-[12px] leading-5 text-muted-foreground">{tx("available")}</p> : null}
   </div>);
@@ -146,22 +150,24 @@ export function AutomationChatBinding({ job, token, chatNames, onSave, children 
     <DialogHeader className="shrink-0 px-6 pb-4 pr-12 pt-5 text-left">
       <DialogTitle ref={heading} tabIndex={-1} className="break-words text-lg font-medium leading-snug tracking-normal outline-none">{tx("change")}</DialogTitle>
     </DialogHeader>
-    <div className="min-h-0 space-y-4 overflow-y-auto overscroll-contain px-6">
-      <div className="space-y-2">
-        <div role="group" aria-label={tx("previous")} className="flex min-w-0 items-start gap-3 pb-1 text-muted-foreground">
-          <span className="shrink-0 text-[12px] leading-6">{tx("previous")}</span>
+    <div className="min-h-0 space-y-4 overflow-y-auto overscroll-contain px-6 [text-wrap:pretty]">
+      <div className="space-y-3">
+        <div role="group" aria-label={tx("previous")} className="flex min-w-0 items-center gap-3 pb-1 text-muted-foreground">
+          <span className="shrink-0 text-[12px]">{tx("previous")}</span>
           {identity(draft.previous)}
         </div>
-        <p className="text-[13px] font-medium">{tx("new")}</p>
-        {picker(true)}
+        <div className="space-y-2">
+          <p className="text-[13px] font-medium">{tx("new")}</p>
+          {picker(true)}
+        </div>
       </div>
       <div className="space-y-1">
         <p className="text-[13px] leading-5">{tx("effect")}</p>
         <p className="text-[12px] leading-5 text-muted-foreground">{tx("history")}</p>
       </div>
-      <div className="space-y-2">
+      <div className="space-y-2 rounded-2xl bg-muted/50 px-4 pb-4 pt-2">
         <div className="flex items-center justify-between gap-3">
-          <p className="text-[13px] font-medium">{tx("message")}</p>
+          <p className="text-[12px] text-muted-foreground">{tx("message")}</p>
           {!draft.editingMessage ? <Button variant="link" size="sm" disabled={saving}
             className="h-11 shrink-0 p-0 text-[12px] sm:h-9"
             onClick={() => setDraft({ ...draft, editingMessage: true })}>{tx("editInstructions")}</Button> : null}
@@ -176,9 +182,12 @@ export function AutomationChatBinding({ job, token, chatNames, onSave, children 
       <p className="text-[12px] leading-5 text-muted-foreground">{tx("review")}</p>
       {error || targetUnavailable ? <p role="alert" className="text-[12px] leading-5 text-destructive">{error || tx("unavailable")}</p> : null}
     </div>
-    <DialogFooter className="shrink-0 flex-row justify-end gap-2 px-6 pb-5 pt-3">
-      <Button variant="ghost" size="sm" disabled={saving} className="h-11 font-normal text-muted-foreground sm:h-9" onClick={back}>{t("settings.automations.cancel")}</Button>
-      <Button size="sm" className="h-11 sm:h-9" disabled={locked || targetUnavailable || !draft.message.trim()} aria-busy={saving} onClick={() => void save()}>{tx(saving ? "saving" : draft.editingMessage ? "saveAndChange" : "confirm")}</Button>
+    <DialogFooter className="mt-4 shrink-0 flex-row justify-end gap-2 border-t border-border/45 px-6 py-3">
+      <Button variant="ghost" size="sm" disabled={saving} className="h-auto min-h-11 min-w-0 whitespace-normal font-normal text-muted-foreground sm:min-h-9" onClick={back}>{t("settings.automations.cancel")}</Button>
+      <Button size="sm" className="grid h-auto min-h-11 min-w-0 whitespace-normal sm:min-h-9" disabled={locked || targetUnavailable || !draft.message.trim()} aria-busy={saving} onClick={() => void save()}>
+        <span className="col-start-1 row-start-1" aria-hidden={saving || undefined} style={saving ? { visibility: "hidden" } : undefined}>{tx(draft.editingMessage ? "saveAndChange" : "confirm")}</span>
+        <span className="col-start-1 row-start-1" aria-hidden={!saving || undefined} style={!saving ? { visibility: "hidden" } : undefined}>{tx("saving")}</span>
+      </Button>
     </DialogFooter>
   </>;
 }

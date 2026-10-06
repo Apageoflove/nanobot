@@ -236,9 +236,11 @@ it("uses live sidebar names through loading, review, save and change-back withou
   const titles = { "websocket:source": "推特大战场", "websocket:target": "产品讨论" };
   const { rerender } = render(<NamedChats titles={titles} onSave={save} />);
   expect(await screen.findByRole("combobox", { name: "Run and reply in" })).toHaveTextContent("推特大战场");
+  expect(screen.getByRole("combobox", { name: "Run and reply in" })).toHaveAttribute("aria-busy", "true");
   await act(async () => resolve({ ...choices, chats: [source, webTarget] }));
   const control = screen.getByRole("combobox", { name: "Run and reply in" });
   expect(control).toHaveTextContent("推特大战场");
+  expect(control).toHaveAttribute("aria-busy", "false");
   fireEvent.keyDown(control, { key: "ArrowDown" });
   expect(await screen.findByRole("option", { name: /推特大战场/ })).toBeInTheDocument();
   await user.click(screen.getByRole("option", { name: /产品讨论/ }));
