@@ -90,6 +90,43 @@ it("uses Chinese for the task menu and the change/cancel path", async () => {
   expect(save).not.toHaveBeenCalled();
 });
 
+it("keeps change-back available when another proposed change is cancelled", async () => {
+  const user = userEvent.setup();
+  const save = vi.fn().mockResolvedValue(undefined);
+  const { rerender } = render(<AutomationDetailDialog {...props} job={job} onChangeChat={save} />);
+  await choose();
+  vi.mocked(fetchAutomationChats).mockResolvedValue({ ...choices, current: target, revision: "rev-2" });
+  await user.click(screen.getByRole("button", { name: "Confirm change" }));
+  rerender(<AutomationDetailDialog {...props} job={{ ...job, chat_binding_revision: "rev-2" }} onChangeChat={save} />);
+  const changeBack = await screen.findByRole("button", { name: "Change back to “My planning”" });
+  await waitFor(() => expect(changeBack).toBeEnabled());
+  fireEvent.keyDown(screen.getByRole("combobox", { name: "Run and reply in" }), { key: "ArrowDown" });
+  await user.click(await screen.findByRole("option", { name: /My planning/ }));
+  await user.click(screen.getByRole("button", { name: "Cancel" }));
+  expect(screen.getByRole("combobox", { name: "Run and reply in" })).toHaveTextContent("Product team");
+  expect(screen.getByRole("button", { name: "Change back to “My planning”" })).toBeEnabled();
+  expect(save).toHaveBeenCalledTimes(1);
+});
+
+it("removes an obsolete save confirmation after another client changes the chat", async () => {
+  const user = userEvent.setup();
+  const save = vi.fn().mockResolvedValue(undefined);
+  const { rerender } = render(<AutomationDetailDialog {...props} job={job} onChangeChat={save} />);
+  await choose();
+  vi.mocked(fetchAutomationChats).mockResolvedValue({ ...choices, current: target, revision: "rev-2" });
+  await user.click(screen.getByRole("button", { name: "Confirm change" }));
+  rerender(<AutomationDetailDialog {...props} job={{ ...job, chat_binding_revision: "rev-2" }} onChangeChat={save} />);
+  expect(await screen.findByRole("status")).toHaveTextContent("Product team");
+
+  vi.mocked(fetchAutomationChats).mockResolvedValue({ ...choices, revision: "rev-3" });
+  rerender(<AutomationDetailDialog {...props} job={{ ...job, chat_binding_revision: "rev-3" }} onChangeChat={save} />);
+  await waitFor(() => expect(screen.getByRole("combobox", { name: "Run and reply in" })).toBeEnabled());
+  expect(screen.getByRole("combobox", { name: "Run and reply in" })).toHaveTextContent("My planning");
+  expect(screen.queryByRole("status")).not.toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: /Change back/ })).not.toBeInTheDocument();
+  expect(save).toHaveBeenCalledTimes(1);
+});
+
 it("cancels a chat change without saving the edited instructions", async () => {
   const user = userEvent.setup();
   const save = vi.fn();
