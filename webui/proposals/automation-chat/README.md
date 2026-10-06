@@ -22,6 +22,12 @@ separate result recipient. The confirmation shows the current and new chats,
 explains that old messages stay where they are, and lets the user update task
 instructions. The user must review instructions that name an old recipient.
 
+Cancel leaves the task unchanged. After saving, **Change back to** opens the same
+confirmation for the previous chat; it does not silently undo a saved change.
+The selector, confirmation, and saved status use the sidebar's display-name rule.
+Current user-defined names take precedence over older API titles. Duplicate names
+show a stable handle. All mutations still use the server-owned chat ID, not its name.
+
 ## Ownership and commit boundary
 
 - The gateway resolves existing session handles, titles, canonical reply routes,
@@ -53,7 +59,8 @@ No new execution path, agent-loop policy, dependencies, or separate CSS system
 are added. The dialog uses the existing Select, Dialog, Button, Textarea, channel
 logos, and DropdownMenu. The detail dialog owns the modal lock. Confirmation is
 explicit and progress stays local to that action. The page remains visible.
-The review keeps the selected chat and original chat name stable across refreshes.
+The review keeps the selected and original chat identities across refreshes.
+Their display names follow current sidebar names without changing either target.
 If refreshed choices omit the selected chat, its name remains visible and saving
 is disabled. The gateway still checks the route at save time.
 
