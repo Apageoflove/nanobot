@@ -71,6 +71,17 @@ files. Existing tasks that explicitly request this tool remain supported.
 For background checks that should stay quiet unless there is something useful to
 report, use heartbeat instead of a user-created scheduled automation.
 
+Repetition alone does not select heartbeat. "Every day at 8am, remind me to
+drink water" needs a cron schedule. "Keep an eye on open issues and tell me
+when one needs attention" can use heartbeat if the check time is flexible.
+Heartbeat does not guarantee a requested time or interval.
+
+An upgrade does not overwrite your workspace's `AGENTS.md` or convert existing
+heartbeat entries into cron jobs. The current scheduling rules are included in
+the system prompt. If an old workspace rule directs all recurring tasks to
+heartbeat, update that rule too. To correct an existing reminder, remove its old
+heartbeat entry and create the cron task once. Check the task list to avoid duplicates.
+
 ## Local Triggers
 
 Local triggers let a local script or external service send a message into a
@@ -150,9 +161,14 @@ name show an `@handle` to help you tell them apart.
 To change the chat:
 
 1. Select another chat from **Run and reply in**.
-2. Review the task instructions. Remove recipients you no longer want, but keep
-   any intended separate sends. Members of the new chat can see future task messages and results.
+2. Review the task instructions, which are read-only by default. If they need
+   changes, select **Edit instructions**. Remove recipients you no longer want,
+   but keep intended separate sends. Members of the new chat can see future task messages and results.
 3. Select **Confirm change**. Wait for the saved confirmation.
+
+If you edit the instructions, the button becomes **Save and change**. Both
+changes are saved together; nothing is saved when you select **Edit instructions**.
+To change the task name or schedule, use **Edit** in the task details instead.
 
 Select **Cancel** before saving to return to the task without changes. After a
 successful save, select **Change back to** to review a return to the previous

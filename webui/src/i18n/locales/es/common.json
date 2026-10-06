@@ -1197,6 +1197,9 @@
     "automations": {
       "chat": {
         "changeBack": "Volver a «{{chat}}»",
+        "editInstructions": "Editar instrucciones",
+        "editInstructionsHint": "Los cambios se guardan junto con el cambio de chat.",
+        "saveAndChange": "Guardar y cambiar",
         "conflict": "La tarea cambió en otro lugar. Se conserva el borrador. Abre la tarea de nuevo para revisar los ajustes.",
         "unavailable": "Este chat ya no está disponible con el mismo espacio de trabajo y modo de acceso. Elige otro chat.",
         "schedulerBusy": "Hay una tarea en ejecución o en cola. Espera a que termine e inténtalo de nuevo.",

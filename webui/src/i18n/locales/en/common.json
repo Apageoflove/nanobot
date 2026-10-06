@@ -1396,6 +1396,9 @@
     "automations": {
       "chat": {
         "changeBack": "Change back to “{{chat}}”",
+        "editInstructions": "Edit instructions",
+        "editInstructionsHint": "These edits are saved with the chat change.",
+        "saveAndChange": "Save and change",
         "conflict": "The task changed elsewhere. Your draft is kept. Reopen the task to review the latest settings.",
         "unavailable": "This chat is no longer available with the same workspace and access mode. Select another chat.",
         "schedulerBusy": "A task is running or queued. Wait for it to finish, then try again.",
