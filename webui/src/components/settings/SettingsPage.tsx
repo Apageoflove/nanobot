@@ -329,7 +329,7 @@ export function SettingsPage({
           />
         );
       case "about":
-        return <AboutSettings currentVersion={settings.version?.current} />;
+        return <AboutSettings settings={settings} />;
       case "appearance":
         return (
           <AppearanceSettings
