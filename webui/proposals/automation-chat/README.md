@@ -61,6 +61,15 @@ No new execution path, agent-loop policy, dependencies, or separate CSS system
 are added. The dialog uses the existing Select, Dialog, Button, Textarea, channel
 logos, and DropdownMenu. The detail dialog owns the modal lock. Confirmation is
 explicit and progress stays local to that action. The page remains visible.
+Chat names and platform labels use separate lines. Task instructions use the
+same quiet inset surface as other app dialogs. The confirmation and detail
+panel share their action spacing; narrow screens can wrap long action labels.
+While choices load, the known chat stays readable and the selector reports busy
+to assistive technology. Saving reserves space for both button labels and keeps
+the review visible until the host confirms. There is no optimistic route change
+or loading overlay. This applies the continuity principle from
+[The perfect app has no loading states](https://floriankiem.com/writing/the-perfect-app-has-no-loading-states)
+without treating cached choices as permission to change a route.
 The review keeps the selected and original chat identities across refreshes.
 Their display names follow current sidebar names without changing either target.
 If refreshed choices omit the selected chat, its name remains visible and saving
