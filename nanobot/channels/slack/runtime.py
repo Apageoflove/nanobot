@@ -892,5 +892,5 @@ class SlackChannel(BaseChannel):
             cells = (cells + [""] * len(headers))[: len(headers)]
             parts = [f"**{headers[i]}**: {cells[i]}" for i in range(len(headers)) if cells[i]]
             if parts:
-                rows.append(" · ".join(parts))
+                rows.append("; ".join(parts))
         return "\n".join(rows)

@@ -99,10 +99,10 @@ export function presentWebSearchAction(
   t: TFunction,
 ): string {
   const presentation = presentWebSearchQuery(query);
-  const queryTarget = [presentation.scope, presentation.query].filter(Boolean).join(" · ");
+  const queryTarget = [presentation.scope, presentation.query].filter(Boolean).join(": ");
   const key = status === "error" ? "searchFailed" : status === "running" ? "searching" : "searched";
   const searchTarget = target === "x"
-    ? (queryTarget ? `X · ${queryTarget}` : "X")
+    ? (queryTarget ? `X: ${queryTarget}` : "X")
     : queryTarget || t("message.agentActivity.web");
   return t(`message.agentActivity.${key}`, { target: searchTarget });
 }

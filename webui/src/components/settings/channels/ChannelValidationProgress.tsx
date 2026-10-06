@@ -108,7 +108,7 @@ export function ChannelValidationProgress({
   const presentation = channelUiPresentation(feature.name, feature.webui);
   const identity = validation?.identity?.name
     ? validation.identity.workspace
-      ? `${validation.identity.name} · ${validation.identity.workspace}`
+      ? `${validation.identity.name} (${validation.identity.workspace})`
       : validation.identity.name
     : presentation?.displayName ?? feature.display_name;
 

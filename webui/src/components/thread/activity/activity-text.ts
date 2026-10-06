@@ -65,7 +65,7 @@ export function summarizeShellCommand(command: string, t: TFunction): string {
   const firstPreview = truncateMiddle(firstLine, 92);
   return lines.length <= 1
     ? firstPreview
-    : `${firstPreview} · ${t("message.agentActivity.scriptLines", { count: lines.length })}`;
+    : `${firstPreview} (${t("message.agentActivity.scriptLines", { count: lines.length })})`;
 }
 
 function truncateMiddle(value: string, maxLength: number): string {

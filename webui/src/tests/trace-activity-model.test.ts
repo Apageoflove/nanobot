@@ -38,9 +38,9 @@ describe("trace activity semantics", () => {
   });
 
   it.each([
-    ["running", "Searching X · status test"],
-    ["done", "Searched X · status test"],
-    ["error", "Could not search X · status test"],
+    ["running", "Searching X: status test"],
+    ["done", "Searched X: status test"],
+    ["error", "Could not search X: status test"],
   ] as const)("identifies hosted X search activity for %s", (status, label) => {
     expect(describeTrace('x_search({"query":"status test"})', status).label).toBe(label);
   });
@@ -63,7 +63,7 @@ describe("trace activity semantics", () => {
     );
     expect(result).toMatchObject({
       label: "Ran command",
-      detail: "npm test · script, 3 lines",
+      detail: "npm test (script, 3 lines)",
     });
     expect(result.detail).not.toContain("second-secret-line");
   });
