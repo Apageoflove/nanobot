@@ -1195,6 +1195,7 @@
     },
     "automations": {
       "chat": {
+        "changeBack": "Kembali ke “{{chat}}”",
         "conflict": "Tugas diubah di tempat lain. Draf disimpan. Buka ulang tugas untuk memeriksa pengaturan terbaru.",
         "unavailable": "Chat ini tidak tersedia lagi dengan ruang kerja dan mode akses yang sama. Pilih chat lain.",
         "schedulerBusy": "Ada tugas berjalan atau mengantre. Tunggu hingga selesai, lalu coba lagi.",

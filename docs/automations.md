@@ -150,6 +150,11 @@ with the channel logo and name. To change it:
    any intended separate sends. Members of the new chat can see future task messages and results.
 3. Select **Confirm change**. Wait for the saved confirmation.
 
+Select **Cancel** before saving to return to the task without changes. After a
+successful save, select **Change back to** to review a return to the previous
+chat. You must confirm this change too. You can also select a previous chat from
+the list later. This changes future runs; it does not recall messages already sent.
+
 Future runs use the new chat's history and reply there by default. Previous
 messages stay in their original chat. Previous run results remain available.
 Changing the chat does not run the task, enable it, or change its schedule.

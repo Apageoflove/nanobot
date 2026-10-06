@@ -1209,6 +1209,7 @@
     },
     "automations": {
       "chat": {
+        "changeBack": "Voltar para “{{chat}}”",
         "conflict": "A tarefa foi alterada em outro lugar. O rascunho foi mantido. Abra a tarefa novamente para conferir os ajustes.",
         "unavailable": "Esta conversa não está mais disponível com o mesmo espaço de trabalho e modo de acesso. Escolha outra conversa.",
         "schedulerBusy": "Há uma tarefa em execução ou na fila. Aguarde a conclusão e tente novamente.",

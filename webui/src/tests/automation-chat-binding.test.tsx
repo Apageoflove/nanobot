@@ -3,6 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { AutomationDetailDialog } from "@/components/settings/system/AutomationsSettings";
 import { fetchAutomationChats } from "@/lib/api";
+import { setAppLanguage } from "@/i18n";
 import type { AutomationChatsPayload, SessionAutomationJob } from "@/lib/types";
 
 vi.mock("@/lib/api", () => ({ fetchAutomationChats: vi.fn() }));
@@ -53,6 +54,40 @@ it("keeps the original route until acknowledgement and saves the reviewed prompt
   await act(async () => refresh({ ...choices, current: target, revision: "rev-2" }));
   expect(screen.getByRole("combobox", { name: "Run and reply in" })).toHaveFocus();
   expect(props.onAction).not.toHaveBeenCalled();
+  await user.click(screen.getByRole("button", { name: "Change back to “My planning”" }));
+  expect(save).toHaveBeenCalledTimes(1);
+  expect(screen.getByRole("group", { name: "Now" })).toHaveTextContent("Product team");
+  expect(screen.getByRole("combobox", { name: "Change to" })).toHaveTextContent("My planning");
+  await user.click(screen.getByRole("button", { name: "Cancel" }));
+  expect(screen.getByRole("combobox", { name: "Run and reply in" })).toHaveTextContent("Product team");
+  await user.click(screen.getByRole("button", { name: "Change back to “My planning”" }));
+  await user.click(screen.getByRole("button", { name: "Confirm change" }));
+  expect(save.mock.calls[1]).toEqual([
+    expect.objectContaining({ chat_binding_revision: "rev-2" }),
+    { target_id: "source", revision: "rev-2", message: job.payload.message },
+  ]);
+  await act(async () => finish());
+});
+
+it("uses Chinese for the task menu and the change/cancel path", async () => {
+  await setAppLanguage("zh-CN");
+  const user = userEvent.setup();
+  const save = vi.fn();
+  render(<AutomationDetailDialog {...props} locale="zh-CN" job={job} onChangeChat={save} />);
+  await user.click(screen.getByRole("button", { name: "更多操作" }));
+  expect(screen.getByRole("menuitem", { name: "停用" })).toBeInTheDocument();
+  expect(screen.getByRole("menuitem", { name: "删除" })).toBeInTheDocument();
+  await user.keyboard("{Escape}");
+  const picker = screen.getByRole("combobox", { name: "运行与回复" });
+  await waitFor(() => expect(picker).toBeEnabled());
+  fireEvent.keyDown(picker, { key: "ArrowDown" });
+  await user.click(await screen.findByRole("option", { name: /Product team/ }));
+  expect(screen.getByRole("heading", { name: "更换聊天" })).toBeInTheDocument();
+  expect(screen.getByRole("button", { name: "确认并更换" })).toBeInTheDocument();
+  await user.click(screen.getByRole("button", { name: "取消" }));
+  expect(screen.getByRole("heading", { name: "Daily report" })).toBeInTheDocument();
+  expect(screen.getByRole("combobox", { name: "运行与回复" })).toHaveFocus();
+  expect(save).not.toHaveBeenCalled();
 });
 
 it("cancels a chat change without saving the edited instructions", async () => {
