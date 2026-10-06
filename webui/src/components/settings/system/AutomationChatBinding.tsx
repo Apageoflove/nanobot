@@ -45,7 +45,7 @@ export function AutomationChatBinding({ job, token, chatNames, onSave, children 
   const [data, setData] = useState<AutomationChatsPayload | null>(null);
   const [loadError, setLoadError] = useState(false);
   const [reload, setReload] = useState(0);
-  const [draft, setDraft] = useState<{ target: AutomationChat; previous: AutomationChat; revision: string; message: string } | null>(null);
+  const [draft, setDraft] = useState<{ target: AutomationChat; previous: AutomationChat; revision: string; message: string; editingMessage?: boolean } | null>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [saved, setSaved] = useState<{ target: AutomationChat; previous: AutomationChat } | null>(null);
@@ -159,16 +159,26 @@ export function AutomationChatBinding({ job, token, chatNames, onSave, children 
         <p className="text-[13px] leading-5">{tx("effect")}</p>
         <p className="text-[12px] leading-5 text-muted-foreground">{tx("history")}</p>
       </div>
-      <label className="block space-y-2"><span className="text-[13px] font-medium">{tx("message")}</span>
-        <Textarea rows={3} value={draft.message} disabled={saving} onChange={event => setDraft({ ...draft, message: event.target.value })}
-          className="min-h-20 resize-y text-base leading-6 sm:text-[13px] sm:leading-5" />
-      </label>
+      <div className="space-y-2">
+        <div className="flex items-center justify-between gap-3">
+          <p className="text-[13px] font-medium">{tx("message")}</p>
+          {!draft.editingMessage ? <Button variant="link" size="sm" disabled={saving}
+            className="h-11 shrink-0 p-0 text-[12px] sm:h-9"
+            onClick={() => setDraft({ ...draft, editingMessage: true })}>{tx("editInstructions")}</Button> : null}
+        </div>
+        {draft.editingMessage ? <>
+          <Textarea autoFocus aria-label={tx("message")} rows={3} value={draft.message} disabled={saving}
+            onChange={event => setDraft({ ...draft, message: event.target.value })}
+            className="min-h-20 resize-y text-base leading-6 sm:text-[13px] sm:leading-5" />
+          <p className="text-[12px] leading-5 text-muted-foreground">{tx("editInstructionsHint")}</p>
+        </> : <p className="whitespace-pre-wrap break-words text-[13px] leading-5 [overflow-wrap:anywhere]">{draft.message}</p>}
+      </div>
       <p className="text-[12px] leading-5 text-muted-foreground">{tx("review")}</p>
       {error || targetUnavailable ? <p role="alert" className="text-[12px] leading-5 text-destructive">{error || tx("unavailable")}</p> : null}
     </div>
     <DialogFooter className="shrink-0 flex-row justify-end gap-2 px-6 pb-5 pt-3">
       <Button variant="ghost" size="sm" disabled={saving} className="h-11 font-normal text-muted-foreground sm:h-9" onClick={back}>{t("settings.automations.cancel")}</Button>
-      <Button size="sm" className="h-11 sm:h-9" disabled={locked || targetUnavailable || !draft.message.trim()} aria-busy={saving} onClick={() => void save()}>{tx(saving ? "saving" : "confirm")}</Button>
+      <Button size="sm" className="h-11 sm:h-9" disabled={locked || targetUnavailable || !draft.message.trim()} aria-busy={saving} onClick={() => void save()}>{tx(saving ? "saving" : draft.editingMessage ? "saveAndChange" : "confirm")}</Button>
     </DialogFooter>
   </>;
 }

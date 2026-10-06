@@ -19,8 +19,10 @@ is pending, so the PR remains a draft.
 
 The detail panel has one control, **Run and reply in**. It does not offer a
 separate result recipient. The confirmation shows the current and new chats,
-explains that old messages stay where they are, and lets the user update task
-instructions. The user must review instructions that name an old recipient.
+explains that old messages stay where they are, and shows read-only task
+instructions. **Edit instructions** opens the text field only when needed, for
+example to remove an old recipient. **Save and change** then saves both changes
+together. Task name and schedule edits remain in the existing **Edit** dialog.
 
 Cancel leaves the task unchanged. After saving, **Change back to** opens the same
 confirmation for the previous chat; it does not silently undo a saved change.
@@ -93,8 +95,15 @@ chat. Explicit separate sends and attachments still use `message`. Existing
 instructions and recipients are not rewritten. The confirmation asks users to
 check recipients, not remove intended broadcasts.
 
+Scheduling uses the requested time and notification behavior, not repetition.
+The always-loaded tool contract distinguishes cron schedules from flexible,
+quiet heartbeat checks. Updated workspace templates and the cron skill use the
+same rule. Existing workspace files and heartbeat tasks are not rewritten;
+the user guide explains how to correct an old rule or an existing task.
+
 These instructions are static. No per-run tool list, schema, or system prompt is
-added. Updated tool descriptions can cause a cache miss after the upgrade.
+added. Updated tool descriptions and static scheduling rules can cause a cache
+miss after the upgrade.
 Task-specific instructions remain in the current user turn. Moving to another
 chat intentionally changes the history; cache reuse must not override that.
 

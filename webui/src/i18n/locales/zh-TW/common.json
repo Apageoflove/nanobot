@@ -1196,6 +1196,9 @@
     "automations": {
       "chat": {
         "changeBack": "改回「{{chat}}」",
+        "editInstructions": "修改說明",
+        "editInstructionsHint": "說明會與聊天更換一起儲存。",
+        "saveAndChange": "儲存並更換",
         "conflict": "任務已在別處修改，草稿已保留。請重新開啟任務，確認最新設定後再更換。",
         "unavailable": "這個聊天已無法使用，或工作目錄、權限已變更。請選擇其他聊天。",
         "schedulerBusy": "有任務正在執行或排隊。請等任務結束後再試。",
