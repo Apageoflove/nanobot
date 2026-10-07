@@ -980,6 +980,7 @@
       "endpointLabel": "Endpoint",
       "toolPreview": "Tools",
       "noToolsAvailable": "No tools available",
+      "loadingTools": "Loading tools…",
       "searchTools": "Search tools",
       "searchToolsPlaceholder": "Search tools",
       "selectedCount": "{{count}} enabled",

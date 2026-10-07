@@ -1005,6 +1005,7 @@
       "endpointLabel": "URL kết nối",
       "toolPreview": "Công cụ",
       "noToolsAvailable": "Không có công cụ khả dụng",
+      "loadingTools": "Đang tải công cụ…",
       "searchTools": "Tìm công cụ",
       "searchToolsPlaceholder": "Tìm công cụ",
       "selectedCount": "Đã bật {{count}}",

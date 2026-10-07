@@ -1005,6 +1005,7 @@
       "endpointLabel": "Endpoint",
       "toolPreview": "Alat",
       "noToolsAvailable": "Tidak ada alat yang tersedia",
+      "loadingTools": "Memuat alat…",
       "searchTools": "Cari alat",
       "searchToolsPlaceholder": "Cari alat",
       "selectedCount": "{{count}} aktif",

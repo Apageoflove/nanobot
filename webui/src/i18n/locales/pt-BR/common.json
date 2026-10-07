@@ -796,6 +796,7 @@
       "endpointLabel": "Endpoint",
       "toolPreview": "Ferramentas",
       "noToolsAvailable": "Nenhuma ferramenta disponível",
+      "loadingTools": "Carregando ferramentas…",
       "searchTools": "Buscar ferramentas",
       "searchToolsPlaceholder": "Buscar ferramentas",
       "selectedCount": "{{count}} ativadas",

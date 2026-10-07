@@ -1005,6 +1005,7 @@
       "endpointLabel": "URL",
       "toolPreview": "Outils",
       "noToolsAvailable": "Aucun outil disponible",
+      "loadingTools": "Chargement des outils…",
       "searchTools": "Rechercher des outils",
       "searchToolsPlaceholder": "Rechercher des outils",
       "selectedCount": "{{count}} activés",

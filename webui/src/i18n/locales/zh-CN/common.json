@@ -982,6 +982,7 @@
       "endpointLabel": "连接地址",
       "toolPreview": "工具",
       "noToolsAvailable": "没有可用工具",
+      "loadingTools": "正在加载工具…",
       "searchTools": "搜索工具",
       "searchToolsPlaceholder": "搜索工具",
       "selectedCount": "已启用 {{count}} 个",

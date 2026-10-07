@@ -1005,6 +1005,7 @@
       "endpointLabel": "엔드포인트",
       "toolPreview": "도구",
       "noToolsAvailable": "사용 가능한 도구가 없습니다",
+      "loadingTools": "도구 로딩 중…",
       "searchTools": "도구 검색",
       "searchToolsPlaceholder": "도구 검색",
       "selectedCount": "{{count}}개 활성화",

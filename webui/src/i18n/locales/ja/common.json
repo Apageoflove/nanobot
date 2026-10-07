@@ -1005,6 +1005,7 @@
       "endpointLabel": "エンドポイント",
       "toolPreview": "ツール",
       "noToolsAvailable": "利用可能なツールはありません",
+      "loadingTools": "ツールを読み込み中…",
       "searchTools": "ツールを検索",
       "searchToolsPlaceholder": "ツールを検索",
       "selectedCount": "{{count}} 件有効",

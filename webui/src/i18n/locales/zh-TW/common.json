@@ -1005,6 +1005,7 @@
       "endpointLabel": "端點",
       "toolPreview": "工具",
       "noToolsAvailable": "沒有可用工具",
+      "loadingTools": "正在載入工具…",
       "searchTools": "搜尋工具",
       "searchToolsPlaceholder": "搜尋工具",
       "selectedCount": "已啟用 {{count}} 個",
