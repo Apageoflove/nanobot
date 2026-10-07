@@ -1490,7 +1490,7 @@ describe("App layout", () => {
         screen.queryByRole("button", { name: "Open details for custom-skill" }),
       ).not.toBeInTheDocument();
     });
-    expect(screen.getByText("No matching skills.")).toBeInTheDocument();
+    expect(screen.getByText("No skills are available.")).toBeInTheDocument();
   });
 
   it("discovers and installs a skill from skills.sh", async () => {
