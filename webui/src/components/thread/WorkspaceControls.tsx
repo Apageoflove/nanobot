@@ -1,7 +1,7 @@
 import { FullAccessIcon, WorkspaceIcon, RestrictedAccessIcon } from "@/components/icons/product-icons";
 import type { HTMLAttributes, ReactElement } from "react";
 import { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { Check, FolderOpen, Search, Star } from "lucide-react";
+import { Check, Search, Star } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { ToggleButton } from "@/components/settings/ToggleButton";
 import { Button } from "@/components/ui/button";
@@ -11,7 +11,6 @@ import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogTrigger, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import type { WorkspaceScopePayload, ProjectDirectory, WorkspaceDirectoriesPayload, WorkspacesPayload } from "@/lib/types";
 import { createWorkspaceDirectoryCache } from "@/lib/workspace-directory-cache";
-import { getRuntimeHost } from "@/lib/runtime";
 import { cn } from "@/lib/utils";
 import { isAbsoluteWorkspacePath, projectNameFromPath, sameWorkspacePath, scopeWithAccessMode, workspacePathCompletionQuery, workspaceDirectoryPrefix, selectedProjectScope, type BrowseWorkspaceDirectories } from "@/lib/workspace";
 
@@ -135,7 +134,7 @@ function WorkspacePickerPath({ path }: { path: string }) {
   );
 }
 
-export function WorkspaceProjectPicker({ isHero, connected = false, disabled, scope, defaultScope, controls, error, onPickFolder, onLoadProjects, onResolveProject, onFavoriteProject, onBrowseDirectories, layoutAnchor, onChange }: {
+export function WorkspaceProjectPicker({ isHero, connected = false, disabled, scope, defaultScope, controls, error, onLoadProjects, onResolveProject, onFavoriteProject, onBrowseDirectories, layoutAnchor, onChange }: {
   layoutAnchor?: HTMLElement | null;
   isHero: boolean;
   connected?: boolean;
@@ -144,7 +143,6 @@ export function WorkspaceProjectPicker({ isHero, connected = false, disabled, sc
   defaultScope: WorkspaceScopePayload | null;
   controls: WorkspacesPayload["controls"] | null;
   error?: string | null;
-  onPickFolder?: () => Promise<string | null>;
   onResolveProject?: (path: string) => Promise<ProjectDirectory>;
   onLoadProjects?: () => Promise<WorkspacesPayload>;
   onFavoriteProject?: (path: string, pinned: boolean) => Promise<ProjectDirectory[]>;
@@ -188,7 +186,6 @@ export function WorkspaceProjectPicker({ isHero, connected = false, disabled, sc
   const visible = isHero && !!defaultScope && !!onChange && controls?.can_change_project !== false;
   const canBrowse = !!controls?.can_browse_directories && !!onBrowseDirectories;
   const directoryCache = useMemo(() => onBrowseDirectories ? createWorkspaceDirectoryCache(onBrowseDirectories) : null, [onBrowseDirectories, connected]);
-  const pickFolder = controls?.can_pick_folder ? getRuntimeHost().pickFolder ?? onPickFolder : undefined;
   const absoluteDraft = isAbsoluteWorkspacePath(pathDraft);
   const requestedPath = absoluteDraft ? pathDraft.trim() : basePath;
   const folderQuery = absoluteDraft ? "" : pathDraft.trim();
@@ -355,18 +352,6 @@ export function WorkspaceProjectPicker({ isHero, connected = false, disabled, sc
     } finally { setPickingFolder(false); }
   }, [applyProjectPath, controls?.can_resolve_project, onResolveProject]);
 
-  const pickNativeFolder = async () => {
-    if (!pickFolder || disabled) return;
-    const session = pickerSession.current;
-    setPickingFolder(true);
-    try {
-      const path = await pickFolder();
-      if (path && session === pickerSession.current) await chooseProject(path);
-    } catch (err) {
-      if (session === pickerSession.current) setPathError((err as Error).message);
-    } finally { setPickingFolder(false); }
-  };
-
   const favorites = catalog?.favorite_projects ?? [];
   const canFavorite = !!catalog?.controls.can_manage_favorites && !!onFavoriteProject;
   const isFavorite = (path: string) => favorites.some(item => sameWorkspacePath(item.path, path));
@@ -513,12 +498,9 @@ export function WorkspaceProjectPicker({ isHero, connected = false, disabled, sc
               </WorkspaceDirectoryColumn>)}
             </div>
           </div>
-          <div className="flex shrink-0 items-center justify-between gap-2 px-2 pt-1">
-            <div className="flex min-w-0 items-center gap-1">
-              {canBrowse && <label className="flex items-center gap-2 text-[12px] text-muted-foreground"><ToggleButton checked={showHidden} onChange={setShowHidden} label={t("workspace.picker.hidden")} />{t("workspace.picker.hidden")}</label>}
-              {pickFolder && <WorkspacePickerTooltip label={t("workspace.picker.native")}><Button type="button" variant="ghost" size="icon" aria-label={t("workspace.picker.native")} disabled={pickingFolder} onClick={() => void pickNativeFolder()}><FolderOpen className="h-4 w-4" /></Button></WorkspacePickerTooltip>}
-            </div>
-          </div>
+          {canBrowse && <div className="flex shrink-0 items-center gap-2 px-2 pt-1">
+            <label className="flex items-center gap-2 text-[12px] text-muted-foreground"><ToggleButton checked={showHidden} onChange={setShowHidden} label={t("workspace.picker.hidden")} />{t("workspace.picker.hidden")}</label>
+          </div>}
         </DialogContent>
       </Dialog>
       </TooltipProvider>
