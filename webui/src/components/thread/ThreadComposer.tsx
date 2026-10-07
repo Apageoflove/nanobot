@@ -243,7 +243,6 @@ interface ThreadComposerProps {
   workspaceControls?: WorkspacesPayload["controls"] | null;
   workspaceScopeDisabled?: boolean;
   workspaceError?: string | null;
-  onPickWorkspaceFolder?: () => Promise<string | null>;
   onFavoriteWorkspaceProject?: (path: string, pinned: boolean) => Promise<ProjectDirectory[]>;
   onResolveWorkspaceProject?: (path: string) => Promise<ProjectDirectory>;
   onLoadWorkspaceProjects?: () => Promise<WorkspacesPayload>;
@@ -970,7 +969,6 @@ export function ThreadComposer({
   workspaceControls = null,
   workspaceScopeDisabled = false,
   workspaceError = null,
-  onPickWorkspaceFolder,
   onLoadWorkspaceProjects,
   onResolveWorkspaceProject,
   onFavoriteWorkspaceProject,
@@ -2393,7 +2391,6 @@ export function ThreadComposer({
       defaultScope={workspaceDefaultScope}
       controls={workspaceControls}
       error={workspaceError}
-      onPickFolder={onPickWorkspaceFolder}
       onFavoriteProject={onFavoriteWorkspaceProject}
       onResolveProject={onResolveWorkspaceProject}
       onLoadProjects={onLoadWorkspaceProjects}

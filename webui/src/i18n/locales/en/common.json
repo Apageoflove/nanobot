@@ -2498,7 +2498,6 @@
       "search": "Enter a path or filter this folder…",
       "shortcuts": "Saved locations",
       "favoriteHint": "Use a folder’s star to add it here.",
-      "native": "Use system folder picker…",
       "loading": "Loading folders…",
       "truncated": "Showing 500 folders. Continue typing the path to narrow the list.",
       "hidden": "Show hidden folders",

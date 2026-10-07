@@ -1593,7 +1593,8 @@ describe("ThreadComposer", () => {
     expect(screen.getAllByRole("button", { name: "Switch working directory" })).toHaveLength(1);
   });
 
-  it("uses the native folder picker for project selection on native host", async () => {
+  it("browses and selects the connected host's project in one dialog on a native client", async () => {
+    const user = userEvent.setup();
     const onWorkspaceScopeChange = vi.fn();
     const pickFolder = vi.fn().mockResolvedValue("/Users/test/native-project");
     const defaultScope = {
@@ -1602,6 +1603,16 @@ describe("ThreadComposer", () => {
       access_mode: "full" as const,
       restrict_to_workspace: false,
     };
+    const project = { path: `${defaultScope.project_path}/project`, name: "project" };
+    const onBrowseWorkspaceDirectories = vi.fn((rawPath: string) => {
+      const path = rawPath.replace(/\/$/, "");
+      return Promise.resolve({
+        path, parent: path === defaultScope.project_path ? "/Users/test/.nanobot" : defaultScope.project_path,
+        entries: path === defaultScope.project_path ? [project] : [],
+        truncated: false, host: "dev-mac", platform: "Darwin",
+      });
+    });
+    const onResolveWorkspaceProject = vi.fn().mockResolvedValue(project);
     Object.defineProperty(window, "nanobotHost", {
       configurable: true,
       value: {
@@ -1624,41 +1635,41 @@ describe("ThreadComposer", () => {
           can_change_project: true,
           can_use_full_access: true,
           can_pick_folder: true,
+          can_browse_directories: true,
+          can_resolve_project: true,
         }}
+        onBrowseWorkspaceDirectories={onBrowseWorkspaceDirectories}
+        onResolveWorkspaceProject={onResolveWorkspaceProject}
         onWorkspaceScopeChange={onWorkspaceScopeChange}
       />,
     );
 
-    fireEvent.click(screen.getByRole("button", { name: "Switch working directory" }));
-
+    await user.click(screen.getByRole("button", { name: "Switch working directory" }));
     expect(screen.getByRole("dialog", { name: "Choose project" })).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Use system folder picker…" }));
-    await waitFor(() => expect(pickFolder).toHaveBeenCalled());
-    expect(screen.queryByRole("dialog", { name: "Choose project" })).not.toBeInTheDocument();
+    await user.click(await screen.findByRole("option", { name: project.path }));
+    await waitFor(() => expect(screen.getByRole("button", { name: "Select" })).toBeEnabled());
+    expect(onWorkspaceScopeChange).not.toHaveBeenCalled();
+    await user.click(screen.getByRole("button", { name: "Select" }));
+    await waitFor(() => expect(screen.queryByRole("dialog", { name: "Choose project" })).not.toBeInTheDocument());
+    expect(onResolveWorkspaceProject).toHaveBeenCalledWith(project.path);
+    expect(pickFolder).not.toHaveBeenCalled();
     expect(onWorkspaceScopeChange).toHaveBeenCalledWith(expect.objectContaining({
-      project_path: "/Users/test/native-project",
-      project_name: "native-project",
+      project_path: project.path,
+      project_name: project.name,
       access_mode: "full",
       restrict_to_workspace: false,
     }));
   });
 
-  it("does not use a native host picker when the gateway disallows folder picking", async () => {
+  it("selects a restricted project manually when the host lacks directory browsing", async () => {
     const user = userEvent.setup();
     const onWorkspaceScopeChange = vi.fn();
-    const pickFolder = vi.fn().mockResolvedValue("/Users/test/native-project");
-    const onPickWorkspaceFolder = vi.fn().mockResolvedValue("/srv/nas-project");
     const defaultScope = {
       project_path: "/srv/nanobot/workspace",
       project_name: "workspace",
       access_mode: "full" as const,
       restrict_to_workspace: false,
     };
-    Object.defineProperty(window, "nanobotHost", {
-      configurable: true,
-      value: { pickFolder },
-    });
-
     render(
       <ThreadComposer
         onSend={vi.fn()}
@@ -1671,7 +1682,6 @@ describe("ThreadComposer", () => {
           can_use_full_access: false,
           can_pick_folder: false,
         }}
-        onPickWorkspaceFolder={onPickWorkspaceFolder}
         onWorkspaceScopeChange={onWorkspaceScopeChange}
       />,
     );
@@ -1679,8 +1689,6 @@ describe("ThreadComposer", () => {
     await user.click(screen.getByRole("button", { name: "Switch working directory" }));
 
     expect(await screen.findByLabelText("Paste path")).toBeInTheDocument();
-    expect(pickFolder).not.toHaveBeenCalled();
-    expect(onPickWorkspaceFolder).not.toHaveBeenCalled();
 
     fireEvent.change(screen.getByLabelText("Paste path"), {
       target: { value: "/srv/nas-project" },
@@ -1694,48 +1702,7 @@ describe("ThreadComposer", () => {
     }));
   });
 
-  it("uses the gateway folder picker for a locally hosted WebUI", async () => {
-    const onWorkspaceScopeChange = vi.fn();
-    const pickFolder = vi.fn().mockResolvedValue("/Users/test/gateway-project");
-    const defaultScope = {
-      project_path: "/Users/test/.nanobot/workspace",
-      project_name: "workspace",
-      access_mode: "full" as const,
-      restrict_to_workspace: false,
-    };
-
-    render(
-      <ThreadComposer
-        onSend={vi.fn()}
-        placeholder="Ask anything..."
-        variant="hero"
-        workspaceScope={defaultScope}
-        workspaceDefaultScope={defaultScope}
-        workspaceControls={{
-          can_change_project: true,
-          can_use_full_access: true,
-          can_pick_folder: true,
-        }}
-        onPickWorkspaceFolder={pickFolder}
-        onWorkspaceScopeChange={onWorkspaceScopeChange}
-      />,
-    );
-
-    fireEvent.click(screen.getByRole("button", { name: "Switch working directory" }));
-
-    expect(screen.getByRole("dialog", { name: "Choose project" })).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Use system folder picker…" }));
-    await waitFor(() => expect(pickFolder).toHaveBeenCalled());
-    expect(screen.queryByLabelText("Paste path")).not.toBeInTheDocument();
-    expect(onWorkspaceScopeChange).toHaveBeenCalledWith(expect.objectContaining({
-      project_path: "/Users/test/gateway-project",
-      project_name: "gateway-project",
-      access_mode: "full",
-      restrict_to_workspace: false,
-    }));
-  });
-
-  it("uses the web path menu when no native host picker is available", async () => {
+  it("offers manual path entry when the host lacks directory browsing", async () => {
     const user = userEvent.setup();
     const defaultScope = {
       project_path: "/Users/test/.nanobot/workspace",
