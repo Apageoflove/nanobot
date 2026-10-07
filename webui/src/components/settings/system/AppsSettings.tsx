@@ -39,6 +39,7 @@ import {
   McpManagementDialog,
   type McpManagementTab,
 } from "@/components/settings/system/McpManagementDialog";
+import { ComputerUseIcon, CuaDriverOverview, CuaDriverSetupPanel, cuaDriverSetup } from "@/components/settings/system/CuaDriverSetupPanel";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -57,7 +58,9 @@ import type {
   CliAppsPayload,
   McpOAuthFlowPayload,
   McpPresetInfo,
+  McpPresetAction,
   McpPresetsPayload,
+  CuaDriverCheck,
 } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
@@ -168,7 +171,7 @@ export function AppsCatalogSettings({
   onQueryChange: (value: string) => void;
   onFilterChange: (value: AppsKindFilter) => void;
   onCliAction: (action: "install" | "update" | "uninstall" | "test", name: string) => void;
-  onMcpAction: (action: "enable" | "disable" | "remove" | "test" | "reconnect", name: string, values?: Record<string, string>) => void;
+  onMcpAction: (action: McpPresetAction, name: string, values?: Record<string, string>) => void;
   onMcpOAuthConnect: (name: string, reset?: boolean) => void;
   onMcpOAuthCancel: () => void;
   onMcpOAuthOpen: () => void;
@@ -202,10 +205,11 @@ export function AppsCatalogSettings({
     })),
   ]
     .filter((item) => {
-      if (normalizedQuery) return appsSearchText(item).includes(normalizedQuery);
+      if (normalizedQuery) return appsSearchText(item).includes(normalizedQuery)
+        || (item.kind === "mcp" && item.preset.name === "cua-driver" && t("cuaDriver.title").toLowerCase().includes(normalizedQuery));
       if (filter === "ready") return appsReady(item);
       if (filter === "cli") {
-        return item.kind === "cli" || item.preset.source === "agent-plugin";
+        return item.kind === "cli" || item.preset.source === "agent-plugin" || item.preset.category === "computer";
       }
       return item.kind === "mcp" && item.preset.source !== "agent-plugin";
     })
@@ -326,6 +330,9 @@ export function AppsCatalogSettings({
                 <McpAppsCatalogRow
                   key={item.id}
                   preset={item.preset}
+                  capabilities={mcpPresets?.capabilities}
+                  driverCheck={mcpPresets?.last_action?.driver_check}
+                  error={mcpError}
                   openConnection={setupName === item.preset.name}
                   onConnectionOpened={onSetupOpened}
                   values={mcpFieldValues[item.preset.name] ?? {}}
@@ -494,6 +501,9 @@ function McpAppsCatalogRow({
   openConnection = false,
   onConnectionOpened,
   preset,
+  capabilities,
+  driverCheck,
+  error,
   values,
   actionKey,
   oauthFlow,
@@ -515,6 +525,9 @@ function McpAppsCatalogRow({
   openConnection?: boolean;
   onConnectionOpened?: () => void;
   preset: McpPresetInfo;
+  capabilities: unknown;
+  driverCheck?: CuaDriverCheck;
+  error: string | null;
   values: Record<string, string>;
   actionKey: string | null;
   oauthFlow: McpOAuthFlowPayload | null;
@@ -525,7 +538,7 @@ function McpAppsCatalogRow({
   showBrandLogos: boolean;
   showTypeBadge: boolean;
   onFieldChange: (presetName: string, fieldName: string, value: string) => void;
-  onAction: (action: "enable" | "disable" | "remove" | "test" | "reconnect", name: string, values?: Record<string, string>) => void;
+  onAction: (action: McpPresetAction, name: string, values?: Record<string, string>) => void;
   onOAuthConnect: (name: string, reset?: boolean) => void;
   onOAuthCancel: () => void;
   onOAuthOpen: () => void;
@@ -544,6 +557,7 @@ function McpAppsCatalogRow({
     onConnectionOpened?.();
   }, [openConnection, onConnectionOpened]);
   const enableBusy = actionKey === `enable:${preset.name}`;
+  const installBusy = actionKey === `install:${preset.name}`;
   const disableBusy = actionKey === `disable:${preset.name}`;
   const removeBusy = actionKey === `remove:${preset.name}`;
   const testBusy = actionKey === `test:${preset.name}`;
@@ -551,7 +565,10 @@ function McpAppsCatalogRow({
   const toolsBusy = actionKey === `tools:${preset.name}`;
   const oauthBusy = actionKey === `oauth:${preset.name}`;
   const anotherOAuthBusy = Boolean(actionKey?.startsWith("oauth:")) && !oauthBusy;
-  const busy = enableBusy || disableBusy || removeBusy || testBusy || reconnectBusy || toolsBusy || oauthBusy;
+  const busy = installBusy || enableBusy || disableBusy || removeBusy || testBusy || reconnectBusy || toolsBusy || oauthBusy;
+  const managedDriver = preset.name === "cua-driver" && preset.source === "preset" && preset.driver_setup?.managed !== false;
+  const displayName = managedDriver ? t("cuaDriver.title") : preset.display_name;
+  const driverSetup = managedDriver ? cuaDriverSetup(preset.driver_setup, capabilities) : null;
   const agentPlugin = preset.source === "agent-plugin";
   const toggleable = preset.enabled !== undefined;
   const isOAuth = preset.auth === "oauth";
@@ -563,7 +580,15 @@ function McpAppsCatalogRow({
   const runtimeConnected = !toggleable && preset.runtime_status === "connected";
   const runtimeConnecting = !toggleable && preset.runtime_status === "connecting";
   const runtimeFailed = !toggleable && preset.installed && preset.runtime_status === "failed";
-  const statusLabel = toggleable
+  const driverPermissionsPending = managedDriver && preset.configured && driverSetup?.platform === "Darwin"
+    && (driverCheck?.accessibility !== true || driverCheck?.screen_recording !== true);
+  const statusLabel = managedDriver
+    ? driverPermissionsPending
+      ? t("cuaDriver.permissionPending")
+      : runtimeConnected
+      ? tx("connection.open", "Connected")
+      : t(preset.configured ? "cuaDriver.enabled" : driverSetup?.installed ? "cuaDriver.installed" : "cuaDriver.notInstalled")
+    : toggleable
     ? tx("settings.nanobotFeatures.enabled", "Enabled")
     : runtimeConnected
       ? tx("connection.open", "Connected")
@@ -606,7 +631,11 @@ function McpAppsCatalogRow({
         <McpPresetLogo preset={preset} showBrandLogos={showBrandLogos} />
         <div className="min-w-[8rem] flex-[1_1_8rem]">
           <div className="flex min-w-0 items-baseline gap-2">
-            <h3 className="truncate text-[14px] font-semibold leading-5 text-foreground">{preset.display_name}</h3>
+            <h3 className="min-w-0 text-[14px] font-semibold leading-5 text-foreground">
+              <button type="button" onClick={() => openManagement()} className="block max-w-full truncate rounded-compact text-left outline-none focus-visible:ring-2 focus-visible:ring-ring">
+                {displayName}
+              </button>
+            </h3>
             {showTypeBadge ? (
               <AppsTypeBadge>
                 {agentPlugin
@@ -630,7 +659,18 @@ function McpAppsCatalogRow({
           </p>
         </div>
         <div className="ml-auto flex shrink-0 items-center gap-1">
-          {oauthFlow ? (
+          {managedDriver ? (
+            <AppsActionButton
+              className="touch-target"
+              ariaLabel={t(preset.configured ? "settings.mcp.manageTitle" : driverSetup?.installed ? "settings.mcp.configure" : "cuaDriver.install", { name: displayName })}
+              visibleLabel={t(preset.configured ? "settings.mcp.manage" : driverSetup?.installed ? "settings.mcp.configure" : "cuaDriver.installAction")}
+              busy={busy}
+              tone={runtimeConnected ? "installed" : "default"}
+              onClick={() => openManagement("connection")}
+            >
+              {preset.configured ? <Check className="h-4 w-4" aria-hidden /> : <Plus className="h-4 w-4" aria-hidden />}
+            </AppsActionButton>
+          ) : oauthFlow ? (
             <>
               <AppsActionButton
                 ariaLabel={t("settings.mcp.connectingAccount", {
@@ -871,13 +911,19 @@ function McpAppsCatalogRow({
 
       {managementOpen ? (
         <McpManagementDialog
-          preset={preset}
+          preset={managedDriver ? { ...preset, display_name: displayName } : preset}
           values={values}
           actionKey={actionKey}
-          statusLabel={runtimeFailed ? failureStatusLabel : statusLabel}
-          statusTone={runtimeFailed ? "warning" : configuredInstalled ? "success" : "neutral"}
+          statusLabel={driverPermissionsPending ? statusLabel : runtimeFailed ? failureStatusLabel : statusLabel}
+          statusTone={driverPermissionsPending ? "neutral" : runtimeFailed ? "warning" : runtimeConnected || (toggleable && readyInstalled) ? "success" : "neutral"}
           tab={managementTab}
           icon={<McpPresetLogo preset={preset} showBrandLogos={showBrandLogos} compact />}
+          overviewContent={managedDriver ? <CuaDriverOverview docsUrl={preset.docs_url} /> : undefined}
+          setupLabel={managedDriver ? t(preset.configured ? "settings.mcp.manage" : driverSetup?.installed ? "settings.mcp.configure" : "cuaDriver.installAction") : undefined}
+          connectionPanel={managedDriver ? (
+            <CuaDriverSetupPanel preset={preset} capabilities={capabilities} actionKey={actionKey}
+              check={driverCheck} error={error} onAction={onAction} />
+          ) : undefined}
           onTabChange={setManagementTab}
           onOpenChange={setManagementOpen}
           onFieldChange={onFieldChange}
@@ -1354,6 +1400,12 @@ function McpPresetLogo({
     .slice(0, 2)
     .map((part) => part[0]?.toUpperCase())
     .join("") || preset.name.slice(0, 2).toUpperCase();
+
+  if (preset.name === "cua-driver" && preset.source === "preset") {
+    return <span className={cn("grid shrink-0 place-items-center", compact ? "h-10 w-10" : "h-9 w-9")}>
+      <ComputerUseIcon />
+    </span>;
+  }
 
   if ((showBrandLogos || packagedLogo) && logoUrl) {
     return (

@@ -10,6 +10,8 @@ from __future__ import annotations
 from typing import Literal, TypedDict, cast
 
 from nanobot import __version__
+from nanobot.apps.cua_driver import CAPABILITY as CUA_CAPABILITY
+from nanobot.apps.cua_driver import SETUP_CAPABILITY as CUA_SETUP_CAPABILITY
 
 WEBUI_PROTOCOL = 1
 CORE_CAPABILITY = "webui.core.v1"
@@ -29,7 +31,7 @@ def webui_contract() -> dict[str, object]:
         "version": __version__,
         "min_protocol": WEBUI_PROTOCOL,
         "max_protocol": WEBUI_PROTOCOL,
-        "capabilities": [CORE_CAPABILITY, SUBAGENT_CAPABILITY, SUBAGENT_EVENTS_CAPABILITY, SUBAGENT_HISTORY_CAPABILITY],
+        "capabilities": [CORE_CAPABILITY, SUBAGENT_CAPABILITY, SUBAGENT_EVENTS_CAPABILITY, SUBAGENT_HISTORY_CAPABILITY, CUA_CAPABILITY, CUA_SETUP_CAPABILITY],
     }
 
 

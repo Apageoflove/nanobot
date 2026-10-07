@@ -60,6 +60,60 @@ def _mutation_request(path: str, payload: dict[str, object]) -> SimpleNamespace:
 
 
 @pytest.mark.asyncio
+async def test_driver_install_is_authenticated_consented_and_separate_from_enable(tmp_path, monkeypatch):
+    from nanobot.apps.cua_driver import CAPABILITY, CuaDriver
+
+    config_path = tmp_path / "config.json"
+    config_path.write_text(json.dumps({"agents": {"defaults": {"workspace": str(tmp_path / "workspace")}}}))
+    install = AsyncMock()
+    monkeypatch.setattr(CuaDriver, "install", install)
+    path = "/api/settings/mcp-presets/install"
+    router = _router(config_path=config_path)
+    payload = {"name": "cua-driver", "consent": f"{CAPABILITY}:install"}
+    response = await _router(authorized=False, config_path=config_path).dispatch(None, _mutation_request(path, payload), path)
+    assert response.status_code == 401
+    response = await router.dispatch(None, SimpleNamespace(path=path, headers=Headers()), path)
+    assert response.status_code == 405
+    response = await router.dispatch(None, _mutation_request(path, {"name": "cua-driver"}), path)
+    assert response.status_code == 409
+    install.assert_not_awaited()
+    response = await router.dispatch(None, _mutation_request(path, payload), path)
+    assert response.status_code == 200
+    assert CAPABILITY in json.loads(response.body)["capabilities"]
+    assert "cua-driver" not in router.settings.config.load().tools.mcp_servers
+    enable_path = "/api/settings/mcp-presets/enable"
+    # A frozen old client sends only name; installing must not make that enough.
+    response = await router.dispatch(None, _mutation_request(enable_path, {"name": "cua-driver"}), enable_path)
+    assert response.status_code == 409
+    install.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_native_setup_is_authenticated_and_cannot_enable_access(tmp_path, monkeypatch):
+    from nanobot.apps.cua_driver import SETUP_CAPABILITY, CuaDriver
+
+    path = "/api/settings/mcp-presets/setup"
+    config_path = tmp_path / "config.json"
+    config_path.write_text(json.dumps({"agents": {"defaults": {"workspace": str(tmp_path / "workspace")}}}))
+    open_setup = AsyncMock()
+    monkeypatch.setattr(CuaDriver, "open_setup", open_setup)
+    payload = {"name": "cua-driver", "target": "finder"}
+    router = _router(config_path=config_path)
+    response = await _router(authorized=False, config_path=config_path).dispatch(None, _mutation_request(path, payload), path)
+    assert response.status_code == 401
+    response = await router.dispatch(None, SimpleNamespace(path=path, headers=Headers()), path)
+    assert response.status_code == 405
+    open_setup.assert_not_awaited()
+    response = await router.dispatch(None, _mutation_request(path, payload), path)
+    assert response.status_code == 200
+    assert SETUP_CAPABILITY in json.loads(response.body)["capabilities"]
+    open_setup.assert_awaited_once_with("finder")
+    assert "cua-driver" not in router.settings.config.load().tools.mcp_servers
+    response = await router.dispatch(None, _mutation_request(path, {"name": "other", "target": "finder"}), path)
+    assert response.status_code == 400
+
+
+@pytest.mark.asyncio
 async def test_close_releases_channel_connectors() -> None:
     router = _router()
     closed = False

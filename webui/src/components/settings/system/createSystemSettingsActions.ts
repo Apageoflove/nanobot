@@ -35,6 +35,7 @@ import type { NanobotClient } from "@/lib/nanobot-client";
 import type {
   AutomationUpdatePayload,
   McpOAuthFlowPayload,
+  McpPresetAction,
   McpPresetsPayload,
   NanobotFeatureInfo,
   SessionAutomationJob,
@@ -548,7 +549,7 @@ export function createSystemSettingsActions({
   };
 
   const handleMcpPresetAction = async (
-    action: "enable" | "disable" | "remove" | "test" | "reconnect",
+    action: McpPresetAction,
     name: string,
     values: Record<string, string> = {},
   ) => {
@@ -559,14 +560,14 @@ export function createSystemSettingsActions({
     try {
       const payload = await runMcpPresetAction(client, action, name, values);
       setMcpPresets(payload);
-      applyMcpActionFeedback(payload, action === "test");
+      applyMcpActionFeedback(payload, action === "test" && !(name === "cua-driver" && values.quiet === "true"));
       if (action !== "test") {
         notifyMcpPresetsChanged(payload);
       }
       if (payload.requires_restart) {
         setPendingRestartSections((prev) => ({ ...prev, runtime: true }));
       }
-      await maybeRestartHostEngine(payload);
+      if (name !== "cua-driver") await maybeRestartHostEngine(payload);
       if (action === "enable") {
         setMcpFieldValues((prev) => ({ ...prev, [name]: {} }));
       }

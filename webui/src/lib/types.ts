@@ -1158,7 +1158,28 @@ interface McpPresetField {
   env_var?: string | null;
 }
 
+export type McpPresetAction = "enable" | "disable" | "remove" | "test" | "reconnect" | "install" | "setup";
+
+export interface CuaDriverSetup {
+  schema: 1;
+  version: string;
+  platform: string;
+  machine: string;
+  supported: boolean;
+  installed: boolean;
+  managed: boolean;
+  mode: "observe" | "control" | "custom" | "off";
+}
+
+export interface CuaDriverCheck {
+  connected: boolean;
+  accessibility: boolean | null;
+  screen_recording: boolean | null;
+  capture_verified: boolean;
+}
+
 export interface McpPresetInfo {
+  driver_setup?: CuaDriverSetup;
   name: string;
   display_name: string;
   category: string;
@@ -1213,6 +1234,7 @@ export interface McpOAuthFlowPayload {
 }
 
 export interface McpPresetsPayload {
+  capabilities?: string[];
   presets: McpPresetInfo[];
   installed_count: number;
   requires_restart?: boolean;
@@ -1230,6 +1252,7 @@ export interface McpPresetsPayload {
     requires_restart?: boolean;
   };
   last_action?: {
+    driver_check?: CuaDriverCheck;
     ok: boolean;
     message: string;
     installed?: boolean;

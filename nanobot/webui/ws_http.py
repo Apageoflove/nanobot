@@ -225,6 +225,8 @@ _WEBUI_MUTATION_PATHS = {
     "settings.channel.configure": "/api/settings/channels/configure",
     "settings.pairing.approve": "/api/settings/pairing/approve",
     "settings.pairing.deny": "/api/settings/pairing/deny",
+    "settings.mcp.install": "/api/settings/mcp-presets/install",
+    "settings.mcp.setup": "/api/settings/mcp-presets/setup",
     "settings.mcp.enable": "/api/settings/mcp-presets/enable",
     "settings.mcp.disable": "/api/settings/mcp-presets/disable",
     "settings.mcp.remove": "/api/settings/mcp-presets/remove",

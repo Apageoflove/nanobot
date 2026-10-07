@@ -712,6 +712,26 @@ async def test_execute_notes_unstorable_image_block(tmp_path: Path) -> None:
 
 
 @pytest.mark.asyncio
+async def test_inline_image_error_stays_a_text_error(tmp_path: Path, monkeypatch) -> None:
+    monkeypatch.setattr("nanobot.utils.artifacts.get_media_dir", lambda: tmp_path)
+    session = SimpleNamespace(call_tool=AsyncMock(return_value=SimpleNamespace(
+        content=[_FakeTextContent("Target disappeared"), _FakeImageContent(_PNG_B64)],
+        isError=True,
+    )))
+    tool_def = SimpleNamespace(name="observe", description="observe", inputSchema={})
+    wrapper = MCPToolWrapper(session, "desktop", tool_def, image_output="inline")
+    registry = ToolRegistry()
+    registry.register(wrapper)
+
+    result = await registry.execute(wrapper.name, {})
+
+    assert is_tool_error_result(result)
+    assert "Target disappeared" in result
+    assert _PNG_B64 not in result
+    assert "artifacts" in result
+
+
+@pytest.mark.asyncio
 async def test_execute_returns_timeout_message() -> None:
     async def call_tool(_name: str, arguments: dict) -> object:
         await asyncio.sleep(1)

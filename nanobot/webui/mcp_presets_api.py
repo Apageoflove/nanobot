@@ -26,10 +26,13 @@ from nanobot.agent.tools.mcp_oauth import (
     mcp_oauth_has_credentials,
 )
 from nanobot.agent.tools.registry import ToolRegistry
+from nanobot.apps.cua_driver import CAPABILITY as CUA_CAPABILITY
+from nanobot.apps.cua_driver import SETUP_CAPABILITY as CUA_SETUP_CAPABILITY
+from nanobot.apps.cua_driver import CuaDriver, DriverError
 from nanobot.apps.protocol import app_manifest, compact_dict
 from nanobot.config.loader import load_config, resolve_config_env_vars, save_config
-from nanobot.config.paths import get_runtime_subdir
-from nanobot.config.schema import MCPServerConfig
+from nanobot.config.paths import get_config_path, get_runtime_subdir
+from nanobot.config.schema import Config, MCPServerConfig
 from nanobot.utils.helpers import ensure_dir
 
 QueryParams = dict[str, list[str]]
@@ -107,6 +110,14 @@ def _favicon_url(domain: str) -> str:
 
 
 MCP_PRESETS: tuple[McpPreset, ...] = (
+    McpPreset(
+        name="cua-driver", display_name="Cua Driver", category="computer",
+        description="Observe and operate the gateway computer through a locally installed desktop driver.",
+        docs_url="https://cua.ai/docs/cua-driver/quickstart", transport="stdio",
+        install_supported=True, brand_domain="cua.ai", brand_color="#64748B",
+        requires="A graphical desktop and a vision-capable model",
+        note="Install on the gateway computer. OS permissions require your confirmation.",
+    ),
     McpPreset(
         name="browserbase",
         display_name="Browserbase",
@@ -954,11 +965,24 @@ def mcp_presets_payload(
 ) -> dict[str, Any]:
     config = load_config(config_path) if config_path is not None else load_config()
     known = _known_preset_names()
-    preset_rows = [
+    preset_rows: list[dict[str, Any]] = [
         _preset_payload(preset, config.tools.mcp_servers)
         | ({"tool_names": tool_preview.get(preset.name, [])} if tool_preview and preset.name in tool_preview else {})
         for preset in MCP_PRESETS
     ]
+    driver = CuaDriver(config_path or get_config_path())
+    for row in preset_rows:
+        if row["name"] == "cua-driver":
+            row["driver_setup"] = driver.info(config.tools.mcp_servers.get("cua-driver"))
+            row["logo_url"] = None
+            row["manifest"]["install"] = {
+                "supported": driver.release is not None, "strategy": "verified-driver",
+                "confirmation_required": True, "verification": ["sha256", "platform_package"],
+            }
+            row["manifest"]["remove"] = {
+                "supported": True, "strategy": "disable", "verification": ["config_absent"],
+                "note": "Disables tools; retains the downloaded package and OS permissions.",
+            }
     custom_rows = [
         _custom_payload(name, cfg, tool_names=(tool_preview or {}).get(name))
         for name, cfg in sorted(config.tools.mcp_servers.items())
@@ -971,6 +995,7 @@ def mcp_presets_payload(
         if f"plugin-{plugin.name}" not in existing_names
     ]
     payload: dict[str, Any] = {
+        "capabilities": [CUA_CAPABILITY, CUA_SETUP_CAPABILITY],
         "presets": [*preset_rows, *custom_rows, *plugin_rows],
         "installed_count": len(config.tools.mcp_servers)
         + sum(int(row["enabled"]) for row in plugin_rows),
@@ -1384,6 +1409,12 @@ def _mcp_server_config(name: str, raw: Any) -> tuple[str, MCPServerConfig]:
     headers_value: object = server.get("headers") or {}
     cwd = str(server.get("cwd") or "").strip()
     enabled_tools_value: object = server.get("enabledTools", server.get("enabled_tools", ["*"]))
+    image_output = server.get("imageOutput", server.get("image_output", "artifact"))
+    retry_tool_calls = server.get("retryToolCalls", server.get("retry_tool_calls", True))
+    if image_output not in ("artifact", "inline"):
+        raise McpPresetError("imageOutput must be artifact or inline")
+    if not isinstance(retry_tool_calls, bool):
+        raise McpPresetError("retryToolCalls must be a boolean")
     tool_timeout: object = server.get("toolTimeout", server.get("tool_timeout", _DEFAULT_CUSTOM_TIMEOUT))
     try:
         timeout_int = max(5, min(int(cast(Any, tool_timeout)), 600))
@@ -1427,6 +1458,8 @@ def _mcp_server_config(name: str, raw: Any) -> tuple[str, MCPServerConfig]:
         url=url if transport in {"sse", "streamableHttp"} else "",
         headers=typed_headers,
         tool_timeout=timeout_int,
+        image_output=image_output,
+        retry_tool_calls=retry_tool_calls,
         enabled_tools=cast(list[str], enabled_tools_value),
     )
 
@@ -1468,7 +1501,12 @@ def custom_mcp_action(
     config = load_config(config_path) if config_path is not None else load_config()
     if action == "custom":
         name, cfg = _custom_server_from_query(query)
-        delete_credentials = _oauth_credentials_replaced(config.tools.mcp_servers.get(name), cfg)
+        previous = config.tools.mcp_servers.get(name)
+        if previous is not None:
+            # The connection form does not expose these advanced JSON settings.
+            cfg.image_output = previous.image_output
+            cfg.retry_tool_calls = previous.retry_tool_calls
+        delete_credentials = _oauth_credentials_replaced(previous, cfg)
         config.tools.mcp_servers[name] = cfg
         save_config(config, config_path)
         if delete_credentials:
@@ -1549,6 +1587,8 @@ def mcp_presets_action(
     name = (_query_first(query, "name") or "").strip()
     if not name:
         raise McpPresetError("missing MCP preset name")
+    if name == "cua-driver" and action != "remove":
+        raise McpPresetError("Cua Driver requires its explicit installation and desktop-access setup flow.")
     preset = _preset_by_name_optional(name)
 
     config = load_config(config_path) if config_path is not None else load_config()
@@ -1645,6 +1685,15 @@ async def mcp_presets_settings_action(
             config_path=config_path,
         )
     name = (_query_first(query, "name") or "").strip()
+    if name == "cua-driver":
+        saved_config = load_config(config_path)
+        saved_driver = saved_config.tools.mcp_servers.get(name)
+        managed_driver = saved_driver is None or CuaDriver(config_path or get_config_path()).owns(saved_driver)
+        if managed_driver or action in {"enable", "install", "disable", "setup"}:
+            return await _cua_driver_action(action, query, config=config, reload_mcp=reload_mcp,
+                                            mcp_runtime_status=mcp_runtime_status)
+    if action == "setup":
+        raise McpPresetError("Native setup is only supported for managed Cua Driver.", 400)
     if name.startswith("plugin-"):
         plugin_config = load_config(config_path) if config_path is not None else load_config()
         plugin_name = name.removeprefix("plugin-")
@@ -1695,3 +1744,80 @@ async def mcp_presets_settings_action(
         payload,
         mcp_runtime_status() if mcp_runtime_status is not None else None,
     )
+
+
+async def _cua_driver_action(
+    action: str, query: QueryParams, *, config: WebUISettingsConfig | None,
+    reload_mcp: McpReload | None, mcp_runtime_status: McpRuntimeStatus | None,
+) -> dict[str, Any]:
+    """Own installer consent and configuration; do not expose native setup to the agent."""
+    from nanobot.webui.settings_services import WebUISettingsConfig
+
+    settings = config or WebUISettingsConfig(get_config_path())
+    driver = CuaDriver(settings.path)
+    existing = settings.load().tools.mcp_servers.get("cua-driver")
+    if existing is not None and not driver.owns(existing):
+        raise McpPresetError("This Cua Driver connection is managed manually. Its configuration has not been changed.", 409)
+    check = None
+    changed = action in {"enable", "disable", "remove"}
+    try:
+        if action == "install":
+            if _query_first(query, "consent") != f"{CUA_CAPABILITY}:install":
+                raise McpPresetError("Confirm the driver download and installation on the gateway computer first.", 409)
+            await driver.install()
+            message = "Cua Driver installed and verified. Desktop access is still disabled."
+        elif action == "enable":
+            mode = _query_first(query, "mode") or ""
+            if _query_first(query, "consent") != f"{CUA_CAPABILITY}:{mode}":
+                raise McpPresetError("Confirm desktop access on the gateway computer before enabling Cua Driver.", 409)
+            server = driver.configuration(mode)
+
+            def enable(current: Config) -> None:
+                saved = current.tools.mcp_servers.get("cua-driver")
+                if saved is not None and not driver.owns(saved):
+                    raise McpPresetError("The Cua Driver configuration changed. Refresh before continuing.", 409)
+                current.tools.mcp_servers["cua-driver"] = server
+
+            await asyncio.to_thread(settings.update, enable)
+            message = "Cua Driver enabled. Complete OS permissions on the gateway computer, then check the connection."
+        elif action in {"disable", "remove"}:
+            def disable(current: Config) -> None:
+                saved = current.tools.mcp_servers.get("cua-driver")
+                if saved is not None and not driver.owns(saved):
+                    raise McpPresetError("The Cua Driver configuration changed. Refresh before continuing.", 409)
+                current.tools.mcp_servers.pop("cua-driver", None)
+
+            await asyncio.to_thread(settings.update, disable)
+            message = "Desktop tools disabled. The installed driver and OS permissions are retained."
+        elif action == "test":
+            if existing is None:
+                raise McpPresetError("Enable Cua Driver before checking the connection.", 409)
+            check = await driver.check()
+            message = "Connection checked. This check does not capture your screen or verify model vision."
+            # An initial MCP connection can fail while the signed app is waiting
+            # for OS grants. Reconnect once the read-only probe confirms them.
+            if (check["connected"] and check["accessibility"] is True
+                    and check["screen_recording"] is True and mcp_runtime_status is not None
+                    and mcp_runtime_status().get("cua-driver") == "failed"):
+                changed = True
+        elif action == "setup":
+            await driver.open_setup(_query_first(query, "target") or "")
+            message = "Opened setup on the gateway computer. No permissions were granted."
+        else:
+            raise McpPresetError("This action is not supported by managed Cua Driver.", 400)
+        payload = mcp_presets_payload(
+            config_path=settings.path, last_action={"ok": True, "message": message},
+        )
+        if check is not None:
+            payload["last_action"]["driver_check"] = check
+        if changed:
+            payload["requires_restart"] = True
+            if reload_mcp is not None:
+                payload = attach_mcp_hot_reload_result(payload, await reload_mcp())
+            if action in {"disable", "remove"}:
+                await driver.stop()
+        return attach_mcp_runtime_status(
+            payload, mcp_runtime_status() if mcp_runtime_status is not None else None,
+        )
+    except DriverError as exc:
+        raise McpPresetError(exc.message, exc.status) from exc
