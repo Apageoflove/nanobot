@@ -2282,11 +2282,6 @@
     }
   },
   "workspace": {
-    "dialog": {
-      "defaultProject": "Không gian làm việc mặc định",
-      "manual": "Dán đường dẫn",
-      "absolutePathRequired": "Nhập đường dẫn thư mục tuyệt đối trên máy này."
-    },
     "picker": {
       "favorites": "Yêu thích",
       "recent": "Dự án gần đây",

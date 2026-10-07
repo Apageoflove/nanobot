@@ -294,7 +294,7 @@ or a result you must retain.
 Use the workspace picker to browse folders on the connected nanobot host, enter
 an absolute path, or return to recent and starred projects; favorites persist
 across gateway restarts. Tab completes paths and Shift+wheel scrolls directory
-columns. Hosts without browsing support accept manual paths in the same dialog.
+columns.
 Project paths refer to the gateway machine, not the browser's filesystem.
 
 Selecting a project does not replace the configured agent workspace. The two

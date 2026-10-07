@@ -53,16 +53,6 @@ const HOST_WS_CONNECTING = 0;
 const HOST_WS_OPEN = 1;
 const HOST_WS_CLOSING = 2;
 const HOST_WS_CLOSED = 3;
-const LOOPBACK_HOST_PORT_PARAM = "nativeHostPort";
-const LOOPBACK_HOST_TOKEN_PARAM = "nativeHostToken";
-const LOOPBACK_HOST_STORAGE_KEY = "nanobot-webui.native-host";
-
-interface LoopbackHostConfig {
-  port: number;
-  token: string;
-}
-
-let hasLoopbackNativeHost = false;
 
 declare global {
   interface Window {
@@ -73,20 +63,6 @@ declare global {
 function getHostApi(): NanobotHostApi | null {
   if (typeof window === "undefined") return null;
   return window.nanobotHost ?? null;
-}
-
-/**
- * Recognize the external native host advertised in the URL fragment.
- *
- * Consume the existing loopback bootstrap parameters so native UI behavior
- * survives refresh. The bridge token is removed from the URL and retained
- * only for the lifetime of this browser tab.
- */
-export function initializeLoopbackRuntimeHost(): boolean {
-  if (typeof window === "undefined") return false;
-  const config = consumeLoopbackHostConfig() ?? loadLoopbackHostConfig();
-  hasLoopbackNativeHost = config !== null;
-  return hasLoopbackNativeHost;
 }
 
 export function toRuntimeSurface(surface: string | null | undefined): RuntimeSurface {
@@ -101,7 +77,6 @@ export function createRuntimeHost(
   const mergedCapabilities = {
     can_export_diagnostics: false,
     can_open_logs: false,
-    can_pick_folder: false,
     can_restart_engine: false,
     ...(capabilities ?? {}),
   };
@@ -126,7 +101,7 @@ export function getRuntimeHost(
 }
 
 export function isNativeRuntime(surface?: string | null): boolean {
-  return getHostApi() !== null || hasLoopbackNativeHost || toRuntimeSurface(surface) === "native";
+  return getHostApi() !== null || toRuntimeSurface(surface) === "native";
 }
 
 export function createHostWebSocket(url: string): WebSocket {
@@ -154,63 +129,6 @@ function getHostSocketBridge(): HostSocketBridge | null {
     openSocket: (url) => openSocket.call(api, url),
     sendSocket: (id, data) => sendSocket.call(api, id, data),
   };
-}
-
-function consumeLoopbackHostConfig(): LoopbackHostConfig | null {
-  const hash = window.location.hash || "";
-  const queryStart = hash.indexOf("?");
-  if (queryStart < 0) return null;
-
-  const path = hash.slice(0, queryStart) || "#/";
-  const params = new URLSearchParams(hash.slice(queryStart + 1));
-  const hasBridgeParams = params.has(LOOPBACK_HOST_PORT_PARAM)
-    || params.has(LOOPBACK_HOST_TOKEN_PARAM);
-  if (!hasBridgeParams) return null;
-
-  const config = validateLoopbackHostConfig({
-    port: Number(params.get(LOOPBACK_HOST_PORT_PARAM)),
-    token: params.get(LOOPBACK_HOST_TOKEN_PARAM) ?? "",
-  });
-  params.delete(LOOPBACK_HOST_PORT_PARAM);
-  params.delete(LOOPBACK_HOST_TOKEN_PARAM);
-  const nextQuery = params.toString();
-  const nextHash = `${path}${nextQuery ? `?${nextQuery}` : ""}`;
-  window.history.replaceState(
-    null,
-    "",
-    `${window.location.pathname}${window.location.search}${nextHash}`,
-  );
-
-  try {
-    if (config) {
-      window.sessionStorage.setItem(LOOPBACK_HOST_STORAGE_KEY, JSON.stringify(config));
-    } else {
-      window.sessionStorage.removeItem(LOOPBACK_HOST_STORAGE_KEY);
-    }
-  } catch {
-    // The current page can still use the bridge when session storage is unavailable.
-  }
-  return config;
-}
-
-function loadLoopbackHostConfig(): LoopbackHostConfig | null {
-  try {
-    const raw = window.sessionStorage.getItem(LOOPBACK_HOST_STORAGE_KEY);
-    if (!raw) return null;
-    return validateLoopbackHostConfig(JSON.parse(raw) as Partial<LoopbackHostConfig>);
-  } catch {
-    return null;
-  }
-}
-
-function validateLoopbackHostConfig(
-  value: Partial<LoopbackHostConfig>,
-): LoopbackHostConfig | null {
-  const port = Number(value.port);
-  const token = typeof value.token === "string" ? value.token : "";
-  if (!Number.isInteger(port) || port < 1 || port > 65_535) return null;
-  if (!/^[A-Za-z0-9_-]{32,128}$/.test(token)) return null;
-  return { port, token };
 }
 
 class HostWebSocket {

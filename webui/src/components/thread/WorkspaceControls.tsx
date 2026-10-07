@@ -30,8 +30,7 @@ function WorkspaceFavoriteButton({ path, pinned, busy, onToggle }: {
   );
 }
 
-type PickerOption = ProjectDirectory & { kind: "directory" | "manual" };
-type PickerColumn = { path: string; options: PickerOption[]; selectedPath: string | null; hidden: boolean };
+type PickerColumn = { path: string; options: ProjectDirectory[]; selectedPath: string | null; hidden: boolean };
 
 function WorkspacePickerTooltip({ label, children }: { label: string; children: ReactElement }) {
   return (
@@ -46,9 +45,9 @@ const DIRECTORY_ROW_HEIGHT = 44;
 const DIRECTORY_OVERSCAN = 4;
 
 function WorkspaceDirectoryColumn({ options, activeIndex, renderOption, children, ...props }: {
-  options: PickerOption[];
+  options: ProjectDirectory[];
   activeIndex: number | null;
-  renderOption: (option: PickerOption, index: number) => ReactElement;
+  renderOption: (option: ProjectDirectory, index: number) => ReactElement;
 } & HTMLAttributes<HTMLDivElement>) {
   const viewportRef = useRef<HTMLDivElement>(null);
   const [firstRow, setFirstRow] = useState(0);
@@ -84,7 +83,7 @@ function WorkspaceDirectoryColumn({ options, activeIndex, renderOption, children
       <div role="presentation" className="relative" style={{ height: options.length * DIRECTORY_ROW_HEIGHT }}>
         {options.slice(start, end).map((option, offset) => {
           const index = start + offset;
-          return <div key={`${option.kind}-${option.path}`} role="presentation" className="absolute inset-x-0" style={{ top: index * DIRECTORY_ROW_HEIGHT }}>
+          return <div key={option.path} role="presentation" className="absolute inset-x-0" style={{ top: index * DIRECTORY_ROW_HEIGHT }}>
             {renderOption(option, index)}
           </div>;
         })}
@@ -142,10 +141,10 @@ export function WorkspaceProjectPicker({ isHero, disabled, scope, defaultScope, 
   defaultScope: WorkspaceScopePayload | null;
   controls: WorkspacesPayload["controls"] | null;
   error?: string | null;
-  onResolveProject?: (path: string) => Promise<ProjectDirectory>;
-  onLoadProjects?: () => Promise<WorkspacesPayload>;
-  onFavoriteProject?: (path: string, pinned: boolean) => Promise<ProjectDirectory[]>;
-  onBrowseDirectories?: BrowseWorkspaceDirectories;
+  onResolveProject: (path: string) => Promise<ProjectDirectory>;
+  onLoadProjects: () => Promise<WorkspacesPayload>;
+  onFavoriteProject: (path: string, pinned: boolean) => Promise<ProjectDirectory[]>;
+  onBrowseDirectories: BrowseWorkspaceDirectories;
   onChange?: (scope: WorkspaceScopePayload) => void;
 }) {
   const { t } = useTranslation();
@@ -183,8 +182,7 @@ export function WorkspaceProjectPicker({ isHero, disabled, scope, defaultScope, 
   const displayedScope = scope ?? defaultScope;
   const projectLabel = displayedScope ? displayedScope.project_name || projectNameFromPath(displayedScope.project_path) : "";
   const visible = isHero && !!defaultScope && !!onChange && controls?.can_change_project !== false;
-  const canBrowse = !!controls?.can_browse_directories && !!onBrowseDirectories;
-  const directoryCache = useMemo(() => onBrowseDirectories ? createWorkspaceDirectoryCache(onBrowseDirectories) : null, [onBrowseDirectories]);
+  const directoryCache = useMemo(() => createWorkspaceDirectoryCache(onBrowseDirectories), [onBrowseDirectories]);
   const absoluteDraft = isAbsoluteWorkspacePath(pathDraft);
   const requestedPath = absoluteDraft ? pathDraft.trim() : basePath;
   const folderQuery = absoluteDraft ? "" : pathDraft.trim();
@@ -197,15 +195,15 @@ export function WorkspaceProjectPicker({ isHero, disabled, scope, defaultScope, 
     setActiveColumn(0);
     setHighlightActive(false);
     const initialPath = scope?.project_path ?? defaultScope?.project_path ?? "";
-    setPathDraft(canBrowse ? workspaceDirectoryPrefix(initialPath) : currentProjectScope?.project_path ?? "");
+    setPathDraft(workspaceDirectoryPrefix(initialPath));
     setBasePath(initialPath);
     setDirectory(null);
     setActiveIndex(0);
     setPathError(null);
-  }, [scope?.project_path, defaultScope?.project_path, open, canBrowse]);
+  }, [scope?.project_path, defaultScope?.project_path, open]);
 
   useEffect(() => {
-    if (!open || !onLoadProjects) return;
+    if (!open) return;
     let active = true;
     setCatalog(null);
     onLoadProjects().then(payload => { if (active) setCatalog(payload); }).catch((err: Error) => { if (active) setPathError(err.message); });
@@ -213,7 +211,7 @@ export function WorkspaceProjectPicker({ isHero, disabled, scope, defaultScope, 
   }, [onLoadProjects, open]);
 
   useEffect(() => {
-    if (!open || !canBrowse || !directoryCache) return;
+    if (!open) return;
     let active = true;
     const apply = (result: WorkspaceDirectoriesPayload) => {
       if (!active) return;
@@ -232,7 +230,7 @@ export function WorkspaceProjectPicker({ isHero, disabled, scope, defaultScope, 
       });
     }, typing ? 150 : 0);
     return () => { active = false; window.clearTimeout(timer); };
-  }, [open, canBrowse, directoryCache, requestedPath, folderQuery, showHidden, revision, absoluteDraft, pathDraft]);
+  }, [open, directoryCache, requestedPath, folderQuery, showHidden, revision, absoluteDraft, pathDraft]);
 
   useEffect(() => { if (disabled) setOpen(false); }, [disabled]);
   useEffect(() => {
@@ -248,7 +246,7 @@ export function WorkspaceProjectPicker({ isHero, disabled, scope, defaultScope, 
 
   const ancestorPaths = JSON.stringify(previousColumns.filter(column => column.hidden !== showHidden).map(column => column.path));
   useEffect(() => {
-    if (!open || !canBrowse || !directoryCache) return;
+    if (!open) return;
     const paths: string[] = JSON.parse(ancestorPaths);
     if (!paths.length) return;
     let active = true;
@@ -257,11 +255,11 @@ export function WorkspaceProjectPicker({ isHero, disabled, scope, defaultScope, 
       setPreviousColumns(columns => columns.map(column => {
         const result = results.find(result => sameWorkspacePath(column.path, result.path));
         if (!result) return column;
-        return { ...column, hidden: showHidden, options: result.entries.map(entry => ({ ...entry, kind: "directory" as const })) };
+        return { ...column, hidden: showHidden, options: result.entries };
       }));
     }).catch((err: Error) => { if (active) setPathError(err.message); });
     return () => { active = false; };
-  }, [open, canBrowse, directoryCache, ancestorPaths, showHidden]);
+  }, [open, directoryCache, ancestorPaths, showHidden]);
 
   useLayoutEffect(() => {
     const viewport = columnsElement;
@@ -309,9 +307,9 @@ export function WorkspaceProjectPicker({ isHero, disabled, scope, defaultScope, 
     completionRequest.current += 1;
     setPathDraft(value);
     const absolute = isAbsoluteWorkspacePath(value);
-    const cached = directoryCache?.peek(absolute ? value.trim() : basePath, absolute ? "" : value.trim(), showHidden, true);
+    const cached = directoryCache.peek(absolute ? value.trim() : basePath, absolute ? "" : value.trim(), showHidden, true);
     setDirectory(cached ?? null);
-    setLoading(canBrowse && !cached);
+    setLoading(!cached);
     setDirectoryError(null);
     setPathError(null);
     setActiveIndex(0);
@@ -328,20 +326,18 @@ export function WorkspaceProjectPicker({ isHero, disabled, scope, defaultScope, 
     inputRef.current?.focus();
   }
 
-  const applyProjectPath = useCallback((path: string, name?: string) => {
+  const applyProjectPath = useCallback((path: string, name: string) => {
     const base = scope ?? defaultScope;
     const trimmed = path.trim();
     if (!base || !onChange) return;
-    if (!trimmed || !isAbsoluteWorkspacePath(trimmed)) { setPathError(t("workspace.dialog.absolutePathRequired")); return; }
     const accessMode = controls?.can_use_full_access === false && !sameWorkspacePath(trimmed, base.project_path) ? "restricted" : base.access_mode;
-    onChange({ ...base, project_path: trimmed, project_name: name || projectNameFromPath(trimmed), access_mode: accessMode, restrict_to_workspace: accessMode === "restricted" });
+    onChange({ ...base, project_path: trimmed, project_name: name, access_mode: accessMode, restrict_to_workspace: accessMode === "restricted" });
     setPathError(null);
     setOpen(false);
-  }, [controls?.can_use_full_access, defaultScope, onChange, scope, t]);
+  }, [controls?.can_use_full_access, defaultScope, onChange, scope]);
 
-  const chooseProject = useCallback(async (path: string, name?: string) => {
+  const chooseProject = useCallback(async (path: string) => {
     const session = pickerSession.current;
-    if (!controls?.can_resolve_project || !onResolveProject) { applyProjectPath(path, name); return; }
     setPickingFolder(true); setPathError(null);
     try {
       const project = await onResolveProject(path);
@@ -349,10 +345,10 @@ export function WorkspaceProjectPicker({ isHero, disabled, scope, defaultScope, 
     } catch (err) {
       if (session === pickerSession.current) setPathError((err as Error).message);
     } finally { setPickingFolder(false); }
-  }, [applyProjectPath, controls?.can_resolve_project, onResolveProject]);
+  }, [applyProjectPath, onResolveProject]);
 
   const favorites = catalog?.favorite_projects ?? [];
-  const canFavorite = !!catalog?.controls.can_manage_favorites && !!onFavoriteProject;
+  const canFavorite = catalog !== null;
   const isFavorite = (path: string) => favorites.some(item => sameWorkspacePath(item.path, path));
   function favoriteButton(path: string) {
     return canFavorite ? <WorkspaceFavoriteButton path={path} pinned={isFavorite(path)} busy={favoriteBusy || pickingFolder}
@@ -360,7 +356,7 @@ export function WorkspaceProjectPicker({ isHero, disabled, scope, defaultScope, 
   }
 
   const toggleFavorite = async (path: string) => {
-    if (!onFavoriteProject || favoriteBusy) return;
+    if (favoriteBusy) return;
     const session = pickerSession.current;
     setFavoriteBusy(true); setPathError(null);
     try {
@@ -373,15 +369,11 @@ export function WorkspaceProjectPicker({ isHero, disabled, scope, defaultScope, 
 
   const recentProjects = [
     ...(catalog?.recent_projects ?? []),
-    ...(defaultScope ? [{ name: t("workspace.dialog.defaultProject"), path: defaultScope.project_path }] : []),
+    ...(defaultScope ? [{ name: projectNameFromPath(defaultScope.project_path), path: defaultScope.project_path }] : []),
     ...(currentProjectScope ? [{ name: projectLabel, path: currentProjectScope.project_path }] : []),
   ].filter((project, index, all) => all.findIndex(item => sameWorkspacePath(item.path, project.path)) === index && !isFavorite(project.path));
-  const options = useMemo<PickerOption[]>(() => {
-    if (directory && !loading) return directory.entries.map(entry => ({ ...entry, kind: "directory" }));
-    return !canBrowse && absoluteDraft ? [{ name: projectNameFromPath(pathDraft.trim()), path: pathDraft.trim(), kind: "manual" }] : [];
-  }, [directory, loading, canBrowse, absoluteDraft, pathDraft]);
+  const options = useMemo(() => directory && !loading ? directory.entries : [], [directory, loading]);
   function openShortcut(project: ProjectDirectory) {
-    if (!canBrowse) { void chooseProject(project.path, project.name); return; }
     setBasePath(project.path);
     changeDraft(workspaceDirectoryPrefix(project.path));
     setRevision(value => value + 1);
@@ -390,13 +382,12 @@ export function WorkspaceProjectPicker({ isHero, disabled, scope, defaultScope, 
   const columns: PickerColumn[] = [...previousColumns, { path: directory?.path ?? requestedPath, options, selectedPath: null, hidden: showHidden }];
   const activeOptions = columns[activeColumn]?.options ?? options;
   const activeOption = Math.min(activeIndex, Math.max(activeOptions.length - 1, 0));
-  const selectionPath = canBrowse ? (!loading && directory && !directory.partial ? directory.path : null) : (absoluteDraft ? pathDraft.trim() : scope?.project_path ?? defaultScope?.project_path);
+  const selectionPath = !loading && directory && !directory.partial ? directory.path : null;
   const displayedError = pathError ?? error ?? directoryError;
 
   async function completePath() {
     const option = activeOptions[activeOption];
-    if (option && option.kind !== "manual") { navigate(option.path); return; }
-    if (!directoryCache || !canBrowse) return;
+    if (option) { navigate(option.path); return; }
     const request = workspacePathCompletionQuery(pathDraft) ?? { path: basePath, query: pathDraft.trim() };
     const id = ++completionRequest.current;
     const session = pickerSession.current;
@@ -411,10 +402,9 @@ export function WorkspaceProjectPicker({ isHero, disabled, scope, defaultScope, 
       if (id === completionRequest.current && session === pickerSession.current) setPathError((err as Error).message);
     }
   }
-  function activate(option: PickerOption, columnIndex = activeColumn) {
+  function activate(option: ProjectDirectory, columnIndex = activeColumn) {
     if (pickingFolder) return;
-    if (canBrowse && option.kind !== "manual") navigate(option.path, columnIndex);
-    else void chooseProject(option.path, option.kind === "manual" ? undefined : option.name);
+    navigate(option.path, columnIndex);
   }
 
   if (!visible || !defaultScope || !onChange) return null;
@@ -435,7 +425,7 @@ export function WorkspaceProjectPicker({ isHero, disabled, scope, defaultScope, 
           <DialogDescription className="sr-only">{t("workspace.picker.description")}</DialogDescription>
           <div className="relative flex shrink-0 items-center border-b border-border/50 px-2 pb-2">
             <span className="pointer-events-none absolute left-2 top-0 flex h-10 w-9 items-center justify-center"><Search className="h-4 w-4 text-muted-foreground" /></span>
-            <Input ref={inputRef} role="combobox" aria-expanded={open} aria-controls={`${optionsId}-${activeColumn}`} aria-activedescendant={activeOptions.length ? `${optionsId}-${activeColumn}-${activeOption}` : undefined} aria-autocomplete="list" aria-busy={loading} value={pathDraft} disabled={disabled || pickingFolder} onChange={event => changeDraft(event.target.value)} placeholder={t("workspace.picker.search")} aria-label={t("workspace.dialog.manual")} aria-invalid={displayedError || directoryError ? true : undefined} aria-describedby={displayedError || directoryError ? errorId : undefined} className="h-10 min-w-0 flex-1 border-0 bg-transparent pl-10 pr-3 text-[14px] shadow-none focus-visible:ring-0" onKeyDown={event => {
+            <Input ref={inputRef} role="combobox" aria-expanded={open} aria-controls={`${optionsId}-${activeColumn}`} aria-activedescendant={activeOptions.length ? `${optionsId}-${activeColumn}-${activeOption}` : undefined} aria-autocomplete="list" aria-busy={loading} value={pathDraft} disabled={disabled || pickingFolder} onChange={event => changeDraft(event.target.value)} placeholder={t("workspace.picker.search")} aria-label={t("workspace.picker.search")} aria-invalid={displayedError || directoryError ? true : undefined} aria-describedby={displayedError || directoryError ? errorId : undefined} className="h-10 min-w-0 flex-1 border-0 bg-transparent pl-10 pr-3 text-[14px] shadow-none focus-visible:ring-0" onKeyDown={event => {
               if (event.nativeEvent.isComposing) return;
               if ((event.key === "ArrowDown" || event.key === "ArrowUp") && !event.altKey && activeOptions.length) {
                 event.preventDefault();
@@ -447,7 +437,7 @@ export function WorkspaceProjectPicker({ isHero, disabled, scope, defaultScope, 
                 setHighlightActive(true);
                 setActiveColumn(activeColumn - 1);
                 setActiveIndex(Math.max(0, parent.options.findIndex(option => sameWorkspacePath(option.path, parent.selectedPath))));
-              } else if ((event.key === "Tab" && !event.shiftKey && !!pathDraft.trim() || event.key === "ArrowRight" && !event.shiftKey && event.currentTarget.selectionStart === pathDraft.length && event.currentTarget.selectionEnd === pathDraft.length) && canBrowse) {
+              } else if (event.key === "Tab" && !event.shiftKey && !!pathDraft.trim() || event.key === "ArrowRight" && !event.shiftKey && event.currentTarget.selectionStart === pathDraft.length && event.currentTarget.selectionEnd === pathDraft.length) {
                 event.preventDefault(); void completePath();
               } else if (event.key === "Enter") {
                 event.preventDefault();
@@ -486,7 +476,7 @@ export function WorkspaceProjectPicker({ isHero, disabled, scope, defaultScope, 
                     className={cn(floatingItemClassName, floatingItemFocusClassName, "flex min-h-11 w-full min-w-0 items-center gap-3 px-3 py-2 text-left hover:bg-foreground/[0.055] dark:hover:bg-white/[0.08] disabled:opacity-50", canFavorite && "pr-12",
                       sameWorkspacePath(column.selectedPath, option.path) && "bg-primary/10 text-primary font-medium hover:bg-primary/10",
                       highlightActive && columnIndex === activeColumn && index === activeOption && "ring-1 ring-inset ring-ring")}>
-                    {option.kind === "directory" ? <WorkspacePickerTooltip label={option.path}><span className="min-w-0 flex-1 truncate text-[13px]">{option.name}</span></WorkspacePickerTooltip> : <WorkspacePickerPath path={option.path} />}
+                    <WorkspacePickerTooltip label={option.path}><span className="min-w-0 flex-1 truncate text-[13px]">{option.name}</span></WorkspacePickerTooltip>
                     {sameWorkspacePath(option.path, scope?.project_path ?? defaultScope.project_path) && <Check className="h-4 w-4 shrink-0 text-muted-foreground" />}
                   </button>
                   {favoriteButton(option.path)}
@@ -497,9 +487,9 @@ export function WorkspaceProjectPicker({ isHero, disabled, scope, defaultScope, 
               </WorkspaceDirectoryColumn>)}
             </div>
           </div>
-          {canBrowse && <div className="flex shrink-0 items-center gap-2 px-2 pt-1">
+          <div className="flex shrink-0 items-center gap-2 px-2 pt-1">
             <label className="flex items-center gap-2 text-[12px] text-muted-foreground"><ToggleButton checked={showHidden} onChange={setShowHidden} label={t("workspace.picker.hidden")} />{t("workspace.picker.hidden")}</label>
-          </div>}
+          </div>
         </DialogContent>
       </Dialog>
       </TooltipProvider>

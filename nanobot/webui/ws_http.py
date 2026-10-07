@@ -95,11 +95,6 @@ from nanobot.webui.http_utils import (
 )
 from nanobot.webui.ingress_policy import WebUIIngressPolicy
 from nanobot.webui.media_gateway import WebUIMediaGateway
-from nanobot.webui.native_folder_picker import (
-    NativeFolderPickerError,
-    native_folder_picker_available,
-    pick_native_folder,
-)
 from nanobot.webui.session_automations import (
     all_automations_payload,
     serialize_automation_jobs,
@@ -199,7 +194,6 @@ _WEBUI_MUTATION_PATHS = {
     "sidebar.update": "/api/webui/sidebar-state/update",
     "workspace.favorite": "/api/workspaces/favorite",
     "workspace.resolve_project": "/api/workspaces/resolve-project",
-    "workspace.pick_folder": "/api/workspaces/pick-folder",
     "recovery.continue": "/api/webui/recovery/continue",
     "recovery.dismiss": "/api/webui/recovery/dismiss",
     "subagent.cancel": "/api/webui/subagents/cancel",
@@ -414,7 +408,6 @@ class GatewayHTTPHandler:
         self.subagent_manager = subagent_manager
         self.discard_session = discard_session
         self._skill_install_lock = asyncio.Lock()
-        self._folder_picker_lock = asyncio.Lock()
         self.cron_service = cron_service
         self.local_trigger_store = local_trigger_store
         self.cron_pending_job_ids = cron_pending_job_ids
@@ -472,17 +465,6 @@ class GatewayHTTPHandler:
         if not isinstance(headers, Mapping):
             return False
         return _is_local_browser_request(connection, headers)
-
-    def workspace_folder_picker_available(
-        self,
-        connection: Any,
-        request: WsRequest,
-    ) -> bool:
-        return (
-            _is_loopback_host(self.config.host)
-            and _is_local_browser_request(connection, request.headers)
-            and native_folder_picker_available()
-        )
 
     # -- Token management ---------------------------------------------------
 
@@ -565,7 +547,6 @@ class GatewayHTTPHandler:
             "/api/webui/star-prompt/claim",
             "/api/webui/star-prompt/dismiss",
             "/api/webui/sidebar-state/update",
-            "/api/workspaces/pick-folder",
             "/api/workspaces/resolve-project",
             "/api/workspaces/favorite",
             "/api/webui/subagents/cancel",
@@ -1647,8 +1628,6 @@ class GatewayHTTPHandler:
             return await self._handle_sessions_list(request)
         if got == "/api/commands":
             return self._handle_commands(request)
-        if got == "/api/workspaces/pick-folder":
-            return await self._handle_workspace_folder_picker(connection, request)
         if got == "/api/workspaces/favorite":
             return self._handle_workspace_favorite(connection, request)
         if got == "/api/workspaces/resolve-project":
@@ -1704,10 +1683,6 @@ class GatewayHTTPHandler:
                     connection,
                     request.headers,
                 ),
-                folder_picker_available=self.workspace_folder_picker_available(
-                    connection,
-                    request,
-                ),
             )
         )
 
@@ -1755,24 +1730,6 @@ class GatewayHTTPHandler:
         except WorkspaceScopeError as exc:
             return _http_error(exc.status, exc.message)
         return _http_json_response(dict(payload))
-
-    async def _handle_workspace_folder_picker(
-        self,
-        connection: Any,
-        request: WsRequest,
-    ) -> Response:
-        if not self.check_api_token(request):
-            return _http_error(401, "Unauthorized")
-        if not self.workspace_folder_picker_available(connection, request):
-            return _http_error(403, "native folder picker is unavailable for this connection")
-        if self._folder_picker_lock.locked():
-            return _http_error(409, "native folder picker is already open")
-        try:
-            async with self._folder_picker_lock:
-                path = await pick_native_folder()
-        except NativeFolderPickerError as exc:
-            return _http_error(503, str(exc))
-        return _http_json_response({"path": path})
 
     def _handle_webui_skills(self, request: WsRequest) -> Response:
         if not self.check_api_token(request):

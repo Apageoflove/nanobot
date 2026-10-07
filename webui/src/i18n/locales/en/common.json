@@ -2482,11 +2482,6 @@
     }
   },
   "workspace": {
-    "dialog": {
-      "defaultProject": "Default workspace",
-      "manual": "Paste path",
-      "absolutePathRequired": "Enter an absolute folder path on this machine."
-    },
     "picker": {
       "favorites": "Favorites",
       "recent": "Recent projects",

@@ -1141,13 +1141,20 @@ describe("App layout", () => {
 
   it("preserves the first message when the gateway rejects a project", async () => {
     const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
+    const projectPath = "C:\\missing-project";
+    const directory = (path: string) => ({
+      path, parent: null, entries: [], partial: false,
+      truncated: false, host: "test-host", platform: "Windows",
+    });
+    const directoryUrl = (path: string) => `/api/workspaces/directories?${new URLSearchParams({ path, q: "", hidden: "0", partial: "1" })}`;
+    requestMutationSpy.mockResolvedValue({ path: projectPath, name: "missing-project" });
     createChatSpy.mockRejectedValueOnce(
       new Error("workspace_scope_rejected:project_path must be an existing directory"),
     );
     mockFetchRoutes({
       "/api/workspaces": {
         schema_version: 1,
-        default_access_mode: "restricted",
+        default_access_mode: "default",
         default_scope: {
           project_path: "C:\\workspace",
           project_name: "workspace",
@@ -1156,16 +1163,21 @@ describe("App layout", () => {
         },
         controls: { can_change_project: true, can_use_full_access: true },
       },
+      [directoryUrl("C:\\workspace\\")]: directory("C:\\workspace"),
+      [directoryUrl(projectPath)]: directory(projectPath),
+      [directoryUrl(`${projectPath}\\`)]: directory(projectPath),
     });
 
     render(<App />);
 
     await waitFor(() => expect(connectSpy).toHaveBeenCalled());
     fireEvent.click(await screen.findByRole("button", { name: "Switch working directory" }));
-    fireEvent.change(await screen.findByLabelText("Paste path"), {
-      target: { value: "C:\\missing-project" },
+    fireEvent.change(await screen.findByRole("combobox"), {
+      target: { value: projectPath },
     });
+    await waitFor(() => expect(screen.getByRole("button", { name: "Select" })).toBeEnabled());
     fireEvent.click(screen.getByRole("button", { name: "Select" }));
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
 
     const message = screen.getByLabelText("Message input");
     fireEvent.change(message, { target: { value: "keep this first message" } });
@@ -1179,10 +1191,10 @@ describe("App layout", () => {
       "The gateway rejected this project or access mode. Choose an existing project or a different access mode, then try again.",
     );
     fireEvent.click(projectButton);
-    const projectPath = await screen.findByLabelText("Paste path");
-    expect(projectPath).toHaveValue("C:\\missing-project");
-    expect(projectPath).toHaveAttribute("aria-invalid", "true");
-    expect(projectPath).toHaveFocus();
+    const pathInput = await screen.findByRole("combobox");
+    expect(pathInput).toHaveValue(`${projectPath}\\`);
+    expect(pathInput).toHaveAttribute("aria-invalid", "true");
+    expect(pathInput).toHaveFocus();
     expect(screen.getByRole("alert")).toHaveTextContent(
       "The gateway rejected this project or access mode. Choose an existing project or a different access mode, then try again.",
     );

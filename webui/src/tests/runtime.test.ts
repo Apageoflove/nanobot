@@ -2,15 +2,11 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
   getRuntimeHost,
-  initializeLoopbackRuntimeHost,
   isNativeRuntime,
 } from "@/lib/runtime";
 
 afterEach(() => {
   Reflect.deleteProperty(window, "nanobotHost");
-  window.sessionStorage.clear();
-  window.history.replaceState(null, "", "/");
-  initializeLoopbackRuntimeHost();
 });
 
 describe("runtime host facade", () => {
@@ -52,35 +48,4 @@ describe("runtime host facade", () => {
     expect(isNativeRuntime("native")).toBe(true);
   });
 
-  it("recognizes an external native host across refresh and consumes its URL bootstrap", () => {
-    const token = "a".repeat(43);
-    window.history.replaceState(
-      null,
-      "",
-      `/#/new?bootstrapSecret=secret&nativeHostPort=43123&nativeHostToken=${token}`,
-    );
-
-    expect(initializeLoopbackRuntimeHost()).toBe(true);
-    expect(window.location.hash).toBe("#/new?bootstrapSecret=secret");
-    expect(isNativeRuntime()).toBe(true);
-    expect(getRuntimeHost().surface).toBe("native");
-
-    window.history.replaceState(null, "", "/#/new");
-    expect(initializeLoopbackRuntimeHost()).toBe(true);
-    expect(getRuntimeHost().surface).toBe("native");
-    expect(isNativeRuntime()).toBe(true);
-  });
-
-  it("rejects invalid loopback bridge bootstrap values", () => {
-    window.history.replaceState(
-      null,
-      "",
-      "/#/new?nativeHostPort=70000&nativeHostToken=too-short",
-    );
-
-    expect(initializeLoopbackRuntimeHost()).toBe(false);
-    expect(window.location.hash).toBe("#/new");
-    expect(getRuntimeHost().surface).toBe("browser");
-    expect(isNativeRuntime()).toBe(false);
-  });
 });

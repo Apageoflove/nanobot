@@ -176,7 +176,6 @@ def workspaces_payload(
     default_restrict_to_workspace: bool,
     can_change_project: bool,
     can_use_full_access: bool,
-    folder_picker_available: bool = False,
 ) -> dict[str, Any]:
     state = read_webui_workspace_state()
     default_access_mode = state["default_access_mode"]
@@ -205,10 +204,6 @@ def workspaces_payload(
         "controls": {
             "can_change_project": can_change_project,
             "can_use_full_access": can_use_full_access,
-            "can_pick_folder": folder_picker_available,
-            "can_browse_directories": can_change_project,
-            "can_resolve_project": can_change_project,
-            "can_manage_favorites": can_change_project,
         },
     }
 
@@ -305,14 +300,12 @@ class WebUIWorkspaceController:
         *,
         can_change_project: bool,
         can_use_full_access: bool,
-        folder_picker_available: bool = False,
     ) -> dict[str, Any]:
         return workspaces_payload(
             default_workspace=self._default_workspace,
             default_restrict_to_workspace=self._default_restrict_to_workspace,
             can_change_project=can_change_project,
             can_use_full_access=can_use_full_access,
-            folder_picker_available=folder_picker_available,
         )
 
     def resolve_project(self, path: object) -> dict[str, str]:
