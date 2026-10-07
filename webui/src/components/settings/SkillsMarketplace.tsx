@@ -526,10 +526,9 @@ function MarketplaceSkillRow({
         </div>
         <div className="mt-1 flex min-w-0 items-center gap-1.5 truncate text-[12px] text-muted-foreground">
           {skill.source}
-          {skill.version ? <span>· v{skill.version}</span> : null}
+          {skill.version ? <span>v{skill.version}</span> : null}
           {skill.provider === "skills_sh" ? (
             <>
-              <span>·</span>
               {skill.metric === "installs_24h"
                 ? t("settings.skills.marketplaceInstalls24h", {
                     count: skill.installs,

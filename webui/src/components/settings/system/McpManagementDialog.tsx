@@ -535,7 +535,6 @@ function ConnectionPanel({
             preset.connection_summary && "mt-3 border-t border-border/45 pt-3",
           )}>
             <span>{formatTransport(preset.transport)}</span>
-            <span aria-hidden>·</span>
             <span>{authentication}</span>
             <div className="ml-auto flex items-center gap-1.5">
               {preset.docs_url ? (
@@ -587,11 +586,11 @@ function ConnectionPanel({
               const inputId = `mcp-manage-${preset.name}-${field.name}`;
               return (
                 <label key={field.name} htmlFor={inputId} className="min-w-0">
-                  <span className="mb-1.5 flex items-center gap-1 text-[12.5px] font-medium text-muted-foreground">
+                  <span className="mb-1.5 flex items-center gap-2 text-[12.5px] font-medium text-muted-foreground">
                     {field.label}
                     {field.configured ? (
                       <span className="font-normal text-emerald-600 dark:text-emerald-300">
-                        · {tx("settings.mcp.configured", "Configured")}
+                        {tx("settings.mcp.configured", "Configured")}
                       </span>
                     ) : null}
                   </span>

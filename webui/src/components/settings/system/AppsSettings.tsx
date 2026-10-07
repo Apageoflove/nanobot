@@ -576,9 +576,7 @@ function McpAppsCatalogRow({
     `settings.mcp.presetDescriptions.${preset.name}`,
     preset.description || preset.note || preset.name,
   );
-  const detail = agentPlugin && preset.requires
-    ? `${description} · ${preset.requires}`
-    : description || preset.requires;
+  const detail = description || preset.requires;
   const manualCallback =
     oauthFlow?.completion_input === "callback_url" && Boolean(oauthFlow.authorization_url);
   const callbackInputId = `mcp-oauth-callback-${preset.name}`;
@@ -629,6 +627,9 @@ function McpAppsCatalogRow({
             <span className="truncate">
               {runtimeFailed ? failureLabel : detail}
             </span>
+            {!runtimeFailed && agentPlugin && description && preset.requires ? (
+              <span className="min-w-0 truncate">{preset.requires}</span>
+            ) : null}
           </p>
         </div>
         <div className="ml-auto flex shrink-0 items-center gap-1">
@@ -1431,9 +1432,7 @@ function CliAppReadyPanel({
           </div>
           <div className="mt-0.5 flex min-w-0 flex-wrap items-center gap-1.5 text-[12px] text-muted-foreground">
             <span className="font-mono">@{app.name}</span>
-            <span aria-hidden>·</span>
             <span className="truncate font-mono">{app.entry_point || app.name}</span>
-            <span aria-hidden>·</span>
             <span>{app.category}</span>
           </div>
         </div>
