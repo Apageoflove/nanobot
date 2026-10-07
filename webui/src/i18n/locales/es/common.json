@@ -1722,7 +1722,7 @@
     },
     "composer": {
       "placeholderThread": "Escribe tu mensaje…",
-      "placeholderHero": "¿Qué tienes en mente?",
+      "placeholderHero": "Describe lo que quieres hacer",
       "placeholderOpening": "Abriendo un nuevo tema…",
       "placeholderStreaming": "El modelo está respondiendo…",
       "inputAria": "Entrada de mensaje",
@@ -1922,7 +1922,9 @@
         "default": "Permiso predeterminado",
         "defaultShort": "Predeterm.",
         "full": "Acceso completo",
-        "fullShort": "Completo"
+        "fullShort": "Completo",
+        "defaultDescription": "El acceso a archivos y la ejecución de comandos se limitan al directorio de trabajo actual.",
+        "fullDescription": "Permite acceder a archivos y ejecutar comandos fuera del directorio de trabajo actual."
       }
     },
     "scrollToBottom": "Desplazarse al final",
@@ -2295,6 +2297,27 @@
       "manualPlaceholder": "/Users/name/project",
       "usePath": "Usar ruta",
       "absolutePathRequired": "Introduce una ruta absoluta de carpeta en esta máquina."
+    },
+    "picker": {
+      "favorites": "Favoritos",
+      "recent": "Proyectos recientes",
+      "directories": "Carpetas",
+      "pin": "Fijar {{name}}",
+      "unpin": "Desfijar {{name}}",
+      "description": "Busca proyectos recientes o elige una carpeta en el equipo conectado.",
+      "emptyProjects": "No hay proyectos coincidentes",
+      "search": "Introduce una ruta o filtra esta carpeta…",
+      "shortcuts": "Ubicaciones guardadas",
+      "favoriteHint": "Haz clic derecho en una carpeta para añadirla aquí.",
+      "native": "Usar el selector de carpetas del sistema…",
+      "up": "Carpeta superior",
+      "loading": "Cargando carpetas…",
+      "emptyDirectories": "No hay carpetas coincidentes",
+      "truncated": "Se muestran 500 carpetas. Sigue escribiendo la ruta para reducir la lista.",
+      "hidden": "Mostrar carpetas ocultas",
+      "select": "Seleccionar",
+      "switchDirectory": "Cambiar directorio de trabajo",
+      "selectDirectory": "Seleccionar esta carpeta"
     }
   }
 }

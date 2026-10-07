@@ -1921,7 +1921,7 @@
     },
     "composer": {
       "placeholderThread": "输入消息…",
-      "placeholderHero": "问任何问题...",
+      "placeholderHero": "描述你想做的事",
       "placeholderOpening": "正在打开新话题…",
       "placeholderStreaming": "模型正在回复…",
       "inputAria": "消息输入框",
@@ -2120,8 +2120,10 @@
         "projectPlaceholder": "选择项目",
         "default": "默认权限",
         "defaultShort": "默认",
-        "full": "完全访问权限",
-        "fullShort": "完全"
+        "full": "完全访问",
+        "fullShort": "完全",
+        "defaultDescription": "文件访问和命令执行限制在当前工作目录内。",
+        "fullDescription": "允许访问当前工作目录外的文件，并在目录外执行命令。"
       }
     },
     "scrollToBottom": "滚动到底部",
@@ -2494,6 +2496,27 @@
       "manualPlaceholder": "/Users/name/project",
       "usePath": "使用路径",
       "absolutePathRequired": "请输入这台机器上的绝对文件夹路径。"
+    },
+    "picker": {
+      "favorites": "收藏",
+      "recent": "最近项目",
+      "directories": "文件夹",
+      "pin": "收藏 {{name}}",
+      "unpin": "取消收藏 {{name}}",
+      "description": "搜索最近项目，或选择当前连接主机上的文件夹。",
+      "emptyProjects": "没有匹配的项目",
+      "search": "输入路径或筛选当前目录…",
+      "shortcuts": "快捷位置",
+      "favoriteHint": "右键点击文件夹，将它加入收藏。",
+      "native": "使用系统文件夹选择器…",
+      "up": "返回上级目录",
+      "loading": "正在加载文件夹…",
+      "emptyDirectories": "没有匹配的文件夹",
+      "truncated": "已显示 500 个文件夹，继续输入路径以缩小范围。",
+      "hidden": "显示隐藏文件夹",
+      "select": "选择",
+      "switchDirectory": "切换工作目录",
+      "selectDirectory": "选择此文件夹"
     }
   }
 }

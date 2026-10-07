@@ -1721,7 +1721,7 @@
     },
     "composer": {
       "placeholderThread": "Nhập tin nhắn…",
-      "placeholderHero": "Bạn đang nghĩ gì?",
+      "placeholderHero": "Mô tả điều bạn muốn làm",
       "placeholderOpening": "Đang mở chủ đề mới…",
       "placeholderStreaming": "Mô hình đang trả lời…",
       "inputAria": "Ô nhập tin nhắn",
@@ -1921,7 +1921,9 @@
         "default": "Quyền mặc định",
         "defaultShort": "Mặc định",
         "full": "Toàn quyền truy cập",
-        "fullShort": "Toàn quyền"
+        "fullShort": "Toàn quyền",
+        "defaultDescription": "Quyền truy cập tệp và chạy lệnh bị giới hạn trong thư mục làm việc hiện tại.",
+        "fullDescription": "Cho phép truy cập tệp và chạy lệnh ngoài thư mục làm việc hiện tại."
       }
     },
     "scrollToBottom": "Cuộn xuống cuối",
@@ -2294,6 +2296,27 @@
       "manualPlaceholder": "/Users/name/project",
       "usePath": "Dùng đường dẫn",
       "absolutePathRequired": "Nhập đường dẫn thư mục tuyệt đối trên máy này."
+    },
+    "picker": {
+      "favorites": "Yêu thích",
+      "recent": "Dự án gần đây",
+      "directories": "Thư mục",
+      "pin": "Ghim {{name}}",
+      "unpin": "Bỏ ghim {{name}}",
+      "description": "Tìm dự án gần đây hoặc chọn thư mục trên máy chủ đang kết nối.",
+      "emptyProjects": "Không có dự án phù hợp",
+      "search": "Nhập đường dẫn hoặc lọc thư mục này…",
+      "shortcuts": "Vị trí đã lưu",
+      "favoriteHint": "Nhấp chuột phải vào thư mục để thêm vào đây.",
+      "native": "Dùng bộ chọn thư mục hệ thống…",
+      "up": "Thư mục cha",
+      "loading": "Đang tải thư mục…",
+      "emptyDirectories": "Không có thư mục phù hợp",
+      "truncated": "Hiển thị 500 thư mục. Tiếp tục nhập đường dẫn để thu hẹp danh sách.",
+      "hidden": "Hiện thư mục ẩn",
+      "select": "Chọn",
+      "switchDirectory": "Đổi thư mục làm việc",
+      "selectDirectory": "Chọn thư mục này"
     }
   }
 }
