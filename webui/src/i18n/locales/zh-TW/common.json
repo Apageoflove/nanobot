@@ -2300,7 +2300,7 @@
       "emptyProjects": "沒有符合的專案",
       "search": "輸入路徑或篩選目前目錄…",
       "shortcuts": "快捷位置",
-      "favoriteHint": "右鍵點擊資料夾，將它加入收藏。",
+      "favoriteHint": "點擊資料夾旁的星號收藏。",
       "native": "使用系統資料夾選擇器…",
       "up": "返回上層目錄",
       "loading": "正在載入資料夾…",

@@ -66,17 +66,15 @@ WebUI beyond localhost or want a browser password:
 The WebUI is served by the WebSocket channel on port `8765` by default. The
 gateway health endpoint, `18790` by default, is not the browser UI.
 
-## First 10 Minutes
+## Setup
 
-Use the WebUI as the primary setup surface:
+Configure a provider, credentials, and an active model preset in **Settings →
+Models**. Channels and web, voice, and image providers have their own Settings
+panels; CLI Apps and MCP integrations are managed in **Apps**. Controls that
+require a gateway restart indicate it in the WebUI.
 
-1. Open **Settings → Models** and configure a provider, credential, and active model preset.
-2. Send `Hello!` in a new topic to prove the selected model works.
-3. Start a separate topic before project work, then choose the intended workspace and access mode.
-4. Add only one capability next: a chat channel in **Settings → Channels**, a web/voice/image provider in **Settings**, or an App/MCP integration in **Apps**.
-5. Restart when the WebUI shows a restart requirement, then test that capability with the smallest possible request.
-
-This path avoids hand-editing `config.json` for normal setup. Use the reference docs when you need an option the WebUI does not expose or when you manage config as code.
+Normal setup does not require editing `config.json`. The reference docs cover
+options outside the WebUI and deployments that manage configuration as code.
 
 ## What It Is For
 
@@ -97,12 +95,10 @@ This path avoids hand-editing `config.json` for normal setup. Use the reference 
 
 ### Optional GitHub invitation
 
-Returning users may see an illustrated invitation to star nanobot on GitHub.
-It follows the WebUI language and theme; the button's star animation also
-supports keyboard focus and respects reduced-motion preferences. **Maybe later**,
-the close button, or Escape dismisses it for now. **Don't ask again** or opening
-GitHub from the invitation stops future reminders for the gateway instance,
-including in other browsers. Starring is optional and never required to use nanobot.
+The optional GitHub star invitation can be dismissed temporarily with **Maybe
+later**, or permanently with **Don't ask again**. Opening GitHub from the
+invitation also stops reminders. The permanent preference is shared across
+browsers connected to the same gateway instance.
 
 ## Topic Workspace
 
@@ -111,14 +107,9 @@ workspace selection, and linked automations. Use a new topic when you want a
 separate context; use fork when you want to continue from an existing point
 without changing the original thread.
 
-On touch devices, sidebar action buttons stay visible with larger touch areas
-for topics, conversation groups, panes, and projects. Tap a title to select it
-or the adjacent action button for its menu. Desktop actions still appear on
-hover or keyboard focus. Press Escape in an action menu to return focus to its
-button and continue with Tab, including from the **Move to** submenu. ArrowLeft
-leaves the submenu and returns to **Move to** without closing the parent menu.
-Choosing Rename instead moves focus into the
-dialog; clicking outside a menu keeps focus at the clicked destination.
+Sidebar action menus appear on hover or keyboard focus on desktop and remain
+visible on touch devices. They include rename, fork, group, move, and delete
+operations.
 
 Drag a topic within its current sidebar group to keep frequently used work in
 your preferred order. Drag a topic from the sidebar into the composer when you
@@ -197,33 +188,11 @@ explains the restriction and keeps **Open in browser** and **Copy link** availab
 Sites can still refuse embedding through their own security headers. nanobot
 does not proxy pages or bypass those restrictions; use **Open in browser** instead.
 
-On touch devices with Visual Viewport support, the app follows the visible area
-when the on-screen keyboard opens or pans the page. Navigation and the composer
-stay in view while messages scroll independently. Session search also follows
-the visible area: the search field stays above the keyboard and results scroll
-inside the dialog. In short landscape viewports, its input and results sit side
-by side so a result remains reachable. Taller dialogs scroll from their top
-instead of centering content outside the visible area. The `@` mention and `/` command
-menus use the visible app area above or below the composer, including when the
-keyboard pans the page. Scroll within a menu to reach more results. Mention rows
-use the app's larger touch targets on phones while retaining desktop density.
-In very short, wide viewports (such as landscape with the keyboard open), menus
-sit beside the input instead of overflowing the scrollable composer. Scroll the
-menu for more candidates and the input area for its controls. If the browser
-bars and keyboard leave no usable page area, dismiss
-the keyboard or return to portrait. Pinch zoom keeps the existing layout instead of resizing it to the
-magnified area; normal fitting resumes when
-you return to the default zoom. Non-touch desktop and native-host layout remain
-unchanged.
-
-On touch devices, compact text fields use a readable 16px minimum baseline to
-avoid Safari automatically zooming the page on focus. Desktop field density
-and manual page zoom remain unchanged.
-
-On touch devices, preview tab controls and
-the full-screen image viewer's close button use larger touch areas without
-enlarging the icons. Preview tabs remain horizontally scrollable when space is
-limited.
+On touch devices, navigation, search, menus, and the composer fit the visible
+area above the on-screen keyboard. Messages and results scroll independently.
+Landscape layouts use side-by-side controls when height is limited. Pinch zoom
+preserves the existing layout; compact text fields avoid Safari's automatic
+focus zoom. Preview tabs remain horizontally scrollable on narrow screens.
 
 Open the context indicator beside the composer model badge to see how much of
 the model's context window is in use. The **Recent rounds** chart shows input
@@ -262,12 +231,8 @@ restart behavior.
 
 ## Temporary Chats
 
-Use a temporary chat for a conversation that should not be added to nanobot's
-topic history or long-term memory:
-
-1. Select **New topic**.
-2. Select the **Temporary chat** control in the page header.
-3. Send the first message.
+**Temporary chat** in the new-topic header starts a conversation outside saved
+topic history and long-term memory.
 
 You can keep more than one temporary chat open and switch between them under
 **Temporary chats** in the sidebar while the current WebUI connection remains
@@ -291,57 +256,24 @@ or a result you must retain.
 
 ## Workspace and Access
 
-The folder label shows the current working directory in the composer toolbar.
-On narrow screens, it sits below the input on the left, opposite the access
-control.
-Hover it to see the full path, or click it to switch directories before starting
-project-specific work. This gives the agent the right project context for file paths, shell commands, and topic
-metadata. The picker opens one dialog with a saved-locations sidebar and a
-directory browser. Favorites and recent projects remain in the sidebar while
-you navigate. Right-click a folder to pin or unpin it without selecting it.
-Right-click a column's empty area to pin its directory. Favorites keep their
-pin order, are saved by the connected gateway, and remain available after a
-restart. A deleted folder can still be unpinned.
+The composer’s folder control selects the project directory on the connected
+gateway, including remote and headless hosts. Paths refer to that machine,
+rather than the browser’s filesystem. Windows drive and UNC paths are supported;
+a local host may also offer its native folder chooser. Hosts without directory
+browsing support accept an absolute path manually.
 
-Typing a name filters the current directory only; typing an absolute host path
-lists its directories as you edit. An unfinished folder name filters its parent
-directory by prefix. Use the arrow keys to highlight a result, then Tab to
-complete its path or Enter to enter the directory. Opening a folder preserves
-its column and displays its subdirectories in a new column to the right.
-Column widths stay stable as you navigate; deeper levels scroll horizontally.
-Hold Shift while using the mouse wheel over directory columns to scroll
-horizontally. Ordinary wheel scrolling remains vertical.
-The picker caches up to 64 directory listings for 30 seconds, reuses in-flight
-requests, and displays cached listings immediately. Only typed queries are
-debounced; entering a folder starts its request immediately.
-Selecting a different folder in an earlier column replaces the columns to its
-right. Clicking a saved location starts a new directory trail. Expanded branches
-have a persistent selection fill; pointer hover and keyboard focus remain
-visually distinct. Directory columns show folder names; the input and hover
-hints retain full paths. Favorites and recent projects show full paths to
-distinguish folders with the same name. On narrow screens, saved locations move
-into a compact area above the directory columns.
+The picker combines column browsing, recent projects, and favorites. Names
+filter the current directory; absolute paths navigate directly, with partial
+folder names matched against their parent. Arrow keys highlight results, Tab
+completes paths, and Shift+wheel scrolls deep directory trails horizontally.
+**Select** confirms the resolved directory.
 
-Use **Select** to confirm the directory being browsed. Only a fully
-resolved directory can be selected or pinned. **Show hidden folders** includes
-hidden entries.
-Escape or clicking outside closes the dialog. Shift+Tab moves focus back.
-
-The dialog is centered within the message thread and keeps a fixed height
-within the available space, so changing results cannot move the input field.
-Loading, errors, and completion candidates appear in the active column. Each column scrolls vertically, and deeper paths scroll
-the columns horizontally. Up to three columns
-fit on desktop; narrower windows show fewer columns.
-
-The directory browser works on Windows,
-Linux, and macOS hosts, including remote gateways and environments without a
-desktop. It lists directory names without reading file contents or changing the
-agent's access mode. Windows drive paths and UNC paths can be entered directly.
-
-A locally hosted WebUI also offers the operating system's folder chooser when
-available. You can enter an absolute host path in the search field; gateways
-without directory browsing support retain this option. The browser's local
-filesystem is never used for project selection.
+A folder’s star toggles its favorite status without changing the project.
+Stars appear on hover or keyboard focus, and remain visible on touch devices.
+Favorites retain their order across gateway restarts; deleted folders can still
+be removed from favorites. Directory listings may be cached for up to 30
+seconds. Browsing exposes directory names, not file contents, and does not
+change access permissions.
 
 Selecting a project does not replace the configured agent workspace. The two
 paths have different responsibilities:
@@ -371,8 +303,8 @@ selected project. These tool exceptions do not broaden the browser's file
 preview boundary.
 
 Remote WebUI connections may reduce access for the current workspace and may
-select a different workspace by browsing directories or entering its server-side path. A remote project
-change must use Restricted mode; enabling Full Access remains limited to local
+select a different workspace by browsing directories or entering its server-side
+path. A remote project change must use Restricted mode; enabling Full Access remains limited to local
 and native clients.
 
 ## Composer
@@ -597,9 +529,6 @@ package and skill installs disabled unless that is intentional.
 
 Optional feature installs use pip's configured package index, including
 `PIP_INDEX_URL`. skills.sh marketplace installs use `npx` instead.
-
-Leave remote package installs disabled when the WebUI is exposed beyond a
-private, trusted network.
 
 ## Troubleshooting
 

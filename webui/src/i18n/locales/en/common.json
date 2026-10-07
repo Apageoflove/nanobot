@@ -2500,7 +2500,7 @@
       "emptyProjects": "No matching projects",
       "search": "Enter a path or filter this folder…",
       "shortcuts": "Saved locations",
-      "favoriteHint": "Right-click a folder to add it here.",
+      "favoriteHint": "Use a folder’s star to add it here.",
       "native": "Use system folder picker…",
       "up": "Parent directory",
       "loading": "Loading folders…",

@@ -1,13 +1,11 @@
 import { FullAccessIcon, WorkspaceIcon, RestrictedAccessIcon } from "@/components/icons/product-icons";
-import * as Menu from "@radix-ui/react-menu";
-import { useFloatingPortal } from "@/components/ui/floating-portal";
 import type { ReactElement } from "react";
 import { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { Check, FolderOpen, Search } from "lucide-react";
+import { Check, FolderOpen, Search, Star } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { ToggleButton } from "@/components/settings/ToggleButton";
 import { Button } from "@/components/ui/button";
-import { floatingItemClassName, floatingItemFocusClassName, floatingSurfaceClassName, floatingSurfaceMotionClassName } from "@/components/ui/floating-surface";
+import { floatingItemClassName, floatingItemFocusClassName } from "@/components/ui/floating-surface";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogTrigger, DialogTitle, DialogDescription } from "@/components/ui/dialog";
@@ -17,39 +15,19 @@ import { getRuntimeHost } from "@/lib/runtime";
 import { cn } from "@/lib/utils";
 import { isAbsoluteWorkspacePath, projectNameFromPath, sameWorkspacePath, scopeWithAccessMode, workspacePathCompletionQuery, workspaceDirectoryPrefix, selectedProjectScope, type BrowseWorkspaceDirectories } from "@/lib/workspace";
 
-function WorkspaceFolderMenu({ path, pinned, busy, onToggle, onRequestFocus, children }: {
-  path: string; pinned: boolean; busy: boolean;
-  onToggle: () => void; onRequestFocus: () => void; children: ReactElement;
+function WorkspaceFavoriteButton({ path, pinned, busy, onToggle }: {
+  path: string; pinned: boolean; busy: boolean; onToggle: () => void;
 }) {
   const { t } = useTranslation();
-  const portal = useFloatingPortal();
-  const [open, setOpen] = useState(false);
-  const point = useRef({ x: 0, y: 0 });
-  const anchor = useRef({ getBoundingClientRect: () => new DOMRect(point.current.x, point.current.y, 0, 0) });
+  const label = t(pinned ? "workspace.picker.unpin" : "workspace.picker.pin", { name: projectNameFromPath(path) });
   return (
-    <Menu.Root open={open} onOpenChange={setOpen}>
-      <Menu.Anchor virtualRef={anchor} />
-      <div className="contents" onContextMenu={event => {
-        event.preventDefault(); event.stopPropagation();
-        point.current = { x: event.clientX, y: event.clientY }; setOpen(true);
-      }} onKeyDown={event => {
-        if (event.key !== "ContextMenu" && !(event.key === "F10" && event.shiftKey)) return;
-        event.preventDefault(); event.stopPropagation();
-        const bounds = (event.target as HTMLElement).getBoundingClientRect();
-        point.current = { x: bounds.left, y: bounds.bottom }; setOpen(true);
-      }}>{children}</div>
-      <Menu.Portal container={portal ?? undefined}>
-        <Menu.Content align="start" sideOffset={4} collisionPadding={12}
-          className={cn(floatingSurfaceClassName, floatingSurfaceMotionClassName, "min-w-40 rounded-control p-1")}
-          onContextMenu={event => { event.preventDefault(); event.stopPropagation(); }}
-          onCloseAutoFocus={event => { event.preventDefault(); onRequestFocus(); }}>
-          <Menu.Item disabled={busy} onSelect={onToggle}
-            className={cn(floatingItemClassName, floatingItemFocusClassName, "cursor-default data-[disabled]:pointer-events-none data-[disabled]:opacity-50")}>
-            {t(pinned ? "workspace.picker.unpin" : "workspace.picker.pin", { name: projectNameFromPath(path) })}
-          </Menu.Item>
-        </Menu.Content>
-      </Menu.Portal>
-    </Menu.Root>
+    <WorkspacePickerTooltip label={label}>
+      <button type="button" aria-label={label} aria-pressed={pinned} disabled={busy}
+        onMouseDown={event => event.preventDefault()} onClick={onToggle}
+        className="workspace-picker-favorite touch-target absolute right-1 top-1/2 inline-flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-control text-muted-foreground outline-none hover:bg-foreground/[0.055] hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none">
+        <Star className={cn("h-3.5 w-3.5", pinned && "fill-current text-foreground")} />
+      </button>
+    </WorkspacePickerTooltip>
   );
 }
 
@@ -330,9 +308,9 @@ export function WorkspaceProjectPicker({ isHero, connected = false, disabled, sc
   const favorites = catalog?.favorite_projects ?? [];
   const canFavorite = !!catalog?.controls.can_manage_favorites && !!onFavoriteProject;
   const isFavorite = (path: string) => favorites.some(item => sameWorkspacePath(item.path, path));
-  function folderMenu(path: string, children: ReactElement, enabled = true) {
-    return canFavorite && enabled ? <WorkspaceFolderMenu path={path} pinned={isFavorite(path)} busy={favoriteBusy || pickingFolder}
-      onToggle={() => void toggleFavorite(path)} onRequestFocus={() => inputRef.current?.focus()}>{children}</WorkspaceFolderMenu> : children;
+  function favoriteButton(path: string) {
+    return canFavorite ? <WorkspaceFavoriteButton path={path} pinned={isFavorite(path)} busy={favoriteBusy || pickingFolder}
+      onToggle={() => { void toggleFavorite(path); inputRef.current?.focus(); }} /> : null;
   }
 
   const toggleFavorite = async (path: string) => {
@@ -437,34 +415,37 @@ export function WorkspaceProjectPicker({ isHero, connected = false, disabled, sc
               {[{ label: t("workspace.picker.favorites"), projects: favorites, favorite: true }, { label: t("workspace.picker.recent"), projects: recentProjects, favorite: false }].map(section => (
                 <section key={section.label} className="min-w-0 shrink-0 w-48 sm:w-auto">
                   <h3 className="px-3 py-2 text-[11px] font-medium text-muted-foreground">{section.label}</h3>
-                  {section.projects.map(project => <div key={project.path}>{folderMenu(project.path,
+                  {section.projects.map(project => <div key={project.path} className="workspace-picker-row relative">
                     <button type="button" aria-label={project.path} aria-current={sameWorkspacePath(basePath, project.path) ? "location" : undefined}
                       disabled={pickingFolder} onMouseDown={event => event.preventDefault()} onClick={() => openShortcut(project)}
-                      className={cn(floatingItemClassName, floatingItemFocusClassName, "flex min-h-11 w-full min-w-0 items-center gap-2 px-3 py-2 text-left hover:bg-foreground/[0.055] dark:hover:bg-white/[0.08]", sameWorkspacePath(basePath, project.path) && "bg-primary/10 text-primary")}>
+                      className={cn(floatingItemClassName, floatingItemFocusClassName, "flex min-h-11 w-full min-w-0 items-center gap-2 px-3 py-2 text-left hover:bg-foreground/[0.055] dark:hover:bg-white/[0.08]", canFavorite && "pr-12", sameWorkspacePath(basePath, project.path) && "bg-primary/10 text-primary")}>
                       <WorkspacePickerPath path={project.path} />
                       {sameWorkspacePath(project.path, scope?.project_path ?? defaultScope.project_path) && <Check className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />}
-                    </button>)}</div>)}
+                    </button>
+                    {favoriteButton(project.path)}
+                  </div>)}
                   {section.favorite && !favorites.length && canFavorite && <p className="px-3 text-[11px] leading-relaxed text-muted-foreground">{t("workspace.picker.favoriteHint")}</p>}
                 </section>
               ))}
             </nav>
             <div ref={attachColumns} data-workspace-columns className="flex flex-1 min-h-0 min-w-0 overflow-x-auto overscroll-x-contain">
-              {columns.map((column, columnIndex) => <div key={columnIndex} className="contents">{folderMenu(column.path, <div id={`${optionsId}-${columnIndex}`} role="listbox" aria-label={column.path || t("thread.composer.workspace.projectAria")} aria-busy={columnIndex === previousColumns.length && loading} style={{ width: `${100 / visibleColumns}%` }} className={cn("min-w-0 shrink-0 overflow-x-hidden overflow-y-auto border-r border-transparent px-1 py-1", !!columns[columnIndex + 1]?.options.length && "border-border/50")}>
-              {column.options.map((option, index) => <div key={`${option.kind}-${option.path}`} role="presentation">
-                  {folderMenu(option.path, <button id={`${optionsId}-${columnIndex}-${index}`} type="button" role="option" aria-label={option.path} aria-selected={sameWorkspacePath(column.selectedPath, option.path)} disabled={pickingFolder}
+              {columns.map((column, columnIndex) => <div key={columnIndex} id={`${optionsId}-${columnIndex}`} role="listbox" aria-label={column.path || t("thread.composer.workspace.projectAria")} aria-busy={columnIndex === previousColumns.length && loading} style={{ width: `${100 / visibleColumns}%` }} className={cn("min-w-0 shrink-0 overflow-x-hidden overflow-y-auto border-r border-transparent px-1 py-1", !!columns[columnIndex + 1]?.options.length && "border-border/50")}>
+              {column.options.map((option, index) => <div key={`${option.kind}-${option.path}`} role="presentation" className="workspace-picker-row relative" data-keyboard-active={highlightActive && columnIndex === activeColumn && index === activeOption ? "" : undefined}>
+                  <button id={`${optionsId}-${columnIndex}-${index}`} type="button" role="option" aria-label={option.path} aria-selected={sameWorkspacePath(column.selectedPath, option.path)} disabled={pickingFolder}
                     onPointerMove={() => { setHighlightActive(false); setActiveColumn(columnIndex); setActiveIndex(index); }}
                     onMouseDown={event => event.preventDefault()} onClick={() => activate(option, columnIndex)}
-                    className={cn(floatingItemClassName, floatingItemFocusClassName, "flex min-h-11 w-full min-w-0 items-center gap-3 px-3 py-2 text-left hover:bg-foreground/[0.055] dark:hover:bg-white/[0.08] disabled:opacity-50",
+                    className={cn(floatingItemClassName, floatingItemFocusClassName, "flex min-h-11 w-full min-w-0 items-center gap-3 px-3 py-2 text-left hover:bg-foreground/[0.055] dark:hover:bg-white/[0.08] disabled:opacity-50", canFavorite && "pr-12",
                       sameWorkspacePath(column.selectedPath, option.path) && "bg-primary/10 text-primary font-medium hover:bg-primary/10",
                       highlightActive && columnIndex === activeColumn && index === activeOption && "ring-1 ring-inset ring-ring")}>
                     {option.kind === "directory" ? <WorkspacePickerTooltip label={option.path}><span className="min-w-0 flex-1 truncate text-[13px]">{option.name}</span></WorkspacePickerTooltip> : <WorkspacePickerPath path={option.path} />}
                     {sameWorkspacePath(option.path, scope?.project_path ?? defaultScope.project_path) && <Check className="h-4 w-4 shrink-0 text-muted-foreground" />}
-                  </button>)}
+                  </button>
+                  {favoriteButton(option.path)}
               </div>)}
               {columnIndex === previousColumns.length && loading && <WorkspaceDirectorySkeleton />}
               {columnIndex === previousColumns.length && directory?.truncated && <p className="px-3 py-2 text-[11px] text-muted-foreground">{t("workspace.picker.truncated")}</p>}
               {columnIndex === previousColumns.length && displayedError && <p id={errorId} role="alert" className="px-3 py-2 text-[11.5px] text-destructive">{displayedError}</p>}
-              </div>, columnIndex !== previousColumns.length || !!selectionPath)}</div>)}
+              </div>)}
             </div>
           </div>
           <div className="flex shrink-0 items-center justify-between gap-2 px-2 pt-1">

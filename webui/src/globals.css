@@ -900,6 +900,32 @@
   }
 }
 
+.workspace-picker-favorite {
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 120ms ease-out;
+}
+
+.workspace-picker-row:hover .workspace-picker-favorite,
+.workspace-picker-row:focus-within .workspace-picker-favorite,
+.workspace-picker-row[data-keyboard-active] .workspace-picker-favorite {
+  pointer-events: auto;
+  opacity: 1;
+}
+
+@media (hover: none) {
+  .workspace-picker-favorite {
+    pointer-events: auto;
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .workspace-picker-favorite {
+    transition: none;
+  }
+}
+
 @media (pointer: coarse) {
   /* Readable form text avoids Safari's focus zoom without disabling the user's
      pinch zoom. Keep this after utilities so compact desktop overrides cannot

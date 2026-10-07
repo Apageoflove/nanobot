@@ -2300,7 +2300,7 @@
       "emptyProjects": "Aucun projet correspondant",
       "search": "Saisir un chemin ou filtrer ce dossier…",
       "shortcuts": "Emplacements enregistrés",
-      "favoriteHint": "Faites un clic droit sur un dossier pour l’ajouter ici.",
+      "favoriteHint": "Cliquez sur l’étoile d’un dossier pour l’ajouter ici.",
       "native": "Utiliser le sélecteur de dossiers du système…",
       "up": "Dossier parent",
       "loading": "Chargement des dossiers…",
