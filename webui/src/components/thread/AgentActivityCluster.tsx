@@ -828,7 +828,9 @@ function ActivityTraceRow({
       icon={Icon}
       active={rowActive && trace.kind !== "done"}
       tone={status === "error" ? "error" : status === "done" ? "success" : "active"}
-      label={formatActivityTarget(t, trace.label, trace.detail)}
+      label={trace.kind === "search" ? trace.label : formatActivityTarget(t, trace.label, trace.detail)}
+      detail={trace.kind === "search" ? trace.detail : trace.aside}
+      detailClassName={trace.kind === "search" ? "whitespace-pre-line" : undefined}
     />
   );
 }

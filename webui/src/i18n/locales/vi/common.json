@@ -333,7 +333,7 @@
     },
     "documentTitle": {
       "base": "nanobot",
-      "chat": "{{title}} | nanobot"
+      "chat": "{{title}}"
     },
     "meta": {
       "description": "Giao diện web nanobot — trò chuyện với không gian làm việc nanobot của bạn."

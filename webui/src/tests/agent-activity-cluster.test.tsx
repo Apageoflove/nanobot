@@ -1165,7 +1165,7 @@ describe("AgentActivityCluster", () => {
       />,
     );
 
-    const searchRow = screen.getByText("Searched nanobot architecture").closest('[data-testid="activity-step"]');
+    const searchRow = screen.getByLabelText("Searched the web, nanobot architecture").closest('[data-testid="activity-step"]');
     const cliRow = screen.getByLabelText("Used Blender, --json project new").closest('[data-testid="activity-step"]');
     const fetchRow = screen.getByText("example.com/diagram").closest('[data-testid="activity-step"]');
 
@@ -1211,7 +1211,7 @@ describe("AgentActivityCluster", () => {
       />,
     );
 
-    expect(screen.getByText("Searched agent frameworks")).toBeInTheDocument();
+    expect(screen.getByLabelText("Searched the web, agent frameworks")).toBeInTheDocument();
     expect(screen.queryByText("2 sources")).not.toBeInTheDocument();
 
     const openAiLink = screen.getByText("OpenAI Agents SDK").closest("a");
@@ -1231,7 +1231,7 @@ describe("AgentActivityCluster", () => {
     expect(screen.getByTestId("activity-web-favicon-anthropic.com")).toBeInTheDocument();
     expect(screen.queryByText("Internal dashboard")).not.toBeInTheDocument();
     expect(screen.queryByText("Build and deploy agentic applications.")).not.toBeInTheDocument();
-    const searchStep = screen.getByText("Searched agent frameworks").closest(
+    const searchStep = screen.getByLabelText("Searched the web, agent frameworks").closest(
       '[data-testid="activity-step"]',
     );
     const openAiStep = openAiLink!.closest('[data-testid="activity-step"]');
@@ -1273,7 +1273,7 @@ describe("AgentActivityCluster", () => {
     );
     fireEvent.click(screen.getByRole("button", { name: /^Worked/ }));
 
-    expect(screen.getByText("Searched X: nanobot oauth")).toBeInTheDocument();
+    expect(screen.getByLabelText("Searched X, nanobot oauth")).toBeInTheDocument();
     expect(screen.queryByText(/Completed X search/i)).not.toBeInTheDocument();
     expect(screen.getAllByTestId("activity-step")).toHaveLength(1);
   });
@@ -1308,7 +1308,7 @@ describe("AgentActivityCluster", () => {
     fireEvent.click(screen.getByRole("button", { name: /^Worked/ }));
 
     expect(screen.queryByText(/signed-secret|secret1234|url-secret/)).not.toBeInTheDocument();
-    expect(screen.getByText("Searched release notes access_token=<redacted>")).toBeInTheDocument();
+    expect(screen.getByLabelText("Searched the web, release notes access_token=<redacted>")).toBeInTheDocument();
     expect(screen.getByText("Release <redacted>")).toBeInTheDocument();
     expect(screen.getByText("Release <redacted>").closest("a")).toHaveAttribute(
       "href",
@@ -1357,7 +1357,7 @@ describe("AgentActivityCluster", () => {
     );
 
     expect(screen.getAllByTestId("activity-step")).toHaveLength(1);
-    expect(screen.getByText("Could not search LinkedIn: Evomap startup")).toBeInTheDocument();
+    expect(screen.getByLabelText("Could not search LinkedIn, Evomap startup")).toBeInTheDocument();
     expect(screen.queryByText(/site:linkedin/i)).not.toBeInTheDocument();
     expect(screen.queryByText("Web research")).not.toBeInTheDocument();
   });
@@ -1708,7 +1708,7 @@ describe("AgentActivityCluster", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Worked" }));
 
-    expect(screen.getByText("Ran command cat << 'EOF' | bash (script, 6 lines)")).toBeInTheDocument();
+    expect(screen.getByLabelText("Ran command cat << 'EOF' | bash, script, 6 lines")).toBeInTheDocument();
     expect(screen.queryByText(/SECRET_TOKEN/)).not.toBeInTheDocument();
     expect(screen.queryByText(/for id in/)).not.toBeInTheDocument();
     expect(screen.queryByText(/^Done$/)).not.toBeInTheDocument();

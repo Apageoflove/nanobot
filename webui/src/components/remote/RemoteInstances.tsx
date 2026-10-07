@@ -134,7 +134,7 @@ export function RemoteInstances({ children }: { children: ReactNode }) {
     manage,
     cancel: hosts.cancel, clearError: hosts.clearError, restoreFocus: () => { if (!managing) restoreFocus(); },
   };
-  useEffect(() => { if (selected) document.title = `${selected.name} | nanobot`; }, [selected]);
+  useEffect(() => { if (selected) document.title = selected.name; }, [selected]);
   useEffect(() => {
     const rememberFocus = (event: FocusEvent) => {
       if (!managementOpen.current && event.target instanceof HTMLElement && localPanel.current?.contains(event.target)

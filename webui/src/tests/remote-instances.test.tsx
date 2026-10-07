@@ -182,7 +182,7 @@ describe("remote instance UX", () => {
     expect(screen.getByTitle("nanobot on 腾讯云 nanobot")).toBe(frame);
     expect(frame).toHaveAttribute("src", connection.url);
     expect(readSelectedRemote()).toMatchObject({ id: profile.id, name: "腾讯云 nanobot" });
-    expect(document.title).toBe("腾讯云 nanobot | nanobot");
+    expect(document.title).toBe("腾讯云 nanobot");
     expect(source.postMessage).toHaveBeenLastCalledWith(expect.objectContaining({ type: "init", name: "腾讯云 nanobot" }), "http://127.0.0.1:23456");
     expect(mocks.request.mock.calls.map(([action]) => action)).toEqual(["remote.connect", "remote.rename"]);
     fireEvent.click(screen.getByRole("button", { name: "腾讯云 nanobot ubuntu@example.test" }));

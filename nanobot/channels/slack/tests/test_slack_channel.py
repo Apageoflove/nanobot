@@ -866,7 +866,7 @@ def test_to_mrkdwn_still_converts_unfenced_markdown_tables() -> None:
     out = SlackChannel._to_mrkdwn("| a | b |\n| - | - |\n| 1 | 2 |\n| 3 | 4 |")
 
     assert "| a | b |" not in out
-    assert out.splitlines() == ["*a*: 1; *b*: 2", "*a*: 3; *b*: 4"]
+    assert out.splitlines() == ["*a*: 1", "*b*: 2", "", "*a*: 3", "*b*: 4"]
 
 
 # ── file download SSRF ─────────────────────────────────────────────
