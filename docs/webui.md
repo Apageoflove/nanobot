@@ -291,11 +291,57 @@ or a result you must retain.
 
 ## Workspace and Access
 
-Use the workspace picker before starting project-specific work. This gives the
-agent the right project context for file paths, shell commands, and topic
-metadata. A locally hosted WebUI opens the operating system's folder chooser
-when one is available; remote deployments use a manual absolute path on the
-nanobot host. The browser's local filesystem is never used for project selection.
+The folder label shows the current working directory in the composer toolbar.
+On narrow screens, it sits below the input on the left, opposite the access
+control.
+Hover it to see the full path, or click it to switch directories before starting
+project-specific work. This gives the agent the right project context for file paths, shell commands, and topic
+metadata. The picker opens one dialog with a saved-locations sidebar and a
+directory browser. Favorites and recent projects remain in the sidebar while
+you navigate. Right-click a folder to pin or unpin it without selecting it.
+Right-click a column's empty area to pin its directory. Favorites keep their
+pin order, are saved by the connected gateway, and remain available after a
+restart. A deleted folder can still be unpinned.
+
+Typing a name filters the current directory only; typing an absolute host path
+lists its directories as you edit. An unfinished folder name filters its parent
+directory by prefix. Use the arrow keys to highlight a result, then Tab to
+complete its path or Enter to enter the directory. Opening a folder preserves
+its column and displays its subdirectories in a new column to the right.
+Column widths stay stable as you navigate; deeper levels scroll horizontally.
+Hold Shift while using the mouse wheel over directory columns to scroll
+horizontally. Ordinary wheel scrolling remains vertical.
+The picker caches up to 64 directory listings for 30 seconds, reuses in-flight
+requests, and displays cached listings immediately. Only typed queries are
+debounced; entering a folder starts its request immediately.
+Selecting a different folder in an earlier column replaces the columns to its
+right. Clicking a saved location starts a new directory trail. Expanded branches
+have a persistent selection fill; pointer hover and keyboard focus remain
+visually distinct. Directory columns show folder names; the input and hover
+hints retain full paths. Favorites and recent projects show full paths to
+distinguish folders with the same name. On narrow screens, saved locations move
+into a compact area above the directory columns.
+
+Use **Select** to confirm the directory being browsed. Only a fully
+resolved directory can be selected or pinned. **Show hidden folders** includes
+hidden entries.
+Escape or clicking outside closes the dialog. Shift+Tab moves focus back.
+
+The dialog is centered within the message thread and keeps a fixed height
+within the available space, so changing results cannot move the input field.
+Loading, errors, and completion candidates appear in the active column. Each column scrolls vertically, and deeper paths scroll
+the columns horizontally. Up to three columns
+fit on desktop; narrower windows show fewer columns.
+
+The directory browser works on Windows,
+Linux, and macOS hosts, including remote gateways and environments without a
+desktop. It lists directory names without reading file contents or changing the
+agent's access mode. Windows drive paths and UNC paths can be entered directly.
+
+A locally hosted WebUI also offers the operating system's folder chooser when
+available. You can enter an absolute host path in the search field; gateways
+without directory browsing support retain this option. The browser's local
+filesystem is never used for project selection.
 
 Selecting a project does not replace the configured agent workspace. The two
 paths have different responsibilities:
@@ -325,11 +371,15 @@ selected project. These tool exceptions do not broaden the browser's file
 preview boundary.
 
 Remote WebUI connections may reduce access for the current workspace and may
-select a different workspace by entering its server-side path. A remote project
+select a different workspace by browsing directories or entering its server-side path. A remote project
 change must use Restricted mode; enabling Full Access remains limited to local
 and native clients.
 
 ## Composer
+
+The rightmost composer button starts voice input while the draft is empty and
+switches to Send when text or an attachment is present. Recorded speech is
+transcribed into the draft for confirmation before sending.
 
 The composer supports plain messages, image attachments, voice input when
 transcription is configured, slash commands, and `@` mentions for installed Apps,

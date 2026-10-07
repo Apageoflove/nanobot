@@ -32,7 +32,7 @@ from nanobot.command.builtin import builtin_command_palette
 from nanobot.cron.binding import CronBindingError, binding_revision
 from nanobot.cron.session_turns import is_bound_cron_job
 from nanobot.cron.types import CronJob, CronSchedule
-from nanobot.security.workspace_access import WorkspaceScope
+from nanobot.security.workspace_access import WorkspaceScope, WorkspaceScopeError
 from nanobot.session.manager import SessionManager
 from nanobot.session.recovery import RecoveryActionError
 from nanobot.session.session_handles import (
@@ -140,6 +140,7 @@ from nanobot.webui.transcript import (
     build_webui_trace_detail_response,
     webui_transcript_revision,
 )
+from nanobot.webui.workspace_browser import browse_workspace_directories
 from nanobot.webui.workspaces import WebUIWorkspaceController
 
 _SLOW_WEBUI_HTTP_LOG_MS = 1_000
@@ -196,6 +197,8 @@ _WEBUI_MUTATION_PATHS = {
     "star_prompt.claim": "/api/webui/star-prompt/claim",
     "star_prompt.dismiss": "/api/webui/star-prompt/dismiss",
     "sidebar.update": "/api/webui/sidebar-state/update",
+    "workspace.favorite": "/api/workspaces/favorite",
+    "workspace.resolve_project": "/api/workspaces/resolve-project",
     "workspace.pick_folder": "/api/workspaces/pick-folder",
     "recovery.continue": "/api/webui/recovery/continue",
     "recovery.dismiss": "/api/webui/recovery/dismiss",
@@ -563,6 +566,8 @@ class GatewayHTTPHandler:
             "/api/webui/star-prompt/dismiss",
             "/api/webui/sidebar-state/update",
             "/api/workspaces/pick-folder",
+            "/api/workspaces/resolve-project",
+            "/api/workspaces/favorite",
             "/api/webui/subagents/cancel",
         }
 
@@ -1644,6 +1649,12 @@ class GatewayHTTPHandler:
             return self._handle_commands(request)
         if got == "/api/workspaces/pick-folder":
             return await self._handle_workspace_folder_picker(connection, request)
+        if got == "/api/workspaces/favorite":
+            return self._handle_workspace_favorite(connection, request)
+        if got == "/api/workspaces/resolve-project":
+            return await self._handle_workspace_resolve_project(connection, request)
+        if got == "/api/workspaces/directories":
+            return await self._handle_workspace_directories(connection, request)
         if got == "/api/workspaces":
             return self._handle_workspaces(connection, request)
         if got == "/api/webui/skills/search":
@@ -1699,6 +1710,51 @@ class GatewayHTTPHandler:
                 ),
             )
         )
+
+    def _handle_workspace_favorite(self, connection: Any, request: WsRequest) -> Response:
+        if not self.check_api_token(request):
+            return _http_error(401, "Unauthorized")
+        if not self.workspace_project_selection_available(connection):
+            return _http_error(403, "project selection is unavailable for this connection")
+        payload = _mutation_payload(request) or {}
+        try:
+            favorites = self.workspaces.set_favorite_project(payload.get("path"), payload.get("pinned"))
+        except WorkspaceScopeError as exc:
+            return _http_error(exc.status, exc.message)
+        except OSError:
+            return _http_error(500, "could not save favorite folders")
+        return _http_json_response({"favorite_projects": favorites})
+
+    async def _handle_workspace_resolve_project(self, connection: Any, request: WsRequest) -> Response:
+        if not self.check_api_token(request):
+            return _http_error(401, "Unauthorized")
+        if not self.workspace_project_selection_available(connection):
+            return _http_error(403, "project selection is unavailable for this connection")
+        payload = _mutation_payload(request) or {}
+        try:
+            project = self.workspaces.resolve_project(payload.get("path"))
+        except WorkspaceScopeError as exc:
+            return _http_error(exc.status, exc.message)
+        return _http_json_response(project)
+
+    async def _handle_workspace_directories(self, connection: Any, request: WsRequest) -> Response:
+        if not self.check_api_token(request):
+            return _http_error(401, "Unauthorized")
+        if not self.workspace_project_selection_available(connection):
+            return _http_error(403, "project selection is unavailable for this connection")
+        query = _parse_query(request.path)
+        try:
+            payload = await asyncio.to_thread(
+                browse_workspace_directories,
+                _query_first(query, "path") or "",
+                default_workspace=self.workspaces.default_scope().project_path,
+                query=_query_first(query, "q") or "",
+                show_hidden=_query_first(query, "hidden") == "1",
+                allow_partial=_query_first(query, "partial") == "1",
+            )
+        except WorkspaceScopeError as exc:
+            return _http_error(exc.status, exc.message)
+        return _http_json_response(dict(payload))
 
     async def _handle_workspace_folder_picker(
         self,

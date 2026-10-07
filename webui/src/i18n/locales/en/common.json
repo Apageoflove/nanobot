@@ -1922,7 +1922,7 @@
     },
     "composer": {
       "placeholderThread": "Type your message…",
-      "placeholderHero": "Ask anything...",
+      "placeholderHero": "Describe what you’d like to do",
       "placeholderOpening": "Opening a new topic…",
       "placeholderStreaming": "Model is responding…",
       "inputAria": "Message input",
@@ -2119,7 +2119,9 @@
         "default": "Default Permission",
         "defaultShort": "Default",
         "full": "Full Access",
-        "fullShort": "Full"
+        "fullShort": "Full",
+        "defaultDescription": "File access and command execution are restricted to the current working directory.",
+        "fullDescription": "Allows file access and command execution outside the current working directory."
       }
     },
     "scrollToBottom": "Scroll to bottom",
@@ -2487,6 +2489,27 @@
       "manualPlaceholder": "/Users/name/project",
       "usePath": "Use Path",
       "absolutePathRequired": "Enter an absolute folder path on this machine."
+    },
+    "picker": {
+      "favorites": "Favorites",
+      "recent": "Recent projects",
+      "directories": "Folders",
+      "pin": "Pin {{name}}",
+      "unpin": "Unpin {{name}}",
+      "description": "Search recent projects or choose a folder on the connected host.",
+      "emptyProjects": "No matching projects",
+      "search": "Enter a path or filter this folder…",
+      "shortcuts": "Saved locations",
+      "favoriteHint": "Right-click a folder to add it here.",
+      "native": "Use system folder picker…",
+      "up": "Parent directory",
+      "loading": "Loading folders…",
+      "emptyDirectories": "No matching folders",
+      "truncated": "Showing 500 folders. Continue typing the path to narrow the list.",
+      "hidden": "Show hidden folders",
+      "select": "Select",
+      "switchDirectory": "Switch working directory",
+      "selectDirectory": "Select this folder"
     }
   }
 }

@@ -4232,3 +4232,69 @@ async def test_star_prompt_requires_authenticated_mutation_and_persists_dismissa
     finally:
         await channel.stop()
         await server_task
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("connection", [_LOCAL, _REMOTE])
+async def test_project_directory_http_read_requires_auth_and_keeps_scope(
+    bus: MagicMock, tmp_path: Path, connection: _FakeConn,
+) -> None:
+    root = tmp_path / "folders"
+    root.mkdir()
+    (root / "project").mkdir()
+    (root / "private.txt").write_text("not returned")
+    channel = _ch(bus, workspace_path=tmp_path)
+    path = f"/api/workspaces/directories?path={root}"
+    response = await channel.gateway.http._dispatch_misc_routes(connection, _FakeReq({}, path=path), "/api/workspaces/directories")
+    assert response is not None and response.status_code == 401
+    token = channel.gateway.tokens.issue_api_token(300)
+    request = _FakeReq({"Authorization": f"Bearer {token}"}, path=path)
+    response = await channel.gateway.http._dispatch_misc_routes(connection, request, "/api/workspaces/directories")
+    assert response is not None and response.status_code == 200
+    assert json.loads(response.body)["entries"] == [{"name": "project", "path": str(root / "project")}]
+    partial_request = _FakeReq({"Authorization": f"Bearer {token}"}, path=f"/api/workspaces/directories?path={root / 'proj'}&partial=1")
+    partial_response = await channel.gateway.http._dispatch_misc_routes(connection, partial_request, "/api/workspaces/directories")
+    assert partial_response is not None and partial_response.status_code == 200
+    assert json.loads(partial_response.body)["partial"] is True
+    assert json.loads(partial_response.body)["entries"] == [{"name": "project", "path": str(root / "project")}]
+    assert channel.gateway.workspaces.default_scope().project_path == tmp_path
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("connection", [_LOCAL, _REMOTE])
+async def test_project_selection_remembers_resolved_path_without_changing_access(
+    bus: MagicMock, tmp_path: Path, connection: _FakeConn,
+) -> None:
+    project = tmp_path / "project"
+    project.mkdir()
+    channel = _ch(bus, workspace_path=tmp_path)
+    scope = channel.gateway.workspaces.default_scope()
+    response = await _webui_mutate(channel, "workspace.resolve_project", {"path": str(project)}, connection=connection)
+    assert response.status_code == 200
+    assert response.json() == {"name": "project", "path": str(project)}
+    assert channel.gateway.workspaces.default_scope() == scope
+    payload = channel.gateway.workspaces.payload(can_change_project=True, can_use_full_access=False)
+    assert payload["recent_projects"] == [{"name": "project", "path": str(project)}]
+    rejected = await _webui_mutate(channel, "workspace.resolve_project", {"path": str(tmp_path / "missing")}, connection=connection)
+    assert rejected.status_code == 400
+    assert channel.gateway.workspaces.payload(can_change_project=True, can_use_full_access=False)["recent_projects"] == payload["recent_projects"]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("connection", [_LOCAL, _REMOTE])
+async def test_project_favorites_mutation_persists_without_selecting_project(
+    bus: MagicMock, tmp_path: Path, connection: _FakeConn,
+) -> None:
+    project = tmp_path / "pinned"
+    project.mkdir()
+    channel = _ch(bus, workspace_path=tmp_path)
+    response = await _webui_mutate(channel, "workspace.favorite", {"path": str(project), "pinned": True}, connection=connection)
+    assert response.status_code == 200
+    assert response.json() == {"favorite_projects": [{"name": "pinned", "path": str(project)}]}
+    payload = channel.gateway.workspaces.payload(can_change_project=True, can_use_full_access=False)
+    assert payload["favorite_projects"] == response.json()["favorite_projects"]
+    assert payload["recent_projects"] == []
+    assert payload["default_scope"]["project_path"] == str(tmp_path)
+    response = await _webui_mutate(channel, "workspace.favorite", {"path": str(project), "pinned": False}, connection=connection)
+    assert response.status_code == 200
+    assert response.json() == {"favorite_projects": []}

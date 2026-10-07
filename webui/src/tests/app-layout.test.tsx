@@ -1088,7 +1088,7 @@ describe("App layout", () => {
     expect(window.location.hash).toBe("#/new");
     // Let queued browser navigation events settle before sending the first message.
     await act(async () => { await new Promise((resolve) => setTimeout(resolve, 50)); });
-    expect(await screen.findByRole("button", { name: "Choose project" })).toHaveTextContent("selected-project");
+    expect(await screen.findByRole("button", { name: "Switch working directory" })).toHaveTextContent("selected-project");
     fireEvent.change(screen.getByLabelText("Message input"), {
       target: { value: "project topic" },
     });
@@ -1113,7 +1113,7 @@ describe("App layout", () => {
     render(<App />);
 
     await waitFor(() => expect(connectSpy).toHaveBeenCalled());
-    expect(await screen.findByRole("button", { name: "Choose project" })).toBeInTheDocument();
+    expect(await screen.findByRole("button", { name: "Switch working directory" })).toBeInTheDocument();
     act(() => {
       sessionUpdateHandlers.forEach((handler) => handler("selected-chat", "metadata", {
         project_path: "/tmp/selected-project",
@@ -1124,7 +1124,7 @@ describe("App layout", () => {
     });
     fireEvent.click(screen.getByRole("button", { name: "Temporary chat" }));
 
-    expect(screen.queryByRole("button", { name: "Choose project" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Switch working directory" })).not.toBeInTheDocument();
     expect(screen.queryByText("Full Access")).not.toBeInTheDocument();
     fireEvent.change(screen.getByLabelText("Message input"), {
       target: { value: "temporary project check" },
@@ -1161,11 +1161,11 @@ describe("App layout", () => {
     render(<App />);
 
     await waitFor(() => expect(connectSpy).toHaveBeenCalled());
-    fireEvent.click(await screen.findByRole("button", { name: "Choose project" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Switch working directory" }));
     fireEvent.change(await screen.findByLabelText("Paste path"), {
       target: { value: "C:\\missing-project" },
     });
-    fireEvent.click(screen.getByRole("button", { name: "Use Path" }));
+    fireEvent.click(screen.getByRole("button", { name: "Select" }));
 
     const message = screen.getByLabelText("Message input");
     fireEvent.change(message, { target: { value: "keep this first message" } });
@@ -1173,7 +1173,7 @@ describe("App layout", () => {
 
     await waitFor(() => expect(createChatSpy).toHaveBeenCalledTimes(1));
     expect(message).toHaveValue("keep this first message");
-    const projectButton = screen.getByRole("button", { name: "Choose project" });
+    const projectButton = screen.getByRole("button", { name: "Switch working directory" });
     await waitFor(() => expect(projectButton).toHaveFocus());
     expect(screen.getByRole("alert")).toHaveTextContent(
       "The gateway rejected this project or access mode. Choose an existing project or a different access mode, then try again.",

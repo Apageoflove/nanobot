@@ -1736,7 +1736,7 @@
     },
     "composer": {
       "placeholderThread": "Digite sua mensagem…",
-      "placeholderHero": "Pergunte qualquer coisa...",
+      "placeholderHero": "Descreva o que você quer fazer",
       "placeholderOpening": "Abrindo um novo tópico…",
       "placeholderStreaming": "O modelo está respondendo…",
       "inputAria": "Campo de mensagem",
@@ -1933,7 +1933,9 @@
         "default": "Permissão padrão",
         "defaultShort": "Padrão",
         "full": "Acesso total",
-        "fullShort": "Total"
+        "fullShort": "Total",
+        "defaultDescription": "O acesso a arquivos e a execução de comandos ficam restritos ao diretório de trabalho atual.",
+        "fullDescription": "Permite acessar arquivos e executar comandos fora do diretório de trabalho atual."
       }
     },
     "scrollToBottom": "Rolar para o final",
@@ -2301,6 +2303,27 @@
       "manualPlaceholder": "/Users/nome/projeto",
       "usePath": "Usar caminho",
       "absolutePathRequired": "Informe um caminho absoluto de pasta nesta máquina."
+    },
+    "picker": {
+      "favorites": "Favoritos",
+      "recent": "Projetos recentes",
+      "directories": "Pastas",
+      "pin": "Fixar {{name}}",
+      "unpin": "Desafixar {{name}}",
+      "description": "Pesquise projetos recentes ou escolha uma pasta no host conectado.",
+      "emptyProjects": "Nenhum projeto correspondente",
+      "search": "Digite um caminho ou filtre esta pasta…",
+      "shortcuts": "Locais salvos",
+      "favoriteHint": "Clique com o botão direito em uma pasta para adicioná-la aqui.",
+      "native": "Usar o seletor de pastas do sistema…",
+      "up": "Pasta superior",
+      "loading": "Carregando pastas…",
+      "emptyDirectories": "Nenhuma pasta correspondente",
+      "truncated": "Exibindo 500 pastas. Continue digitando o caminho para reduzir a lista.",
+      "hidden": "Mostrar pastas ocultas",
+      "select": "Selecionar",
+      "switchDirectory": "Alterar diretório de trabalho",
+      "selectDirectory": "Selecionar esta pasta"
     }
   }
 }

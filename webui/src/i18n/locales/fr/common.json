@@ -1722,7 +1722,7 @@
     },
     "composer": {
       "placeholderThread": "Saisissez votre message…",
-      "placeholderHero": "Qu’avez-vous en tête ?",
+      "placeholderHero": "Décrivez ce que vous souhaitez faire",
       "placeholderOpening": "Ouverture d’un nouveau sujet…",
       "placeholderStreaming": "Le modèle est en train de répondre…",
       "inputAria": "Champ de message",
@@ -1919,7 +1919,9 @@
         "default": "Autorisation par défaut",
         "defaultShort": "Par défaut",
         "full": "Accès complet",
-        "fullShort": "Complet"
+        "fullShort": "Complet",
+        "defaultDescription": "L’accès aux fichiers et l’exécution des commandes sont limités au dossier de travail actuel.",
+        "fullDescription": "Autorise l’accès aux fichiers et l’exécution des commandes hors du dossier de travail actuel."
       }
     },
     "scrollToBottom": "Faire défiler vers le bas",
@@ -2287,6 +2289,27 @@
       "manualPlaceholder": "/Users/name/project",
       "usePath": "Utiliser le chemin",
       "absolutePathRequired": "Saisissez un chemin absolu de dossier sur cette machine."
+    },
+    "picker": {
+      "favorites": "Favoris",
+      "recent": "Projets récents",
+      "directories": "Dossiers",
+      "pin": "Épingler {{name}}",
+      "unpin": "Désépingler {{name}}",
+      "description": "Recherchez un projet récent ou choisissez un dossier sur l’hôte connecté.",
+      "emptyProjects": "Aucun projet correspondant",
+      "search": "Saisir un chemin ou filtrer ce dossier…",
+      "shortcuts": "Emplacements enregistrés",
+      "favoriteHint": "Faites un clic droit sur un dossier pour l’ajouter ici.",
+      "native": "Utiliser le sélecteur de dossiers du système…",
+      "up": "Dossier parent",
+      "loading": "Chargement des dossiers…",
+      "emptyDirectories": "Aucun dossier correspondant",
+      "truncated": "500 dossiers affichés. Continuez à saisir le chemin pour réduire la liste.",
+      "hidden": "Afficher les dossiers cachés",
+      "select": "Choisir",
+      "switchDirectory": "Changer de dossier de travail",
+      "selectDirectory": "Sélectionner ce dossier"
     }
   }
 }

@@ -1,4 +1,4 @@
-import type { WorkspaceAccessMode, WorkspaceScopePayload } from "@/lib/types";
+import type { WorkspaceAccessMode, WorkspaceScopePayload, WorkspaceDirectoriesPayload } from "@/lib/types";
 
 export function scopeWithAccessMode(
   scope: WorkspaceScopePayload,
@@ -30,6 +30,7 @@ export function isAbsoluteWorkspacePath(path: string): boolean {
     || trimmed.startsWith("~/")
     || trimmed.startsWith("~\\")
     || trimmed.startsWith("/")
+    || trimmed.startsWith("\\\\")
     || /^[A-Za-z]:[\\/]/.test(trimmed)
   );
 }
@@ -54,3 +55,18 @@ export function sameWorkspacePath(
   if (!a || !b) return false;
   return normalizeWorkspacePath(a) === normalizeWorkspacePath(b);
 }
+
+export function workspacePathCompletionQuery(path: string): { path: string; query: string } | null {
+  const draft = path.trim();
+  if (!isAbsoluteWorkspacePath(draft)) return null;
+  if (draft === "~") return { path: "~", query: "" };
+  const parts = /^(.*[\\/])([^\\/]*)$/.exec(draft);
+  return parts ? { path: parts[1], query: parts[2] } : null;
+}
+
+export function workspaceDirectoryPrefix(path: string): string {
+  const separator = path.includes("\\") ? "\\" : "/";
+  return path.replace(/[\\/]+$/, "") + separator;
+}
+
+export type BrowseWorkspaceDirectories = (path: string, query: string, showHidden: boolean, allowPartial?: boolean) => Promise<WorkspaceDirectoriesPayload>;
