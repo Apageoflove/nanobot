@@ -2486,30 +2486,24 @@
     "dialog": {
       "defaultProject": "Default workspace",
       "manual": "Paste path",
-      "manualPlaceholder": "/Users/name/project",
       "usePath": "Use Path",
       "absolutePathRequired": "Enter an absolute folder path on this machine."
     },
     "picker": {
       "favorites": "Favorites",
       "recent": "Recent projects",
-      "directories": "Folders",
       "pin": "Pin {{name}}",
       "unpin": "Unpin {{name}}",
       "description": "Search recent projects or choose a folder on the connected host.",
-      "emptyProjects": "No matching projects",
       "search": "Enter a path or filter this folder…",
       "shortcuts": "Saved locations",
       "favoriteHint": "Use a folder’s star to add it here.",
       "native": "Use system folder picker…",
-      "up": "Parent directory",
       "loading": "Loading folders…",
-      "emptyDirectories": "No matching folders",
       "truncated": "Showing 500 folders. Continue typing the path to narrow the list.",
       "hidden": "Show hidden folders",
       "select": "Select",
-      "switchDirectory": "Switch working directory",
-      "selectDirectory": "Select this folder"
+      "switchDirectory": "Switch working directory"
     }
   }
 }

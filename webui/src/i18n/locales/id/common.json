@@ -2286,30 +2286,24 @@
     "dialog": {
       "defaultProject": "Ruang kerja bawaan",
       "manual": "Tempel path",
-      "manualPlaceholder": "/Users/name/project",
       "usePath": "Gunakan path",
       "absolutePathRequired": "Masukkan path folder absolut di mesin ini."
     },
     "picker": {
       "favorites": "Favorit",
       "recent": "Proyek terbaru",
-      "directories": "Folder",
       "pin": "Sematkan {{name}}",
       "unpin": "Lepas {{name}}",
       "description": "Cari proyek terbaru atau pilih folder di host yang terhubung.",
-      "emptyProjects": "Tidak ada proyek yang cocok",
       "search": "Masukkan jalur atau filter folder ini…",
       "shortcuts": "Lokasi tersimpan",
       "favoriteHint": "Klik bintang di samping folder untuk menambahkannya di sini.",
       "native": "Gunakan pemilih folder sistem…",
-      "up": "Direktori induk",
       "loading": "Memuat folder…",
-      "emptyDirectories": "Tidak ada folder yang cocok",
       "truncated": "Menampilkan 500 folder. Lanjutkan mengetik jalur untuk mempersempit daftar.",
       "hidden": "Tampilkan folder tersembunyi",
       "select": "Pilih",
-      "switchDirectory": "Ganti direktori kerja",
-      "selectDirectory": "Pilih folder ini"
+      "switchDirectory": "Ganti direktori kerja"
     }
   }
 }

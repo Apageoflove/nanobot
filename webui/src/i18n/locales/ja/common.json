@@ -2286,30 +2286,24 @@
     "dialog": {
       "defaultProject": "既定のワークスペース",
       "manual": "パスを貼り付け",
-      "manualPlaceholder": "/Users/name/project",
       "usePath": "パスを使用",
       "absolutePathRequired": "このマシン上の絶対フォルダーパスを入力してください。"
     },
     "picker": {
       "favorites": "お気に入り",
       "recent": "最近のプロジェクト",
-      "directories": "フォルダー",
       "pin": "{{name}} を固定",
       "unpin": "{{name}} の固定を解除",
       "description": "最近のプロジェクトを検索するか、接続先ホストのフォルダーを選択します。",
-      "emptyProjects": "一致するプロジェクトはありません",
       "search": "パスを入力、または現在のフォルダを絞り込む…",
       "shortcuts": "保存した場所",
       "favoriteHint": "フォルダの星をクリックして追加します。",
       "native": "システムのフォルダー選択を使用…",
-      "up": "親ディレクトリ",
       "loading": "フォルダーを読み込み中…",
-      "emptyDirectories": "一致するフォルダーはありません",
       "truncated": "500 個のフォルダーを表示しています。パスの入力を続けて絞り込んでください。",
       "hidden": "隠しフォルダーを表示",
       "select": "選択",
-      "switchDirectory": "作業ディレクトリを切り替える",
-      "selectDirectory": "このフォルダーを選択"
+      "switchDirectory": "作業ディレクトリを切り替える"
     }
   }
 }

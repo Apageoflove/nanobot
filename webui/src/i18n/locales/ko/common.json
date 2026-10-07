@@ -2286,30 +2286,24 @@
     "dialog": {
       "defaultProject": "기본 작업공간",
       "manual": "경로 붙여넣기",
-      "manualPlaceholder": "/Users/name/project",
       "usePath": "경로 사용",
       "absolutePathRequired": "이 머신의 절대 폴더 경로를 입력하세요."
     },
     "picker": {
       "favorites": "즐겨찾기",
       "recent": "최근 프로젝트",
-      "directories": "폴더",
       "pin": "{{name}} 고정",
       "unpin": "{{name}} 고정 해제",
       "description": "최근 프로젝트를 검색하거나 연결된 호스트의 폴더를 선택하세요.",
-      "emptyProjects": "일치하는 프로젝트가 없습니다",
       "search": "경로 입력 또는 현재 폴더 필터링…",
       "shortcuts": "저장된 위치",
       "favoriteHint": "폴더 옆의 별을 눌러 즐겨찾기에 추가하세요.",
       "native": "시스템 폴더 선택기 사용…",
-      "up": "상위 디렉터리",
       "loading": "폴더 불러오는 중…",
-      "emptyDirectories": "일치하는 폴더가 없습니다",
       "truncated": "폴더 500개를 표시합니다. 경로를 계속 입력하여 목록을 좁히세요.",
       "hidden": "숨김 폴더 표시",
       "select": "선택",
-      "switchDirectory": "작업 디렉터리 변경",
-      "selectDirectory": "이 폴더 선택"
+      "switchDirectory": "작업 디렉터리 변경"
     }
   }
 }
