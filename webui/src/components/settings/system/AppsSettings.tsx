@@ -31,6 +31,8 @@ import {
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
+import { CatalogSkeleton } from "@/components/settings/shared/CatalogSkeleton";
+
 import {
   DismissibleStatusMessage,
   RestartRequiredNotice,
@@ -218,10 +220,8 @@ export function AppsCatalogSettings({
   const focusedApp = cliFocusName
     ? (cliApps?.apps ?? []).find((app) => app.name === cliFocusName && app.installed)
     : null;
-  const loading =
-    (cliAppsLoading || mcpPresetsLoading) &&
-    !cliApps &&
-    !mcpPresets;
+  const loading = (mcpPresetsLoading && !mcpPresets)
+    || ((filter !== "mcp" || Boolean(normalizedQuery)) && cliAppsLoading && !cliApps);
   const cliAppCount = cliApps?.apps.length ?? 0;
   const emptyTitle = normalizedQuery
     ? tx("settings.apps.empty", "No tools match your search.")
@@ -305,15 +305,10 @@ export function AppsCatalogSettings({
               : tx("settings.apps.featured", "Tools")}
           </SettingsSectionTitle>
           <span className="text-[12px] tabular-nums text-muted-foreground">
-            {items.length}
+            {loading ? "—" : items.length}
           </span>
         </div>
-        {loading ? (
-          <div className="flex h-36 items-center justify-center text-sm text-muted-foreground">
-            <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden />
-            {tx("settings.apps.loading", "Loading apps…")}
-          </div>
-        ) : items.length ? (
+        {items.length ? (
           <div className="grid grid-cols-1 gap-x-10 gap-y-1 py-3 xl:grid-cols-2">
             {items.map((item) =>
               item.kind === "cli" ? (
@@ -351,7 +346,10 @@ export function AppsCatalogSettings({
               ),
             )}
           </div>
-        ) : (
+        ) : null}
+        {loading ? (
+          <CatalogSkeleton label={tx("settings.apps.loading", "Loading apps…")} layout="apps" />
+        ) : !items.length && !statusIsError ? (
           <div className="px-3 py-12 text-center text-sm text-muted-foreground">
             <p>{emptyTitle}</p>
             {normalizedQuery ? (
@@ -383,7 +381,7 @@ export function AppsCatalogSettings({
               </p>
             )}
           </div>
-        )}
+        ) : null}
       </section>
 
       {filter === "mcp" ? (
