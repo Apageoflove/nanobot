@@ -2507,7 +2507,7 @@
       "emptyProjects": "没有匹配的项目",
       "search": "输入路径或筛选当前目录…",
       "shortcuts": "快捷位置",
-      "favoriteHint": "右键点击文件夹，将它加入收藏。",
+      "favoriteHint": "点击文件夹旁的星标收藏。",
       "native": "使用系统文件夹选择器…",
       "up": "返回上级目录",
       "loading": "正在加载文件夹…",

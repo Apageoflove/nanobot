@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
@@ -167,22 +167,37 @@ describe("Workspace project picker", () => {
     const onFavorite = vi.fn().mockResolvedValueOnce(favorites).mockRejectedValueOnce(new Error("disk full")).mockResolvedValueOnce([]);
     render(<WorkspaceProjectPicker isHero scope={scope} defaultScope={scope} controls={catalog.controls} onLoadProjects={vi.fn().mockResolvedValue({ ...catalog, controls: { ...catalog.controls, can_manage_favorites: true } })} onFavoriteProject={onFavorite} onChange={onChange} />);
     await user.click(screen.getByRole("button", { name: "Switch working directory" }));
-    async function openFavoriteMenu(name: string) {
-      fireEvent.contextMenu(await screen.findByRole("button", { name: "/srv/beta" }), { clientX: 100, clientY: 100 });
-      return screen.findByRole("menuitem", { name });
-    }
-    await user.click(await openFavoriteMenu("Pin beta"));
+    await user.click(await screen.findByRole("button", { name: "Pin beta" }));
     expect(onFavorite).toHaveBeenLastCalledWith("/srv/beta", true);
-    await waitFor(() => expect(screen.queryByRole("menu")).not.toBeInTheDocument());
+    await screen.findByRole("button", { name: "Unpin beta" });
     expect(screen.getByRole("navigation")).toHaveTextContent("Favorites/srv/betaRecent projects");
     expect(screen.getByRole("combobox")).toHaveFocus();
     expect(onChange).not.toHaveBeenCalled();
-    await user.click(await openFavoriteMenu("Unpin beta"));
+    await user.click(screen.getByRole("button", { name: "Unpin beta" }));
     expect(await screen.findByRole("alert")).toHaveTextContent("disk full");
-    await user.click(await openFavoriteMenu("Unpin beta"));
-    await waitFor(() => expect(screen.queryByRole("menu")).not.toBeInTheDocument());
-    expect(await openFavoriteMenu("Pin beta")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Unpin beta" }));
+    expect(await screen.findByRole("button", { name: "Pin beta" })).toHaveAttribute("aria-pressed", "false");
     expect(onFavorite).toHaveBeenLastCalledWith("/srv/beta", false);
+    expect(onChange).not.toHaveBeenCalled();
+  });
+
+  it("stars a directory with the keyboard without navigating or selecting it", async () => {
+    const user = userEvent.setup();
+    const onChange = vi.fn();
+    const onFavorite = vi.fn().mockResolvedValue([{ name: "alpha", path: "/srv/workspace/alpha" }]);
+    render(<WorkspaceProjectPicker isHero scope={scope} defaultScope={scope} controls={catalog.controls}
+      onLoadProjects={vi.fn().mockResolvedValue({ ...catalog, controls: { ...catalog.controls, can_manage_favorites: true } })}
+      onBrowseDirectories={vi.fn().mockResolvedValue(directory)} onFavoriteProject={onFavorite} onChange={onChange} />);
+    await user.click(screen.getByRole("button", { name: "Switch working directory" }));
+    const option = await screen.findByRole("option", { name: "/srv/workspace/alpha" });
+    const star = await within(option.parentElement!).findByRole("button", { name: "Pin alpha" });
+    act(() => star.focus());
+    await user.keyboard("{Enter}");
+    expect(onFavorite).toHaveBeenCalledWith("/srv/workspace/alpha", true);
+    await waitFor(() => expect(screen.getAllByRole("button", { name: "Unpin alpha" })).toHaveLength(2));
+    expect(option).toHaveAttribute("aria-selected", "false");
+    expect(screen.getByRole("combobox")).toHaveValue("/srv/workspace/");
+    expect(screen.getByRole("combobox")).toHaveFocus();
     expect(onChange).not.toHaveBeenCalled();
   });
 
