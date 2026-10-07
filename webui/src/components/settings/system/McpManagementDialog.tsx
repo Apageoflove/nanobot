@@ -5,6 +5,7 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Check, ExternalLink, Loader2, RotateCcw, Search, Server, Trash2, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
+import { SkeletonStatus } from "@/components/settings/shared/SkeletonStatus";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -363,34 +364,30 @@ function ToolsPanel({
 }) {
   const { t } = useTranslation();
   const tx = (key: string, fallback: string) => t(key, { defaultValue: fallback });
-  if (!toolNames.length) {
-    if (testBusy) {
-      const loadingLabel = tx("settings.mcp.loadingTools", "Loading tools…");
-      return (
-        <div role="status" aria-busy="true" aria-label={loadingLabel}>
-          <span className="sr-only">{loadingLabel}</span>
-          <div aria-hidden className="space-y-4 animate-pulse motion-reduce:animate-none">
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-              <div className="h-10 min-w-0 rounded-full bg-muted-foreground/20 sm:flex-1" />
-              <div className="flex h-8 items-center justify-between gap-4 sm:justify-end">
-                <div className="mr-auto h-3 w-20 rounded bg-muted-foreground/20 sm:mr-1" />
-                <div className="h-3 w-6 rounded bg-muted-foreground/20" />
-                <div className="h-3 w-9 rounded bg-muted-foreground/20" />
-              </div>
-            </div>
-            <div className="overflow-hidden rounded-floating border border-border/55">
-              {Array.from({ length: 6 }, (_, index) => (
-                <div key={index} className="flex min-h-11 items-center gap-3 border-b border-border/45 px-3.5 py-2.5 last:border-b-0">
-                  <div className="h-5 w-5 shrink-0 rounded-compact bg-muted-foreground/20" />
-                  <div className={cn("h-3.5 max-w-[70%] rounded bg-muted-foreground/20", index % 2 ? "w-40" : "w-52")} />
-                </div>
-              ))}
-            </div>
+  if (!toolNames.length && testBusy) {
+    return (
+      <SkeletonStatus label={tx("settings.mcp.loadingTools", "Loading tools…")} className="space-y-4">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+          <div className="h-10 min-w-0 rounded-full bg-muted-foreground/20 sm:flex-1" />
+          <div className="flex h-8 items-center justify-between gap-4 sm:justify-end">
+            <div className="mr-auto h-3 w-20 rounded bg-muted-foreground/20 sm:mr-1" />
+            <div className="h-3 w-6 rounded bg-muted-foreground/20" />
+            <div className="h-3 w-9 rounded bg-muted-foreground/20" />
           </div>
         </div>
-      );
-    }
+        <div className="overflow-hidden rounded-floating border border-border/55">
+          {Array.from({ length: 6 }, (_, index) => (
+            <div key={index} className="flex min-h-11 items-center gap-3 border-b border-border/45 px-3.5 py-2.5 last:border-b-0">
+              <div className="h-5 w-5 shrink-0 rounded-compact bg-muted-foreground/20" />
+              <div className={cn("h-3.5 max-w-[70%] rounded bg-muted-foreground/20", index % 2 ? "w-40" : "w-52")} />
+            </div>
+          ))}
+        </div>
+      </SkeletonStatus>
+    );
+  }
 
+  if (!toolNames.length) {
     return (
       <div
         className={cn(

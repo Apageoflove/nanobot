@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
+import { SkeletonStatus } from "@/components/settings/shared/SkeletonStatus";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -675,26 +676,25 @@ function TrendSparkline({ values }: { values?: number[] }) {
 
 function MarketplaceSkeleton({ ranked = false }: { ranked?: boolean }) {
   const { t } = useTranslation();
-  const label = t("settings.skills.loading");
   return (
-    <div role="status" aria-label={label} aria-busy="true">
-      <span className="sr-only">{label}</span>
-      <div className="space-y-1 px-3 pb-3 animate-pulse motion-reduce:animate-none sm:px-4" aria-hidden>
-        {Array.from({ length: 5 }, (_, index) => (
-          <div key={index} className="flex min-w-0 items-center gap-2 px-1 py-3.5 sm:gap-3 sm:px-2">
-            {ranked ? <div className="h-3 w-6 shrink-0 rounded bg-muted-foreground/20 sm:w-7" /> : null}
-            <div className="min-w-0 flex-1">
-              <div className="flex h-7 items-center">
-                <div className="h-3.5 w-48 max-w-[70%] rounded bg-muted-foreground/20" />
-              </div>
-              <div className="mt-1 flex h-5 items-center">
-                <div className="h-3 w-32 max-w-[55%] rounded bg-muted-foreground/20 opacity-60" />
-              </div>
+    <SkeletonStatus
+      label={t("settings.skills.loading")}
+      className="space-y-1 px-3 pb-3 sm:px-4"
+    >
+      {Array.from({ length: 5 }, (_, index) => (
+        <div key={index} className="flex min-w-0 items-center gap-2 px-1 py-3.5 sm:gap-3 sm:px-2">
+          {ranked ? <div className="h-3 w-6 shrink-0 rounded bg-muted-foreground/20 sm:w-7" /> : null}
+          <div className="min-w-0 flex-1">
+            <div className="flex h-7 items-center">
+              <div className="h-3.5 w-48 max-w-[70%] rounded bg-muted-foreground/20" />
             </div>
-            <div className="h-9 w-9 shrink-0 rounded-full bg-muted-foreground/20" />
+            <div className="mt-1 flex h-5 items-center">
+              <div className="h-3 w-32 max-w-[55%] rounded bg-muted-foreground/20 opacity-60" />
+            </div>
           </div>
-        ))}
-      </div>
-    </div>
+          <div className="h-9 w-9 shrink-0 rounded-full bg-muted-foreground/20" />
+        </div>
+      ))}
+    </SkeletonStatus>
   );
 }
