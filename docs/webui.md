@@ -66,15 +66,17 @@ WebUI beyond localhost or want a browser password:
 The WebUI is served by the WebSocket channel on port `8765` by default. The
 gateway health endpoint, `18790` by default, is not the browser UI.
 
-## Setup
+## First 10 Minutes
 
-Configure a provider, credentials, and an active model preset in **Settings →
-Models**. Channels and web, voice, and image providers have their own Settings
-panels; CLI Apps and MCP integrations are managed in **Apps**. Controls that
-require a gateway restart indicate it in the WebUI.
+Use the WebUI as the primary setup surface:
 
-Normal setup does not require editing `config.json`. The reference docs cover
-options outside the WebUI and deployments that manage configuration as code.
+1. Open **Settings → Models** and configure a provider, credential, and active model preset.
+2. Send `Hello!` in a new topic to prove the selected model works.
+3. Start a separate topic before project work, then choose the intended workspace and access mode.
+4. Add only one capability next: a chat channel in **Settings → Channels**, a web/voice/image provider in **Settings**, or an App/MCP integration in **Apps**.
+5. Restart when the WebUI shows a restart requirement, then test that capability with the smallest possible request.
+
+This path avoids hand-editing `config.json` for normal setup. Use the reference docs when you need an option the WebUI does not expose or when you manage config as code.
 
 ## What It Is For
 
@@ -95,10 +97,12 @@ options outside the WebUI and deployments that manage configuration as code.
 
 ### Optional GitHub invitation
 
-The optional GitHub star invitation can be dismissed temporarily with **Maybe
-later**, or permanently with **Don't ask again**. Opening GitHub from the
-invitation also stops reminders. The permanent preference is shared across
-browsers connected to the same gateway instance.
+Returning users may see an illustrated invitation to star nanobot on GitHub.
+It follows the WebUI language and theme; the button's star animation also
+supports keyboard focus and respects reduced-motion preferences. **Maybe later**,
+the close button, or Escape dismisses it for now. **Don't ask again** or opening
+GitHub from the invitation stops future reminders for the gateway instance,
+including in other browsers. Starring is optional and never required to use nanobot.
 
 ## Topic Workspace
 
@@ -107,9 +111,14 @@ workspace selection, and linked automations. Use a new topic when you want a
 separate context; use fork when you want to continue from an existing point
 without changing the original thread.
 
-Sidebar action menus appear on hover or keyboard focus on desktop and remain
-visible on touch devices. They include rename, fork, group, move, and delete
-operations.
+On touch devices, sidebar action buttons stay visible with larger touch areas
+for topics, conversation groups, panes, and projects. Tap a title to select it
+or the adjacent action button for its menu. Desktop actions still appear on
+hover or keyboard focus. Press Escape in an action menu to return focus to its
+button and continue with Tab, including from the **Move to** submenu. ArrowLeft
+leaves the submenu and returns to **Move to** without closing the parent menu.
+Choosing Rename instead moves focus into the
+dialog; clicking outside a menu keeps focus at the clicked destination.
 
 Drag a topic within its current sidebar group to keep frequently used work in
 your preferred order. Drag a topic from the sidebar into the composer when you
@@ -188,11 +197,33 @@ explains the restriction and keeps **Open in browser** and **Copy link** availab
 Sites can still refuse embedding through their own security headers. nanobot
 does not proxy pages or bypass those restrictions; use **Open in browser** instead.
 
-On touch devices, navigation, search, menus, and the composer fit the visible
-area above the on-screen keyboard. Messages and results scroll independently.
-Landscape layouts use side-by-side controls when height is limited. Pinch zoom
-preserves the existing layout; compact text fields avoid Safari's automatic
-focus zoom. Preview tabs remain horizontally scrollable on narrow screens.
+On touch devices with Visual Viewport support, the app follows the visible area
+when the on-screen keyboard opens or pans the page. Navigation and the composer
+stay in view while messages scroll independently. Session search also follows
+the visible area: the search field stays above the keyboard and results scroll
+inside the dialog. In short landscape viewports, its input and results sit side
+by side so a result remains reachable. Taller dialogs scroll from their top
+instead of centering content outside the visible area. The `@` mention and `/` command
+menus use the visible app area above or below the composer, including when the
+keyboard pans the page. Scroll within a menu to reach more results. Mention rows
+use the app's larger touch targets on phones while retaining desktop density.
+In very short, wide viewports (such as landscape with the keyboard open), menus
+sit beside the input instead of overflowing the scrollable composer. Scroll the
+menu for more candidates and the input area for its controls. If the browser
+bars and keyboard leave no usable page area, dismiss
+the keyboard or return to portrait. Pinch zoom keeps the existing layout instead of resizing it to the
+magnified area; normal fitting resumes when
+you return to the default zoom. Non-touch desktop and native-host layout remain
+unchanged.
+
+On touch devices, compact text fields use a readable 16px minimum baseline to
+avoid Safari automatically zooming the page on focus. Desktop field density
+and manual page zoom remain unchanged.
+
+On touch devices, preview tab controls and
+the full-screen image viewer's close button use larger touch areas without
+enlarging the icons. Preview tabs remain horizontally scrollable when space is
+limited.
 
 Open the context indicator beside the composer model badge to see how much of
 the model's context window is in use. The **Recent rounds** chart shows input
@@ -231,8 +262,12 @@ restart behavior.
 
 ## Temporary Chats
 
-**Temporary chat** in the new-topic header starts a conversation outside saved
-topic history and long-term memory.
+Use a temporary chat for a conversation that should not be added to nanobot's
+topic history or long-term memory:
+
+1. Select **New topic**.
+2. Select the **Temporary chat** control in the page header.
+3. Send the first message.
 
 You can keep more than one temporary chat open and switch between them under
 **Temporary chats** in the sidebar while the current WebUI connection remains
@@ -256,24 +291,12 @@ or a result you must retain.
 
 ## Workspace and Access
 
-The composer’s folder control selects the project directory on the connected
-gateway, including remote and headless hosts. Paths refer to that machine,
-rather than the browser’s filesystem. Windows drive and UNC paths are supported;
-a local host may also offer its native folder chooser. Hosts without directory
-browsing support accept an absolute path manually.
-
-The picker combines column browsing, recent projects, and favorites. Names
-filter the current directory; absolute paths navigate directly, with partial
-folder names matched against their parent. Arrow keys highlight results, Tab
-completes paths, and Shift+wheel scrolls deep directory trails horizontally.
-**Select** confirms the resolved directory.
-
-A folder’s star toggles its favorite status without changing the project.
-Stars appear on hover or keyboard focus, and remain visible on touch devices.
-Favorites retain their order across gateway restarts; deleted folders can still
-be removed from favorites. Directory listings may be cached for up to 30
-seconds. Browsing exposes directory names, not file contents, and does not
-change access permissions.
+Use the workspace picker to browse folders on the connected nanobot host, enter
+an absolute path, or return to recent and starred projects; favorites persist
+across gateway restarts. Tab completes paths and Shift+wheel scrolls directory
+columns. Local hosts may also offer a native folder chooser; hosts without
+browsing support accept manual paths. Project paths refer to the gateway
+machine, not the browser's filesystem.
 
 Selecting a project does not replace the configured agent workspace. The two
 paths have different responsibilities:
@@ -303,15 +326,15 @@ selected project. These tool exceptions do not broaden the browser's file
 preview boundary.
 
 Remote WebUI connections may reduce access for the current workspace and may
-select a different workspace by browsing directories or entering its server-side
-path. A remote project change must use Restricted mode; enabling Full Access remains limited to local
-and native clients.
+select a different workspace by browsing folders or entering its server-side
+path. A remote project change must use Restricted mode; enabling Full Access
+remains limited to local and native clients.
 
 ## Composer
 
-The rightmost composer button starts voice input while the draft is empty and
-switches to Send when text or an attachment is present. Recorded speech is
-transcribed into the draft for confirmation before sending.
+With voice transcription configured, the idle composer uses one button for
+voice input when empty and Send when text or attachments are present; speech
+is transcribed into the draft before sending.
 
 The composer supports plain messages, image attachments, voice input when
 transcription is configured, slash commands, and `@` mentions for installed Apps,
@@ -529,6 +552,9 @@ package and skill installs disabled unless that is intentional.
 
 Optional feature installs use pip's configured package index, including
 `PIP_INDEX_URL`. skills.sh marketplace installs use `npx` instead.
+
+Leave remote package installs disabled when the WebUI is exposed beyond a
+private, trusted network.
 
 ## Troubleshooting
 
