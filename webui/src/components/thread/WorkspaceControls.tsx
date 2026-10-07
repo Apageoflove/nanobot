@@ -53,7 +53,7 @@ function WorkspaceFolderMenu({ path, pinned, busy, onToggle, onRequestFocus, chi
   );
 }
 
-type PickerOption = ProjectDirectory & { kind: "directory" | "manual"; group: string };
+type PickerOption = ProjectDirectory & { kind: "directory" | "manual" };
 type PickerColumn = { path: string; options: PickerOption[]; selectedPath: string | null; hidden: boolean };
 
 function WorkspacePickerTooltip({ label, children }: { label: string; children: ReactElement }) {
@@ -144,8 +144,7 @@ export function WorkspaceProjectPicker({ isHero, connected = false, disabled, sc
     columnsRef.current = element;
     setColumnsElement(element);
   }, []);
-  const [columnCapacity, setColumnCapacity] = useState(3);
-  const visibleColumns = columnCapacity;
+  const [visibleColumns, setVisibleColumns] = useState(3);
   const pickerSession = useRef(0);
   const completionRequest = useRef(0);
   const triggerRef = useRef<HTMLButtonElement>(null);
@@ -222,7 +221,6 @@ export function WorkspaceProjectPicker({ isHero, connected = false, disabled, sc
   }, [open, pickingFolder, pathError]);
 
   const ancestorPaths = JSON.stringify(previousColumns.filter(column => column.hidden !== showHidden).map(column => column.path));
-  const directoryGroup = t("workspace.picker.directories");
   useEffect(() => {
     if (!open || !canBrowse || !directoryCache) return;
     const paths: string[] = JSON.parse(ancestorPaths);
@@ -232,17 +230,17 @@ export function WorkspaceProjectPicker({ isHero, connected = false, disabled, sc
       if (!active) return;
       setPreviousColumns(columns => columns.map(column => {
         const result = results.find(result => sameWorkspacePath(column.path, result.path));
-        if (!result || !sameWorkspacePath(column.path, result.path)) return column;
-        return { ...column, hidden: showHidden, options: result.entries.map(entry => ({ ...entry, kind: "directory" as const, group: directoryGroup })) };
+        if (!result) return column;
+        return { ...column, hidden: showHidden, options: result.entries.map(entry => ({ ...entry, kind: "directory" as const })) };
       }));
     }).catch((err: Error) => { if (active) setPathError(err.message); });
     return () => { active = false; };
-  }, [open, canBrowse, directoryCache, ancestorPaths, showHidden, directoryGroup]);
+  }, [open, canBrowse, directoryCache, ancestorPaths, showHidden]);
 
   useLayoutEffect(() => {
     const viewport = columnsElement;
     if (!open || !viewport) return;
-    const measure = () => setColumnCapacity(Math.max(1, Math.min(3, Math.floor(viewport.clientWidth / 240))));
+    const measure = () => setVisibleColumns(Math.max(1, Math.min(3, Math.floor(viewport.clientWidth / 240))));
     measure();
     const observer = new ResizeObserver(measure);
     observer.observe(viewport);
@@ -355,8 +353,8 @@ export function WorkspaceProjectPicker({ isHero, connected = false, disabled, sc
     ...(currentProjectScope ? [{ name: projectLabel, path: currentProjectScope.project_path }] : []),
   ].filter((project, index, all) => all.findIndex(item => sameWorkspacePath(item.path, project.path)) === index && !isFavorite(project.path));
   const options: PickerOption[] = directory && !loading
-    ? directory.entries.map(entry => ({ ...entry, kind: "directory", group: directoryGroup })) : [];
-  if (!canBrowse && absoluteDraft) options.push({ name: t("workspace.dialog.usePath"), path: pathDraft.trim(), kind: "manual", group: directoryGroup });
+    ? directory.entries.map(entry => ({ ...entry, kind: "directory" })) : [];
+  if (!canBrowse && absoluteDraft) options.push({ name: t("workspace.dialog.usePath"), path: pathDraft.trim(), kind: "manual" });
   function openShortcut(project: ProjectDirectory) {
     if (!canBrowse) { void chooseProject(project.path, project.name); return; }
     setBasePath(project.path);
@@ -380,7 +378,8 @@ export function WorkspaceProjectPicker({ isHero, connected = false, disabled, sc
     try {
       const result = await directoryCache.load(request.path, request.query, showHidden || request.query.startsWith("."));
       if (id !== completionRequest.current || session !== pickerSession.current) return;
-      const first = result.entries.find(entry => entry.name.toLocaleLowerCase().startsWith(request.query.toLocaleLowerCase()));
+      const prefix = request.query.toLocaleLowerCase();
+      const first = result.entries.find(entry => entry.name.toLocaleLowerCase().startsWith(prefix));
       if (first) navigate(first.path);
     } catch (err) {
       if (id === completionRequest.current && session === pickerSession.current) setPathError((err as Error).message);
