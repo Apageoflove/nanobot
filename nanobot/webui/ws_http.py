@@ -654,7 +654,7 @@ class GatewayHTTPHandler:
         if not self.check_api_token(request):
             return _http_error(401, "Unauthorized")
         # A public/reverse-proxied WebUI must never gain access to this machine's
-        # SSH agent, private keys or network. Same checks as local folder picking.
+        # SSH agent, private keys or network.
         if not (_is_loopback_host(self.config.host)
                 and _is_local_browser_request(connection, request.headers)):
             return _http_error(403, "remote_connections_local_only")
