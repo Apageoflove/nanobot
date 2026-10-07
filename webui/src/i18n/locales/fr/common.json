@@ -2293,30 +2293,24 @@
     "dialog": {
       "defaultProject": "Espace de travail par défaut",
       "manual": "Coller un chemin",
-      "manualPlaceholder": "/Users/name/project",
       "usePath": "Utiliser le chemin",
       "absolutePathRequired": "Saisissez un chemin absolu de dossier sur cette machine."
     },
     "picker": {
       "favorites": "Favoris",
       "recent": "Projets récents",
-      "directories": "Dossiers",
       "pin": "Épingler {{name}}",
       "unpin": "Désépingler {{name}}",
       "description": "Recherchez un projet récent ou choisissez un dossier sur l’hôte connecté.",
-      "emptyProjects": "Aucun projet correspondant",
       "search": "Saisir un chemin ou filtrer ce dossier…",
       "shortcuts": "Emplacements enregistrés",
       "favoriteHint": "Cliquez sur l’étoile d’un dossier pour l’ajouter ici.",
       "native": "Utiliser le sélecteur de dossiers du système…",
-      "up": "Dossier parent",
       "loading": "Chargement des dossiers…",
-      "emptyDirectories": "Aucun dossier correspondant",
       "truncated": "500 dossiers affichés. Continuez à saisir le chemin pour réduire la liste.",
       "hidden": "Afficher les dossiers cachés",
       "select": "Choisir",
-      "switchDirectory": "Changer de dossier de travail",
-      "selectDirectory": "Sélectionner ce dossier"
+      "switchDirectory": "Changer de dossier de travail"
     }
   }
 }

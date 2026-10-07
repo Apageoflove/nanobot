@@ -2493,30 +2493,24 @@
     "dialog": {
       "defaultProject": "默认工作区",
       "manual": "粘贴路径",
-      "manualPlaceholder": "/Users/name/project",
       "usePath": "使用路径",
       "absolutePathRequired": "请输入这台机器上的绝对文件夹路径。"
     },
     "picker": {
       "favorites": "收藏",
       "recent": "最近项目",
-      "directories": "文件夹",
       "pin": "收藏 {{name}}",
       "unpin": "取消收藏 {{name}}",
       "description": "搜索最近项目，或选择当前连接主机上的文件夹。",
-      "emptyProjects": "没有匹配的项目",
       "search": "输入路径或筛选当前目录…",
       "shortcuts": "快捷位置",
       "favoriteHint": "点击文件夹旁的星标收藏。",
       "native": "使用系统文件夹选择器…",
-      "up": "返回上级目录",
       "loading": "正在加载文件夹…",
-      "emptyDirectories": "没有匹配的文件夹",
       "truncated": "已显示 500 个文件夹，继续输入路径以缩小范围。",
       "hidden": "显示隐藏文件夹",
       "select": "选择",
-      "switchDirectory": "切换工作目录",
-      "selectDirectory": "选择此文件夹"
+      "switchDirectory": "切换工作目录"
     }
   }
 }

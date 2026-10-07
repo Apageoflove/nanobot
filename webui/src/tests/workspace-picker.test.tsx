@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import { WorkspaceProjectPicker } from "@/components/thread/WorkspaceControls";
 import type { WorkspaceDirectoriesPayload, WorkspacesPayload } from "@/lib/types";
+import type { BrowseWorkspaceDirectories } from "@/lib/workspace";
 
 const scope = { project_path: "/srv/workspace", access_mode: "restricted" as const };
 const catalog: WorkspacesPayload = {
@@ -90,6 +91,33 @@ describe("Workspace project picker", () => {
     expect(viewport.scrollLeft).toBe(88);
     wheel({ deltaY: 120, shiftKey: true, ctrlKey: true });
     expect(viewport.scrollLeft).toBe(88);
+  });
+
+  it("keeps a wide directory bounded while scrolling and completing an offscreen keyboard result", async () => {
+    const user = userEvent.setup();
+    const entries = Array.from({ length: 500 }, (_, index) => ({ name: `folder-${index}`, path: `/srv/workspace/folder-${index}` }));
+    const onBrowse = vi.fn((rawPath: string) => {
+      const path = rawPath.replace(/\/$/, "");
+      return Promise.resolve({ ...directory, path, entries: path === scope.project_path ? entries : [{ name: "child", path: `${path}/child` }] });
+    });
+    render(<WorkspaceProjectPicker isHero scope={scope} defaultScope={scope} controls={catalog.controls} onBrowseDirectories={onBrowse} onChange={vi.fn()} />);
+    await user.click(screen.getByRole("button", { name: "Switch working directory" }));
+    const first = await screen.findByRole("option", { name: entries[0].path });
+    expect(first).toHaveAttribute("aria-setsize", "500");
+    expect(first).toHaveAttribute("aria-posinset", "1");
+    const viewport = screen.getByRole("listbox");
+    Object.defineProperty(viewport, "clientHeight", { configurable: true, value: 220 });
+    expect(within(viewport).getAllByRole("option").length).toBeLessThan(20);
+    viewport.scrollTop = 250 * 44;
+    fireEvent.scroll(viewport);
+    expect(await screen.findByRole("option", { name: entries[250].path })).toHaveAttribute("aria-posinset", "251");
+    await user.keyboard("{ArrowUp}");
+    const last = await screen.findByRole("option", { name: entries[499].path });
+    expect(screen.getByRole("combobox")).toHaveAttribute("aria-activedescendant", last.id);
+    expect(within(viewport).getAllByRole("option").length).toBeLessThan(20);
+    await user.keyboard("{Tab}");
+    expect(screen.getByRole("combobox")).toHaveValue(`${entries[499].path}/`);
+    expect(await screen.findByRole("option", { name: `${entries[499].path}/child` })).toBeInTheDocument();
   });
 
   it("browses folders immediately, toggles hidden entries, and selects the resolved directory", async () => {
@@ -248,7 +276,7 @@ describe("Workspace project picker", () => {
   it("ignores a Tab completion after the user changes the path", async () => {
     const user = userEvent.setup();
     let finish!: (value: WorkspaceDirectoriesPayload) => void;
-    const onBrowse = vi.fn((_path: string, query: string) => query ? new Promise<WorkspaceDirectoriesPayload>(resolve => { finish = resolve; }) : Promise.resolve({ ...directory, entries: [] }));
+    const onBrowse = vi.fn((path: string) => path === "/srv/al" ? new Promise<WorkspaceDirectoriesPayload>(resolve => { finish = resolve; }) : Promise.resolve({ ...directory, entries: [] }));
     render(<WorkspaceProjectPicker isHero scope={scope} defaultScope={scope} controls={catalog.controls} onBrowseDirectories={onBrowse} onChange={vi.fn()} />);
     await user.click(screen.getByRole("button", { name: "Switch working directory" }));
     const input = screen.getByRole("combobox");
@@ -259,6 +287,25 @@ describe("Workspace project picker", () => {
     finish({ ...directory, entries: [{ name: "alpha", path: "/srv/alpha" }] });
     await waitFor(() => expect(input).toHaveValue("/srv/alternative"));
     expect(input).toHaveFocus();
+  });
+
+  it("reuses an in-flight partial-path listing when Tab completes it", async () => {
+    const user = userEvent.setup();
+    let finish!: (value: WorkspaceDirectoriesPayload) => void;
+    const onBrowse = vi.fn<BrowseWorkspaceDirectories>((path: string) => path === "/srv/al"
+      ? new Promise<WorkspaceDirectoriesPayload>(resolve => { finish = resolve; })
+      : Promise.resolve({ ...directory, path, entries: [] }));
+    render(<WorkspaceProjectPicker isHero scope={scope} defaultScope={scope} controls={catalog.controls} onBrowseDirectories={onBrowse} onChange={vi.fn()} />);
+    await user.click(screen.getByRole("button", { name: "Switch working directory" }));
+    const input = screen.getByRole("combobox");
+    await user.clear(input);
+    await user.type(input, "/srv/al");
+    await user.keyboard("{Tab}");
+    await waitFor(() => expect(onBrowse).toHaveBeenCalledWith("/srv/al", "", false, true));
+    await new Promise(resolve => setTimeout(resolve, 200));
+    act(() => finish({ ...directory, path: "/srv", partial: true, entries: [{ name: "alpha", path: "/srv/alpha" }] }));
+    await waitFor(() => expect(input).toHaveValue("/srv/alpha/"));
+    expect(onBrowse.mock.calls.filter(call => call[0] === "/srv/al" || call[0] === "/srv/" && call[1] === "al")).toHaveLength(1);
   });
 
   it("updates folders while typing and ignores results from older paths", async () => {

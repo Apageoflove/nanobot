@@ -2294,30 +2294,24 @@
     "dialog": {
       "defaultProject": "Espacio de trabajo predeterminado",
       "manual": "Pegar ruta",
-      "manualPlaceholder": "/Users/name/project",
       "usePath": "Usar ruta",
       "absolutePathRequired": "Introduce una ruta absoluta de carpeta en esta máquina."
     },
     "picker": {
       "favorites": "Favoritos",
       "recent": "Proyectos recientes",
-      "directories": "Carpetas",
       "pin": "Fijar {{name}}",
       "unpin": "Desfijar {{name}}",
       "description": "Busca proyectos recientes o elige una carpeta en el equipo conectado.",
-      "emptyProjects": "No hay proyectos coincidentes",
       "search": "Introduce una ruta o filtra esta carpeta…",
       "shortcuts": "Ubicaciones guardadas",
       "favoriteHint": "Pulsa la estrella de una carpeta para añadirla aquí.",
       "native": "Usar el selector de carpetas del sistema…",
-      "up": "Carpeta superior",
       "loading": "Cargando carpetas…",
-      "emptyDirectories": "No hay carpetas coincidentes",
       "truncated": "Se muestran 500 carpetas. Sigue escribiendo la ruta para reducir la lista.",
       "hidden": "Mostrar carpetas ocultas",
       "select": "Seleccionar",
-      "switchDirectory": "Cambiar directorio de trabajo",
-      "selectDirectory": "Seleccionar esta carpeta"
+      "switchDirectory": "Cambiar directorio de trabajo"
     }
   }
 }

@@ -7,6 +7,7 @@ import os
 import platform
 import socket
 import stat
+from collections.abc import Iterator
 from pathlib import Path
 from typing import TypedDict
 
@@ -57,27 +58,29 @@ def browse_workspace_directories(
                 partial = True
         path = path.resolve(strict=True)
         folded_query = query.casefold()
-        matches: list[ProjectDirectory] = []
-        with os.scandir(path) as entries:
-            for entry in entries:
-                name = entry.name.casefold()
-                if not name.startswith(prefix) or folded_query not in name:
-                    continue
-                try:
-                    if not entry.is_dir():
+        def matching_directories() -> Iterator[ProjectDirectory]:
+            with os.scandir(path) as entries:
+                for entry in entries:
+                    name = entry.name.casefold()
+                    if not name.startswith(prefix) or folded_query not in name:
                         continue
-                    hidden = entry.name.startswith(".") or (
-                        os.name == "nt"
-                        and bool(entry.stat(follow_symlinks=False).st_file_attributes & stat.FILE_ATTRIBUTE_HIDDEN)
-                    )
-                    if show_hidden or prefix.startswith(".") or not hidden:
-                        matches.append({"name": entry.name, "path": entry.path})
-                except OSError:
-                    continue
+                    try:
+                        if not entry.is_dir():
+                            continue
+                        hidden = entry.name.startswith(".") or (
+                            os.name == "nt"
+                            and bool(entry.stat(follow_symlinks=False).st_file_attributes & stat.FILE_ATTRIBUTE_HIDDEN)
+                        )
+                        if show_hidden or prefix.startswith(".") or not hidden:
+                            yield {"name": entry.name, "path": entry.path}
+                    except OSError:
+                        continue
+
+        matches = heapq.nsmallest(501, matching_directories(), key=lambda item: item["name"].casefold())
         return {
             "path": str(path),
             "parent": str(path.parent) if path.parent != path else None,
-            "entries": heapq.nsmallest(500, matches, key=lambda item: item["name"].casefold()),
+            "entries": matches[:500],
             "partial": partial,
             "truncated": len(matches) > 500,
             "host": socket.gethostname(),

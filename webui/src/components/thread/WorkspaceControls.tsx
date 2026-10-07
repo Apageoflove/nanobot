@@ -1,5 +1,5 @@
 import { FullAccessIcon, WorkspaceIcon, RestrictedAccessIcon } from "@/components/icons/product-icons";
-import type { ReactElement } from "react";
+import type { HTMLAttributes, ReactElement } from "react";
 import { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Check, FolderOpen, Search, Star } from "lucide-react";
 import { useTranslation } from "react-i18next";
@@ -43,6 +43,58 @@ function WorkspacePickerTooltip({ label, children }: { label: string; children: 
   );
 }
 
+const DIRECTORY_ROW_HEIGHT = 44;
+const DIRECTORY_OVERSCAN = 4;
+
+function WorkspaceDirectoryColumn({ options, activeIndex, renderOption, children, ...props }: {
+  options: PickerOption[];
+  activeIndex: number | null;
+  renderOption: (option: PickerOption, index: number) => ReactElement;
+} & HTMLAttributes<HTMLDivElement>) {
+  const viewportRef = useRef<HTMLDivElement>(null);
+  const [firstRow, setFirstRow] = useState(0);
+  const [visibleRows, setVisibleRows] = useState(1);
+  useLayoutEffect(() => {
+    const viewport = viewportRef.current;
+    if (!viewport) return;
+    const measure = () => setVisibleRows(Math.max(1, Math.ceil(viewport.clientHeight / DIRECTORY_ROW_HEIGHT)));
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(viewport);
+    return () => observer.disconnect();
+  }, []);
+  useLayoutEffect(() => {
+    const viewport = viewportRef.current;
+    if (!viewport) return;
+    viewport.scrollTop = 0;
+    setFirstRow(0);
+  }, [options]);
+  useLayoutEffect(() => {
+    const viewport = viewportRef.current;
+    if (!viewport || activeIndex === null) return;
+    const top = activeIndex * DIRECTORY_ROW_HEIGHT + 4;
+    const bottom = top + DIRECTORY_ROW_HEIGHT;
+    if (top < viewport.scrollTop) viewport.scrollTop = top;
+    else if (bottom > viewport.scrollTop + viewport.clientHeight) viewport.scrollTop = Math.max(0, bottom - viewport.clientHeight);
+    setFirstRow(Math.floor(viewport.scrollTop / DIRECTORY_ROW_HEIGHT));
+  }, [activeIndex, visibleRows, options]);
+  const start = Math.max(0, firstRow - DIRECTORY_OVERSCAN);
+  const end = Math.min(options.length, firstRow + visibleRows + DIRECTORY_OVERSCAN);
+  return (
+    <div {...props} ref={viewportRef} onScroll={event => setFirstRow(Math.floor(event.currentTarget.scrollTop / DIRECTORY_ROW_HEIGHT))}>
+      <div role="presentation" className="relative" style={{ height: options.length * DIRECTORY_ROW_HEIGHT }}>
+        {options.slice(start, end).map((option, offset) => {
+          const index = start + offset;
+          return <div key={`${option.kind}-${option.path}`} role="presentation" className="absolute inset-x-0" style={{ top: index * DIRECTORY_ROW_HEIGHT }}>
+            {renderOption(option, index)}
+          </div>;
+        })}
+      </div>
+      {children}
+    </div>
+  );
+}
+
 function WorkspaceDirectorySkeleton() {
   const { t } = useTranslation();
   const viewportRef = useRef<HTMLDivElement>(null);
@@ -50,7 +102,7 @@ function WorkspaceDirectorySkeleton() {
   useLayoutEffect(() => {
     const viewport = viewportRef.current;
     if (!viewport) return;
-    const measure = () => setRows(Math.max(1, Math.ceil(viewport.clientHeight / 44)));
+    const measure = () => setRows(Math.max(1, Math.ceil(viewport.clientHeight / DIRECTORY_ROW_HEIGHT)));
     measure();
     const observer = new ResizeObserver(measure);
     observer.observe(viewport);
@@ -245,6 +297,16 @@ export function WorkspaceProjectPicker({ isHero, connected = false, disabled, sc
     if (viewport) viewport.scrollLeft = viewport.clientWidth * Math.max(0, previousColumns.length + 1 - visibleColumns) / visibleColumns;
   }, [previousColumns.length, visibleColumns]);
 
+  useLayoutEffect(() => {
+    const viewport = columnsRef.current;
+    if (!viewport || !highlightActive) return;
+    const width = viewport.clientWidth / visibleColumns;
+    const left = activeColumn * width;
+    const right = left + width;
+    if (left < viewport.scrollLeft) viewport.scrollLeft = left;
+    else if (right > viewport.scrollLeft + viewport.clientWidth) viewport.scrollLeft = right - viewport.clientWidth;
+  }, [activeColumn, highlightActive, visibleColumns]);
+
   function changeDraft(value: string, resetColumns = true) {
     setHighlightActive(false);
     if (resetColumns) { setPreviousColumns([]); setActiveColumn(0); }
@@ -330,9 +392,10 @@ export function WorkspaceProjectPicker({ isHero, connected = false, disabled, sc
     ...(defaultScope ? [{ name: t("workspace.dialog.defaultProject"), path: defaultScope.project_path }] : []),
     ...(currentProjectScope ? [{ name: projectLabel, path: currentProjectScope.project_path }] : []),
   ].filter((project, index, all) => all.findIndex(item => sameWorkspacePath(item.path, project.path)) === index && !isFavorite(project.path));
-  const options: PickerOption[] = directory && !loading
-    ? directory.entries.map(entry => ({ ...entry, kind: "directory" })) : [];
-  if (!canBrowse && absoluteDraft) options.push({ name: t("workspace.dialog.usePath"), path: pathDraft.trim(), kind: "manual" });
+  const options = useMemo<PickerOption[]>(() => {
+    if (directory && !loading) return directory.entries.map(entry => ({ ...entry, kind: "directory" }));
+    return !canBrowse && absoluteDraft ? [{ name: t("workspace.dialog.usePath"), path: pathDraft.trim(), kind: "manual" }] : [];
+  }, [directory, loading, canBrowse, absoluteDraft, pathDraft, t]);
   function openShortcut(project: ProjectDirectory) {
     if (!canBrowse) { void chooseProject(project.path, project.name); return; }
     setBasePath(project.path);
@@ -354,8 +417,9 @@ export function WorkspaceProjectPicker({ isHero, connected = false, disabled, sc
     const id = ++completionRequest.current;
     const session = pickerSession.current;
     try {
-      const result = await directoryCache.load(request.path, request.query, showHidden || request.query.startsWith("."));
+      const result = await directoryCache.load(requestedPath, folderQuery, showHidden || request.query.startsWith("."), true);
       if (id !== completionRequest.current || session !== pickerSession.current) return;
+      if (absoluteDraft && !result.partial && request.query) { navigate(result.path); return; }
       const prefix = request.query.toLocaleLowerCase();
       const first = result.entries.find(entry => entry.name.toLocaleLowerCase().startsWith(prefix));
       if (first) navigate(first.path);
@@ -392,7 +456,7 @@ export function WorkspaceProjectPicker({ isHero, connected = false, disabled, sc
               if ((event.key === "ArrowDown" || event.key === "ArrowUp") && !event.altKey && activeOptions.length) {
                 event.preventDefault();
                 const next = (activeOption + (event.key === "ArrowDown" ? 1 : -1) + activeOptions.length) % activeOptions.length;
-                setHighlightActive(true); setActiveIndex(next); document.getElementById(`${optionsId}-${activeColumn}-${next}`)?.scrollIntoView({ block: "nearest" });
+                setHighlightActive(true); setActiveIndex(next);
               } else if (event.key === "ArrowLeft" && activeColumn > 0 && event.currentTarget.selectionStart === 0 && event.currentTarget.selectionEnd === 0) {
                 event.preventDefault();
                 const parent = columns[activeColumn - 1];
@@ -429,9 +493,10 @@ export function WorkspaceProjectPicker({ isHero, connected = false, disabled, sc
               ))}
             </nav>
             <div ref={attachColumns} data-workspace-columns className="flex flex-1 min-h-0 min-w-0 overflow-x-auto overscroll-x-contain">
-              {columns.map((column, columnIndex) => <div key={columnIndex} id={`${optionsId}-${columnIndex}`} role="listbox" aria-label={column.path || t("thread.composer.workspace.projectAria")} aria-busy={columnIndex === previousColumns.length && loading} style={{ width: `${100 / visibleColumns}%` }} className={cn("min-w-0 shrink-0 overflow-x-hidden overflow-y-auto border-r border-transparent px-1 py-1", !!columns[columnIndex + 1]?.options.length && "border-border/50")}>
-              {column.options.map((option, index) => <div key={`${option.kind}-${option.path}`} role="presentation" className="workspace-picker-row relative" data-keyboard-active={highlightActive && columnIndex === activeColumn && index === activeOption ? "" : undefined}>
-                  <button id={`${optionsId}-${columnIndex}-${index}`} type="button" role="option" aria-label={option.path} aria-selected={sameWorkspacePath(column.selectedPath, option.path)} disabled={pickingFolder}
+              {columns.map((column, columnIndex) => <WorkspaceDirectoryColumn key={columnIndex} options={column.options} activeIndex={highlightActive && columnIndex === activeColumn ? activeOption : null}
+                id={`${optionsId}-${columnIndex}`} role="listbox" aria-label={column.path || t("thread.composer.workspace.projectAria")} aria-busy={columnIndex === previousColumns.length && loading} style={{ width: `${100 / visibleColumns}%` }} className={cn("min-w-0 shrink-0 overflow-x-hidden overflow-y-auto border-r border-transparent px-1 py-1", !!columns[columnIndex + 1]?.options.length && "border-border/50")}
+                renderOption={(option, index) => <div role="presentation" className="workspace-picker-row relative" data-keyboard-active={highlightActive && columnIndex === activeColumn && index === activeOption ? "" : undefined}>
+                  <button id={`${optionsId}-${columnIndex}-${index}`} type="button" role="option" aria-label={option.path} aria-selected={sameWorkspacePath(column.selectedPath, option.path)} aria-posinset={index + 1} aria-setsize={column.options.length} disabled={pickingFolder}
                     onPointerMove={() => { setHighlightActive(false); setActiveColumn(columnIndex); setActiveIndex(index); }}
                     onMouseDown={event => event.preventDefault()} onClick={() => activate(option, columnIndex)}
                     className={cn(floatingItemClassName, floatingItemFocusClassName, "flex min-h-11 w-full min-w-0 items-center gap-3 px-3 py-2 text-left hover:bg-foreground/[0.055] dark:hover:bg-white/[0.08] disabled:opacity-50", canFavorite && "pr-12",
@@ -441,11 +506,11 @@ export function WorkspaceProjectPicker({ isHero, connected = false, disabled, sc
                     {sameWorkspacePath(option.path, scope?.project_path ?? defaultScope.project_path) && <Check className="h-4 w-4 shrink-0 text-muted-foreground" />}
                   </button>
                   {favoriteButton(option.path)}
-              </div>)}
+              </div>}>
               {columnIndex === previousColumns.length && loading && <WorkspaceDirectorySkeleton />}
               {columnIndex === previousColumns.length && directory?.truncated && <p className="px-3 py-2 text-[11px] text-muted-foreground">{t("workspace.picker.truncated")}</p>}
               {columnIndex === previousColumns.length && displayedError && <p id={errorId} role="alert" className="px-3 py-2 text-[11.5px] text-destructive">{displayedError}</p>}
-              </div>)}
+              </WorkspaceDirectoryColumn>)}
             </div>
           </div>
           <div className="flex shrink-0 items-center justify-between gap-2 px-2 pt-1">
