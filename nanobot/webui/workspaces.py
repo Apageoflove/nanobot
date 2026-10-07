@@ -178,7 +178,8 @@ def workspaces_payload(
     can_use_full_access: bool,
     folder_picker_available: bool = False,
 ) -> dict[str, Any]:
-    default_access_mode = read_webui_default_access_mode()
+    state = read_webui_workspace_state()
+    default_access_mode = state["default_access_mode"]
     default_scope = (
         default_workspace_scope(
             default_workspace,
@@ -195,11 +196,11 @@ def workspaces_payload(
         "host": {"name": socket.gethostname(), "platform": platform.system()},
         "favorite_projects": [
             {"name": Path(path).name or path, "path": path}
-            for path in read_webui_workspace_state()["favorite_projects"]
+            for path in state["favorite_projects"]
         ],
         "recent_projects": [
             {"name": Path(path).name or path, "path": path}
-            for path in read_webui_workspace_state()["recent_projects"]
+            for path in state["recent_projects"]
         ],
         "controls": {
             "can_change_project": can_change_project,

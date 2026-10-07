@@ -56,10 +56,12 @@ def browse_workspace_directories(
                 path = path.parent
                 partial = True
         path = path.resolve(strict=True)
+        folded_query = query.casefold()
         matches: list[ProjectDirectory] = []
         with os.scandir(path) as entries:
             for entry in entries:
-                if not entry.name.casefold().startswith(prefix) or query.casefold() not in entry.name.casefold():
+                name = entry.name.casefold()
+                if not name.startswith(prefix) or folded_query not in name:
                     continue
                 try:
                     if not entry.is_dir():
