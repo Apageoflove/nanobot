@@ -1917,7 +1917,6 @@
       "workspace": {
         "accessAria": "工作區存取模式",
         "projectAria": "選擇專案",
-        "projectPlaceholder": "選擇專案",
         "default": "預設權限",
         "defaultShort": "預設",
         "full": "完整存取權",
@@ -2293,7 +2292,6 @@
     "dialog": {
       "defaultProject": "預設工作區",
       "manual": "貼上路徑",
-      "usePath": "使用路徑",
       "absolutePathRequired": "請輸入這台機器上的絕對資料夾路徑。"
     },
     "picker": {

@@ -2117,7 +2117,6 @@
       "workspace": {
         "accessAria": "Workspace access mode",
         "projectAria": "Choose project",
-        "projectPlaceholder": "Select project",
         "default": "Default Permission",
         "defaultShort": "Default",
         "full": "Full Access",
@@ -2493,7 +2492,6 @@
     "dialog": {
       "defaultProject": "Default workspace",
       "manual": "Paste path",
-      "usePath": "Use Path",
       "absolutePathRequired": "Enter an absolute folder path on this machine."
     },
     "picker": {

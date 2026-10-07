@@ -134,10 +134,9 @@ function WorkspacePickerPath({ path }: { path: string }) {
   );
 }
 
-export function WorkspaceProjectPicker({ isHero, connected = false, disabled, scope, defaultScope, controls, error, onLoadProjects, onResolveProject, onFavoriteProject, onBrowseDirectories, layoutAnchor, onChange }: {
+export function WorkspaceProjectPicker({ isHero, disabled, scope, defaultScope, controls, error, onLoadProjects, onResolveProject, onFavoriteProject, onBrowseDirectories, layoutAnchor, onChange }: {
   layoutAnchor?: HTMLElement | null;
   isHero: boolean;
-  connected?: boolean;
   disabled?: boolean;
   scope: WorkspaceScopePayload | null;
   defaultScope: WorkspaceScopePayload | null;
@@ -182,10 +181,10 @@ export function WorkspaceProjectPicker({ isHero, connected = false, disabled, sc
   const errorId = useId();
   const currentProjectScope = selectedProjectScope(scope, defaultScope);
   const displayedScope = scope ?? defaultScope;
-  const projectLabel = displayedScope?.project_name || (displayedScope ? projectNameFromPath(displayedScope.project_path) : t("thread.composer.workspace.projectPlaceholder"));
+  const projectLabel = displayedScope ? displayedScope.project_name || projectNameFromPath(displayedScope.project_path) : "";
   const visible = isHero && !!defaultScope && !!onChange && controls?.can_change_project !== false;
   const canBrowse = !!controls?.can_browse_directories && !!onBrowseDirectories;
-  const directoryCache = useMemo(() => onBrowseDirectories ? createWorkspaceDirectoryCache(onBrowseDirectories) : null, [onBrowseDirectories, connected]);
+  const directoryCache = useMemo(() => onBrowseDirectories ? createWorkspaceDirectoryCache(onBrowseDirectories) : null, [onBrowseDirectories]);
   const absoluteDraft = isAbsoluteWorkspacePath(pathDraft);
   const requestedPath = absoluteDraft ? pathDraft.trim() : basePath;
   const folderQuery = absoluteDraft ? "" : pathDraft.trim();
@@ -379,8 +378,8 @@ export function WorkspaceProjectPicker({ isHero, connected = false, disabled, sc
   ].filter((project, index, all) => all.findIndex(item => sameWorkspacePath(item.path, project.path)) === index && !isFavorite(project.path));
   const options = useMemo<PickerOption[]>(() => {
     if (directory && !loading) return directory.entries.map(entry => ({ ...entry, kind: "directory" }));
-    return !canBrowse && absoluteDraft ? [{ name: t("workspace.dialog.usePath"), path: pathDraft.trim(), kind: "manual" }] : [];
-  }, [directory, loading, canBrowse, absoluteDraft, pathDraft, t]);
+    return !canBrowse && absoluteDraft ? [{ name: projectNameFromPath(pathDraft.trim()), path: pathDraft.trim(), kind: "manual" }] : [];
+  }, [directory, loading, canBrowse, absoluteDraft, pathDraft]);
   function openShortcut(project: ProjectDirectory) {
     if (!canBrowse) { void chooseProject(project.path, project.name); return; }
     setBasePath(project.path);

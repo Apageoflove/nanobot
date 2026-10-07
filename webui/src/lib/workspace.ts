@@ -16,13 +16,6 @@ export function projectNameFromPath(path: string): string {
   return normalized.split("/").filter(Boolean).pop() || path;
 }
 
-export function shortWorkspacePath(path: string): string {
-  const normalized = path.replace(/\\/g, "/");
-  const parts = normalized.split("/").filter(Boolean);
-  if (parts.length <= 3) return path;
-  return `.../${parts.slice(-3).join("/")}`;
-}
-
 export function isAbsoluteWorkspacePath(path: string): boolean {
   const trimmed = path.trim();
   return (

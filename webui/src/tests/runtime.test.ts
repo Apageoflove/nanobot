@@ -11,7 +11,6 @@ afterEach(() => {
   window.sessionStorage.clear();
   window.history.replaceState(null, "", "/");
   initializeLoopbackRuntimeHost();
-  vi.unstubAllGlobals();
 });
 
 describe("runtime host facade", () => {
@@ -19,21 +18,21 @@ describe("runtime host facade", () => {
     const host = getRuntimeHost();
 
     expect(host.surface).toBe("browser");
-    expect(host.pickFolder).toBeUndefined();
+    expect(host.restartEngine).toBeUndefined();
     expect(isNativeRuntime()).toBe(false);
   });
 
   it("wraps native host actions behind the runtime facade", async () => {
-    const pickFolder = vi.fn(async () => "/tmp/project");
     const restartEngine = vi.fn(async () => undefined);
+    const openLogs = vi.fn(async () => undefined);
+    const exportDiagnostics = vi.fn(async () => "/tmp/diagnostics.txt");
     Object.defineProperty(window, "nanobotHost", {
       configurable: true,
       value: {
         getRuntimeInfo: vi.fn(),
         restartEngine,
-        pickFolder,
-        openLogs: vi.fn(async () => undefined),
-        exportDiagnostics: vi.fn(async () => "/tmp/diagnostics.txt"),
+        openLogs,
+        exportDiagnostics,
       },
     });
 
@@ -41,23 +40,20 @@ describe("runtime host facade", () => {
 
     expect(host.surface).toBe("native");
     expect(isNativeRuntime()).toBe(true);
-    await expect(host.pickFolder?.()).resolves.toBe("/tmp/project");
     await host.restartEngine?.();
-    expect(pickFolder).toHaveBeenCalledTimes(1);
+    await host.openLogs?.();
+    await expect(host.exportDiagnostics?.()).resolves.toBe("/tmp/diagnostics.txt");
     expect(restartEngine).toHaveBeenCalledTimes(1);
+    expect(openLogs).toHaveBeenCalledTimes(1);
+    expect(exportDiagnostics).toHaveBeenCalledTimes(1);
   });
 
   it("treats server-reported native surface as native for UI labels", () => {
     expect(isNativeRuntime("native")).toBe(true);
   });
 
-  it("installs an authenticated loopback folder picker from the URL fragment", async () => {
+  it("recognizes an external native host across refresh and consumes its URL bootstrap", () => {
     const token = "a".repeat(43);
-    const fetchMock = vi.fn(async () => new Response(
-      JSON.stringify({ path: "/Users/test/project" }),
-      { status: 200, headers: { "Content-Type": "application/json" } },
-    ));
-    vi.stubGlobal("fetch", fetchMock);
     window.history.replaceState(
       null,
       "",
@@ -67,18 +63,12 @@ describe("runtime host facade", () => {
     expect(initializeLoopbackRuntimeHost()).toBe(true);
     expect(window.location.hash).toBe("#/new?bootstrapSecret=secret");
     expect(isNativeRuntime()).toBe(true);
-    await expect(getRuntimeHost().pickFolder?.()).resolves.toBe("/Users/test/project");
-    expect(fetchMock).toHaveBeenCalledWith(
-      "http://127.0.0.1:43123/v1/pick-folder",
-      expect.objectContaining({
-        method: "POST",
-        headers: { Authorization: `Bearer ${token}` },
-      }),
-    );
+    expect(getRuntimeHost().surface).toBe("native");
 
     window.history.replaceState(null, "", "/#/new");
     expect(initializeLoopbackRuntimeHost()).toBe(true);
-    await expect(getRuntimeHost().pickFolder?.()).resolves.toBe("/Users/test/project");
+    expect(getRuntimeHost().surface).toBe("native");
+    expect(isNativeRuntime()).toBe(true);
   });
 
   it("rejects invalid loopback bridge bootstrap values", () => {
@@ -90,6 +80,7 @@ describe("runtime host facade", () => {
 
     expect(initializeLoopbackRuntimeHost()).toBe(false);
     expect(window.location.hash).toBe("#/new");
-    expect(getRuntimeHost().pickFolder).toBeUndefined();
+    expect(getRuntimeHost().surface).toBe("browser");
+    expect(isNativeRuntime()).toBe(false);
   });
 });

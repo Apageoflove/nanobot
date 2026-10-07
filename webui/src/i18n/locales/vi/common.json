@@ -1917,7 +1917,6 @@
       "workspace": {
         "accessAria": "Chế độ truy cập không gian làm việc",
         "projectAria": "Chọn dự án",
-        "projectPlaceholder": "Chọn dự án",
         "default": "Quyền mặc định",
         "defaultShort": "Mặc định",
         "full": "Toàn quyền truy cập",
@@ -2293,7 +2292,6 @@
     "dialog": {
       "defaultProject": "Không gian làm việc mặc định",
       "manual": "Dán đường dẫn",
-      "usePath": "Dùng đường dẫn",
       "absolutePathRequired": "Nhập đường dẫn thư mục tuyệt đối trên máy này."
     },
     "picker": {

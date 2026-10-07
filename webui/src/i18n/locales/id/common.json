@@ -1917,7 +1917,6 @@
       "workspace": {
         "accessAria": "Mode akses ruang kerja",
         "projectAria": "Pilih proyek",
-        "projectPlaceholder": "Pilih proyek",
         "default": "Izin bawaan",
         "defaultShort": "Bawaan",
         "full": "Akses penuh",
@@ -2293,7 +2292,6 @@
     "dialog": {
       "defaultProject": "Ruang kerja bawaan",
       "manual": "Tempel path",
-      "usePath": "Gunakan path",
       "absolutePathRequired": "Masukkan path folder absolut di mesin ini."
     },
     "picker": {
