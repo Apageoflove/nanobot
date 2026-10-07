@@ -264,6 +264,54 @@ describe("SkillsMarketplace", () => {
     vi.useRealTimers();
   });
 
+  it("shows discovery skeletons while trending or the first search is pending and keeps loaded search results", async () => {
+    const skill = {
+      id: "skillhub:react-testing", skill_id: "react-testing", name: "React Testing",
+      source: "react-testing", provider: "skillhub" as const, installs: 42,
+      url: "https://skillhub.cn/react-testing", installed: false, install_supported: true,
+      metric: "installs_total" as const, rank: 1,
+    };
+    let resolveTrending!: (value: Awaited<ReturnType<typeof fetchTrendingMarketplaceSkills>>) => void;
+    let resolveSearch!: (value: Awaited<ReturnType<typeof searchMarketplaceSkills>>) => void;
+    let resolveNextSearch!: (value: Awaited<ReturnType<typeof searchMarketplaceSkills>>) => void;
+    vi.mocked(fetchTrendingMarketplaceSkills).mockImplementationOnce(
+      () => new Promise((resolve) => { resolveTrending = resolve; }),
+    );
+    vi.mocked(searchMarketplaceSkills)
+      .mockImplementationOnce(() => new Promise((resolve) => { resolveSearch = resolve; }))
+      .mockImplementationOnce(() => new Promise((resolve) => { resolveNextSearch = resolve; }));
+    render(marketplace("tok"));
+
+    expect(screen.getByRole("status", { name: "Loading skills…" })).toHaveAttribute("aria-busy", "true");
+    await act(async () => {
+      resolveTrending({ period: "mixed", provider: "all", install_supported: true, skills: [skill] });
+    });
+    expect(screen.getByRole("button", { name: "Install React Testing" })).toBeInTheDocument();
+
+    fireEvent.change(screen.getByRole("textbox", { name: "Search skills" }), {
+      target: { value: "React" },
+    });
+    expect(screen.getByRole("status", { name: "Loading skills…" })).toHaveAttribute("aria-busy", "true");
+    expect(searchMarketplaceSkills).not.toHaveBeenCalled();
+    await act(async () => { await vi.advanceTimersByTimeAsync(300); });
+    expect(searchMarketplaceSkills).toHaveBeenCalledWith("tok", "React");
+    expect(screen.getByRole("status", { name: "Loading skills…" })).toBeInTheDocument();
+    await act(async () => {
+      resolveSearch({ query: "React", provider: "all", install_supported: true, skills: [skill] });
+    });
+
+    fireEvent.change(screen.getByRole("textbox", { name: "Search skills" }), {
+      target: { value: "Vue" },
+    });
+    await act(async () => { await vi.advanceTimersByTimeAsync(300); });
+    expect(screen.getByRole("button", { name: "Install React Testing" })).toBeInTheDocument();
+    expect(screen.queryByRole("status", { name: "Loading skills…" })).not.toBeInTheDocument();
+    await act(async () => {
+      resolveNextSearch({ query: "Vue", provider: "all", install_supported: true, skills: [] });
+    });
+    expect(screen.getByText("No skills found for “Vue”.")).toBeInTheDocument();
+  });
+
   it("keeps loaded marketplace data stable when the auth token rotates", async () => {
     const { rerender } = render(marketplace("tok-old"));
 

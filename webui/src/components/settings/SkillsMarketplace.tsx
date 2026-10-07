@@ -125,9 +125,9 @@ export function SkillsMarketplace({
     }
 
     let cancelled = false;
+    setLoading(true);
+    setError("");
     const timer = window.setTimeout(() => {
-      setLoading(true);
-      setError("");
       searchMarketplaceSkills(getToken(), normalized)
         .then((payload) => {
           if (cancelled) return;
@@ -218,7 +218,7 @@ export function SkillsMarketplace({
                 defaultValue: "Searching",
               })}
             >
-              <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+              <Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" aria-hidden />
             </span>
           ) : null}
         </div>
@@ -252,7 +252,7 @@ export function SkillsMarketplace({
             ) : null}
           </div>
           {trendingLoading ? (
-            <TrendingSkeleton />
+            <MarketplaceSkeleton ranked />
           ) : visibleTrending.length ? (
             <MarketplaceSkillGroups
               skills={visibleTrending}
@@ -279,14 +279,18 @@ export function SkillsMarketplace({
         </div>
       ) : (
         <div className="overflow-hidden rounded-panel bg-settings-surface">
-          <MarketplaceSkillGroups
-            skills={visibleResults}
-            installedNames={installedNames}
-            installing={installing}
-            trends={trends}
-            grouped={provider === "all"}
-            onSelect={setSelected}
-          />
+          {loading && !visibleResults.length ? (
+            <MarketplaceSkeleton />
+          ) : (
+            <MarketplaceSkillGroups
+              skills={visibleResults}
+              installedNames={installedNames}
+              installing={installing}
+              trends={trends}
+              grouped={provider === "all"}
+              onSelect={setSelected}
+            />
+          )}
         </div>
       )}
 
@@ -566,7 +570,7 @@ function MarketplaceSkillRow({
         }
       >
         {isInstalling ? (
-          <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+          <Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" aria-hidden />
         ) : installed ? (
           <Check className="h-4 w-4" aria-hidden />
         ) : (
@@ -669,19 +673,28 @@ function TrendSparkline({ values }: { values?: number[] }) {
   );
 }
 
-function TrendingSkeleton() {
+function MarketplaceSkeleton({ ranked = false }: { ranked?: boolean }) {
+  const { t } = useTranslation();
+  const label = t("settings.skills.loading");
   return (
-    <div className="space-y-1 px-5 pb-3" aria-hidden>
-      {Array.from({ length: 5 }, (_, index) => (
-        <div key={index} className="flex items-center gap-3 py-4">
-          <div className="h-3 w-5 animate-pulse rounded bg-muted" />
-          <div className="flex-1 space-y-2">
-            <div className="h-3.5 w-48 max-w-[55%] animate-pulse rounded bg-muted" />
-            <div className="h-3 w-32 max-w-[40%] animate-pulse rounded bg-muted/70" />
+    <div role="status" aria-label={label} aria-busy="true">
+      <span className="sr-only">{label}</span>
+      <div className="space-y-1 px-3 pb-3 animate-pulse motion-reduce:animate-none sm:px-4" aria-hidden>
+        {Array.from({ length: 5 }, (_, index) => (
+          <div key={index} className="flex min-w-0 items-center gap-2 px-1 py-3.5 sm:gap-3 sm:px-2">
+            {ranked ? <div className="h-3 w-6 shrink-0 rounded bg-muted-foreground/20 sm:w-7" /> : null}
+            <div className="min-w-0 flex-1">
+              <div className="flex h-7 items-center">
+                <div className="h-3.5 w-48 max-w-[70%] rounded bg-muted-foreground/20" />
+              </div>
+              <div className="mt-1 flex h-5 items-center">
+                <div className="h-3 w-32 max-w-[55%] rounded bg-muted-foreground/20 opacity-60" />
+              </div>
+            </div>
+            <div className="h-9 w-9 shrink-0 rounded-full bg-muted-foreground/20" />
           </div>
-          <div className="h-8 w-[82px] animate-pulse rounded-full bg-muted sm:w-[92px]" />
-        </div>
-      ))}
+        ))}
+      </div>
     </div>
   );
 }
