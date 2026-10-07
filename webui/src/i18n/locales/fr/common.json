@@ -1915,7 +1915,6 @@
       "workspace": {
         "accessAria": "Mode d’accès à l’espace de travail",
         "projectAria": "Choisir un projet",
-        "projectPlaceholder": "Sélectionner un projet",
         "default": "Autorisation par défaut",
         "defaultShort": "Par défaut",
         "full": "Accès complet",
@@ -2286,7 +2285,6 @@
     "dialog": {
       "defaultProject": "Espace de travail par défaut",
       "manual": "Coller un chemin",
-      "usePath": "Utiliser le chemin",
       "absolutePathRequired": "Saisissez un chemin absolu de dossier sur cette machine."
     },
     "picker": {

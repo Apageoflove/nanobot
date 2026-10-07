@@ -1596,7 +1596,6 @@ describe("ThreadComposer", () => {
   it("browses and selects the connected host's project in one dialog on a native client", async () => {
     const user = userEvent.setup();
     const onWorkspaceScopeChange = vi.fn();
-    const pickFolder = vi.fn().mockResolvedValue("/Users/test/native-project");
     const defaultScope = {
       project_path: "/Users/test/.nanobot/workspace",
       project_name: "workspace",
@@ -1618,7 +1617,6 @@ describe("ThreadComposer", () => {
       value: {
         getRuntimeInfo: vi.fn(),
         restartEngine: vi.fn(),
-        pickFolder,
         openLogs: vi.fn(),
         exportDiagnostics: vi.fn(),
       },
@@ -1652,7 +1650,6 @@ describe("ThreadComposer", () => {
     await user.click(screen.getByRole("button", { name: "Select" }));
     await waitFor(() => expect(screen.queryByRole("dialog", { name: "Choose project" })).not.toBeInTheDocument());
     expect(onResolveWorkspaceProject).toHaveBeenCalledWith(project.path);
-    expect(pickFolder).not.toHaveBeenCalled();
     expect(onWorkspaceScopeChange).toHaveBeenCalledWith(expect.objectContaining({
       project_path: project.path,
       project_name: project.name,

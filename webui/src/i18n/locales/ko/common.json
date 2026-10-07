@@ -1915,7 +1915,6 @@
       "workspace": {
         "accessAria": "작업공간 접근 모드",
         "projectAria": "프로젝트 선택",
-        "projectPlaceholder": "프로젝트 선택",
         "default": "기본 권한",
         "defaultShort": "기본",
         "full": "전체 접근 권한",
@@ -2286,7 +2285,6 @@
     "dialog": {
       "defaultProject": "기본 작업공간",
       "manual": "경로 붙여넣기",
-      "usePath": "경로 사용",
       "absolutePathRequired": "이 머신의 절대 폴더 경로를 입력하세요."
     },
     "picker": {

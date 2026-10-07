@@ -2115,7 +2115,6 @@
       "workspace": {
         "accessAria": "工作区访问权限",
         "projectAria": "选择项目",
-        "projectPlaceholder": "选择项目",
         "default": "默认权限",
         "defaultShort": "默认",
         "full": "完全访问",
@@ -2486,7 +2485,6 @@
     "dialog": {
       "defaultProject": "默认工作区",
       "manual": "粘贴路径",
-      "usePath": "使用路径",
       "absolutePathRequired": "请输入这台机器上的绝对文件夹路径。"
     },
     "picker": {

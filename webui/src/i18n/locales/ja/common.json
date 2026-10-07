@@ -1915,7 +1915,6 @@
       "workspace": {
         "accessAria": "ワークスペースのアクセスモード",
         "projectAria": "プロジェクトを選択",
-        "projectPlaceholder": "プロジェクトを選択",
         "default": "既定の権限",
         "defaultShort": "既定",
         "full": "フルアクセス",
@@ -2286,7 +2285,6 @@
     "dialog": {
       "defaultProject": "既定のワークスペース",
       "manual": "パスを貼り付け",
-      "usePath": "パスを使用",
       "absolutePathRequired": "このマシン上の絶対フォルダーパスを入力してください。"
     },
     "picker": {

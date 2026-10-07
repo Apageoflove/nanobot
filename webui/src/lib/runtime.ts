@@ -4,7 +4,6 @@ export interface RuntimeHost {
   surface: RuntimeSurface;
   capabilities: RuntimeCapabilities;
   socketFactory?: (url: string) => WebSocket;
-  pickFolder?: () => Promise<string | null>;
   restartEngine?: () => Promise<void>;
   openLogs?: () => Promise<void>;
   exportDiagnostics?: () => Promise<string>;
@@ -26,7 +25,6 @@ interface HostRuntimeInfo {
 interface NanobotHostApi {
   getRuntimeInfo?(): Promise<HostRuntimeInfo>;
   restartEngine?(): Promise<void>;
-  pickFolder?(): Promise<string | null>;
   openLogs?(): Promise<void>;
   exportDiagnostics?(): Promise<string>;
   openSocket?(url: string): Promise<string>;
@@ -64,7 +62,7 @@ interface LoopbackHostConfig {
   token: string;
 }
 
-let loopbackHostApi: NanobotHostApi | null = null;
+let hasLoopbackNativeHost = false;
 
 declare global {
   interface Window {
@@ -74,21 +72,21 @@ declare global {
 
 function getHostApi(): NanobotHostApi | null {
   if (typeof window === "undefined") return null;
-  return window.nanobotHost ?? loopbackHostApi;
+  return window.nanobotHost ?? null;
 }
 
 /**
- * Install the external native-host bridge advertised in the URL fragment.
+ * Recognize the external native host advertised in the URL fragment.
  *
- * Only a loopback port is accepted; callers cannot redirect privileged host
- * actions to an arbitrary origin. The short-lived bridge token is removed
- * from the URL and retained only for the lifetime of this browser tab.
+ * Consume the existing loopback bootstrap parameters so native UI behavior
+ * survives refresh. The bridge token is removed from the URL and retained
+ * only for the lifetime of this browser tab.
  */
 export function initializeLoopbackRuntimeHost(): boolean {
   if (typeof window === "undefined") return false;
   const config = consumeLoopbackHostConfig() ?? loadLoopbackHostConfig();
-  loopbackHostApi = config ? createLoopbackHostApi(config) : null;
-  return loopbackHostApi !== null;
+  hasLoopbackNativeHost = config !== null;
+  return hasLoopbackNativeHost;
 }
 
 export function toRuntimeSurface(surface: string | null | undefined): RuntimeSurface {
@@ -112,7 +110,6 @@ export function createRuntimeHost(
     surface,
     capabilities: mergedCapabilities,
     socketFactory: bridge ? createHostWebSocket : undefined,
-    pickFolder: api?.pickFolder?.bind(api),
     restartEngine: api?.restartEngine?.bind(api),
     openLogs: api?.openLogs?.bind(api),
     exportDiagnostics: api?.exportDiagnostics?.bind(api),
@@ -123,14 +120,13 @@ export function getRuntimeHost(
   surface?: string | null,
   capabilities?: Partial<RuntimeCapabilities> | null,
 ): RuntimeHost {
-  const api = getHostApi();
   const runtimeSurface =
-    surface == null ? (api ? "native" : "browser") : toRuntimeSurface(surface);
+    surface == null ? (isNativeRuntime() ? "native" : "browser") : toRuntimeSurface(surface);
   return createRuntimeHost(runtimeSurface, capabilities);
 }
 
 export function isNativeRuntime(surface?: string | null): boolean {
-  return getHostApi() !== null || toRuntimeSurface(surface) === "native";
+  return getHostApi() !== null || hasLoopbackNativeHost || toRuntimeSurface(surface) === "native";
 }
 
 export function createHostWebSocket(url: string): WebSocket {
@@ -215,39 +211,6 @@ function validateLoopbackHostConfig(
   if (!Number.isInteger(port) || port < 1 || port > 65_535) return null;
   if (!/^[A-Za-z0-9_-]{32,128}$/.test(token)) return null;
   return { port, token };
-}
-
-function createLoopbackHostApi(config: LoopbackHostConfig): NanobotHostApi {
-  return {
-    async pickFolder(): Promise<string | null> {
-      let response: Response;
-      try {
-        response = await fetch(`http://127.0.0.1:${config.port}/v1/pick-folder`, {
-          method: "POST",
-          cache: "no-store",
-          credentials: "omit",
-          referrerPolicy: "no-referrer",
-          headers: { Authorization: `Bearer ${config.token}` },
-        });
-      } catch {
-        throw new Error("Native folder picker is unavailable. Reopen Nanobot and try again.");
-      }
-
-      const body = await response.json().catch(() => null) as {
-        error?: unknown;
-        path?: unknown;
-      } | null;
-      if (!response.ok) {
-        const detail = typeof body?.error === "string" ? body.error : `HTTP ${response.status}`;
-        throw new Error(`Native folder picker failed: ${detail}`);
-      }
-      if (body?.path === null) return null;
-      if (typeof body?.path !== "string" || !body.path) {
-        throw new Error("Native folder picker returned an invalid path.");
-      }
-      return body.path;
-    },
-  };
 }
 
 class HostWebSocket {

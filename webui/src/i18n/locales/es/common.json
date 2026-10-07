@@ -1916,7 +1916,6 @@
       "workspace": {
         "accessAria": "Modo de acceso al espacio de trabajo",
         "projectAria": "Elegir proyecto",
-        "projectPlaceholder": "Seleccionar proyecto",
         "default": "Permiso predeterminado",
         "defaultShort": "Predeterm.",
         "full": "Acceso completo",
@@ -2287,7 +2286,6 @@
     "dialog": {
       "defaultProject": "Espacio de trabajo predeterminado",
       "manual": "Pegar ruta",
-      "usePath": "Usar ruta",
       "absolutePathRequired": "Introduce una ruta absoluta de carpeta en esta máquina."
     },
     "picker": {

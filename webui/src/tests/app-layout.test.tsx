@@ -2232,7 +2232,7 @@ describe("App layout", () => {
   });
 
   it("uses native chrome when the host bridge overrides browser gateway metadata", async () => {
-    Reflect.set(window, "nanobotHost", { pickFolder: vi.fn() });
+    Reflect.set(window, "nanobotHost", { getRuntimeInfo: vi.fn() });
     vi.mocked(fetchBootstrap).mockResolvedValue({
       token: "tok",
       api_token: "api-tok",

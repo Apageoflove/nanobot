@@ -1929,7 +1929,6 @@
       "workspace": {
         "accessAria": "Modo de acesso ao espaço de trabalho",
         "projectAria": "Escolher projeto",
-        "projectPlaceholder": "Selecionar projeto",
         "default": "Permissão padrão",
         "defaultShort": "Padrão",
         "full": "Acesso total",
@@ -2300,7 +2299,6 @@
     "dialog": {
       "defaultProject": "Espaço de trabalho padrão",
       "manual": "Colar caminho",
-      "usePath": "Usar caminho",
       "absolutePathRequired": "Informe um caminho absoluto de pasta nesta máquina."
     },
     "picker": {
