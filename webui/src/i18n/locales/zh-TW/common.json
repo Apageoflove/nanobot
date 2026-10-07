@@ -2289,11 +2289,6 @@
     }
   },
   "workspace": {
-    "dialog": {
-      "defaultProject": "預設工作區",
-      "manual": "貼上路徑",
-      "absolutePathRequired": "請輸入這台機器上的絕對資料夾路徑。"
-    },
     "picker": {
       "favorites": "收藏",
       "recent": "最近專案",

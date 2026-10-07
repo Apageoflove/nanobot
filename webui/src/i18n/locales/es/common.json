@@ -2290,11 +2290,6 @@
     }
   },
   "workspace": {
-    "dialog": {
-      "defaultProject": "Espacio de trabajo predeterminado",
-      "manual": "Pegar ruta",
-      "absolutePathRequired": "Introduce una ruta absoluta de carpeta en esta máquina."
-    },
     "picker": {
       "favorites": "Favoritos",
       "recent": "Proyectos recientes",

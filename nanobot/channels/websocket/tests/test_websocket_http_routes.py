@@ -3655,61 +3655,20 @@ async def test_recovery_mutation_uses_authenticated_websocket_action(bus: MagicM
     )
 
 
-@pytest.mark.asyncio
-async def test_workspace_folder_picker_is_local_authenticated_mutation(
-    bus: MagicMock,
-    tmp_path: Path,
-    monkeypatch,
-) -> None:
-    selected = tmp_path / "project"
-    selected.mkdir()
-    pick_folder = AsyncMock(return_value=str(selected))
-    monkeypatch.setattr(
-        "nanobot.webui.ws_http.native_folder_picker_available",
-        lambda: True,
-    )
-    monkeypatch.setattr("nanobot.webui.ws_http.pick_native_folder", pick_folder)
-    channel = _ch(bus)
-
-    response = await _webui_mutate(channel, "workspace.pick_folder")
-
-    assert response.status_code == 200
-    assert response.json() == {"path": str(selected)}
-    pick_folder.assert_awaited_once_with()
-
-
 @pytest.mark.parametrize(
-    ("connection", "headers", "can_use_full_access", "can_pick_folder"),
+    ("connection", "headers", "can_use_full_access"),
     [
-        (
-            _REMOTE,
-            {"Host": "nas.example", "X-Forwarded-For": "203.0.113.42"},
-            False,
-            False,
-        ),
-        (
-            _LOCAL,
-            {"Host": "nas.example", "X-Forwarded-For": "203.0.113.42"},
-            False,
-            False,
-        ),
-        (_LOCAL, {"Host": "127.0.0.1:8765"}, True, True),
+        (_REMOTE, {"Host": "nas.example", "X-Forwarded-For": "203.0.113.42"}, False),
+        (_LOCAL, {"Host": "nas.example", "X-Forwarded-For": "203.0.113.42"}, False),
+        (_LOCAL, {"Host": "127.0.0.1:8765"}, True),
     ],
 )
-@pytest.mark.parametrize("native_picker_available", [True, False])
 def test_workspace_payload_separates_remote_project_selection_from_full_access(
     bus: MagicMock,
-    monkeypatch: pytest.MonkeyPatch,
-    native_picker_available: bool,
     connection: _FakeConn,
     headers: dict[str, str],
     can_use_full_access: bool,
-    can_pick_folder: bool,
 ) -> None:
-    monkeypatch.setattr(
-        "nanobot.webui.ws_http.native_folder_picker_available",
-        lambda: native_picker_available,
-    )
     channel = _ch(bus)
     token = channel.gateway.tokens.issue_api_token(300)
     request = _FakeReq(
@@ -3723,63 +3682,6 @@ def test_workspace_payload_separates_remote_project_selection_from_full_access(
     controls = json.loads(response.body.decode())["controls"]
     assert controls["can_change_project"] is True
     assert controls["can_use_full_access"] is can_use_full_access
-    assert controls["can_pick_folder"] is (can_pick_folder and native_picker_available)
-
-
-@pytest.mark.asyncio
-async def test_workspace_folder_picker_rejects_direct_http(
-    bus: MagicMock,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    pick_folder = AsyncMock(return_value="/tmp")
-    monkeypatch.setattr(
-        "nanobot.webui.ws_http.native_folder_picker_available",
-        lambda: True,
-    )
-    monkeypatch.setattr("nanobot.webui.ws_http.pick_native_folder", pick_folder)
-    channel = _ch(bus)
-
-    response = await channel.gateway.http.dispatch(
-        _LOCAL,
-        _FakeReq(
-            {"Host": "127.0.0.1:8765"},
-            path="/api/workspaces/pick-folder",
-        ),
-    )
-
-    assert response is not None
-    assert response.status_code == 405
-    assert b"authenticated WebSocket" in response.body
-    pick_folder.assert_not_awaited()
-
-
-@pytest.mark.asyncio
-@pytest.mark.parametrize(
-    ("connection", "host"),
-    [(_REMOTE, "127.0.0.1"), (_LOCAL, "0.0.0.0")],
-)
-async def test_workspace_folder_picker_rejects_nonlocal_surfaces(
-    bus: MagicMock,
-    monkeypatch,
-    connection: _FakeConn,
-    host: str,
-) -> None:
-    pick_folder = AsyncMock(return_value="/tmp")
-    monkeypatch.setattr(
-        "nanobot.webui.ws_http.native_folder_picker_available",
-        lambda: True,
-    )
-    monkeypatch.setattr("nanobot.webui.ws_http.pick_native_folder", pick_folder)
-    channel = _ch(bus, host=host, token="test-token" if host == "0.0.0.0" else "")
-
-    response = await _webui_mutate(
-        channel,
-        "workspace.pick_folder",
-        connection=connection,
-    )
-
-    assert response.status_code == 403
-    pick_folder.assert_not_awaited()
 
 
 def test_local_browser_request_requires_loopback_host_and_forwarded_origin() -> None:

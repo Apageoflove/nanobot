@@ -2289,11 +2289,6 @@
     }
   },
   "workspace": {
-    "dialog": {
-      "defaultProject": "Espace de travail par défaut",
-      "manual": "Coller un chemin",
-      "absolutePathRequired": "Saisissez un chemin absolu de dossier sur cette machine."
-    },
     "picker": {
       "favorites": "Favoris",
       "recent": "Projets récents",

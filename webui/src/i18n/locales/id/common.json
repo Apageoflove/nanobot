@@ -2289,11 +2289,6 @@
     }
   },
   "workspace": {
-    "dialog": {
-      "defaultProject": "Ruang kerja bawaan",
-      "manual": "Tempel path",
-      "absolutePathRequired": "Masukkan path folder absolut di mesin ini."
-    },
     "picker": {
       "favorites": "Favorit",
       "recent": "Proyek terbaru",

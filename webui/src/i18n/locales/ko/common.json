@@ -2289,11 +2289,6 @@
     }
   },
   "workspace": {
-    "dialog": {
-      "defaultProject": "기본 작업공간",
-      "manual": "경로 붙여넣기",
-      "absolutePathRequired": "이 머신의 절대 폴더 경로를 입력하세요."
-    },
     "picker": {
       "favorites": "즐겨찾기",
       "recent": "최근 프로젝트",

@@ -2303,11 +2303,6 @@
     }
   },
   "workspace": {
-    "dialog": {
-      "defaultProject": "Espaço de trabalho padrão",
-      "manual": "Colar caminho",
-      "absolutePathRequired": "Informe um caminho absoluto de pasta nesta máquina."
-    },
     "picker": {
       "favorites": "Favoritos",
       "recent": "Projetos recentes",

@@ -1064,6 +1064,10 @@ export function ThreadComposer({
     isHero
     && !!workspaceDefaultScope
     && !!onWorkspaceScopeChange
+    && !!onLoadWorkspaceProjects
+    && !!onBrowseWorkspaceDirectories
+    && !!onResolveWorkspaceProject
+    && !!onFavoriteWorkspaceProject
     && workspaceControls?.can_change_project !== false;
   const showProjectPicker = projectPickerAvailable && !workspaceControlsHidden;
 
