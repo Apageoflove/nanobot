@@ -477,12 +477,13 @@ def _merge_chat_extra_body(
         current_tools = kwargs.get("tools")
         configured_tools = extra_body["tools"]
         if isinstance(configured_tools, list):
+            typed_tools = cast(list[object], configured_tools)
             # Hosted web-search tools are Responses-API-only; Chat Completions
             # endpoints reject them as unknown tool types (#6085). The local
             # web_search function tool (when enabled) still travels with the
             # request, so dropping the hosted entry keeps search working.
             hosted_tools = [
-                tool for tool in configured_tools
+                tool for tool in typed_tools
                 if _is_hosted_web_search_tool(tool)
             ]
             if hosted_tools:
@@ -493,7 +494,7 @@ def _merge_chat_extra_body(
                     len(hosted_tools),
                 )
             configured_tools = [
-                tool for tool in configured_tools
+                tool for tool in typed_tools
                 if not _is_hosted_web_search_tool(tool)
             ]
         if isinstance(current_tools, list) and isinstance(configured_tools, list):
