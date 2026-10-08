@@ -1490,7 +1490,7 @@ describe("ThreadComposer", () => {
         }}
         workspaceDefaultScope={defaultScope}
         {...workspacePickerProps(defaultScope)}
-        workspaceControls={{ can_change_project: true, can_use_full_access: true }}
+        workspaceControls={{ can_change_project: true, can_use_full_access: true, can_browse_directories: true, can_resolve_project: true }}
         onWorkspaceScopeChange={onWorkspaceScopeChange}
       />,
     );
@@ -1500,14 +1500,15 @@ describe("ThreadComposer", () => {
     expect(await screen.findByRole("button", { name: "/Users/test/.nanobot/workspace" })).toBeInTheDocument();
     expect(screen.getByRole("dialog")).toBeInTheDocument();
 
+    await user.click(screen.getByRole("button", { name: "Edit path" }));
     const input = screen.getByRole("combobox");
     fireEvent.change(input, { target: { value: "relative/project" } });
     expect(screen.queryByRole("option", { name: "relative/project" })).not.toBeInTheDocument();
     expect(onWorkspaceScopeChange).not.toHaveBeenCalled();
 
     fireEvent.change(input, { target: { value: "/Users/test/project-alpha" } });
-    await waitFor(() => expect(screen.getByRole("button", { name: "Select" })).toBeEnabled());
-    await user.click(screen.getByRole("button", { name: "Select" }));
+    await waitFor(() => expect(screen.getByRole("button", { name: "Select folder" })).toBeEnabled());
+    await user.click(screen.getByRole("button", { name: "Select folder" }));
 
     expect(onWorkspaceScopeChange).toHaveBeenCalledWith(expect.objectContaining({
       project_path: "/Users/test/project-alpha",
@@ -1517,10 +1518,11 @@ describe("ThreadComposer", () => {
     }));
 
     await user.click(screen.getByRole("button", { name: "Switch working directory" }));
+    await user.click(screen.getByRole("button", { name: "Edit path" }));
     const reopenedInput = await screen.findByRole("combobox");
     fireEvent.change(reopenedInput, { target: { value: "~/Pictures/Photos" } });
-    await waitFor(() => expect(screen.getByRole("button", { name: "Select" })).toBeEnabled());
-    await user.click(screen.getByRole("button", { name: "Select" }));
+    await waitFor(() => expect(screen.getByRole("button", { name: "Select folder" })).toBeEnabled());
+    await user.click(screen.getByRole("button", { name: "Select folder" }));
 
     expect(onWorkspaceScopeChange).toHaveBeenLastCalledWith(expect.objectContaining({
       project_path: "/Users/test/Pictures/Photos",
@@ -1561,7 +1563,7 @@ describe("ThreadComposer", () => {
     await user.click(screen.getByRole("button", { name: "Switch working directory" }));
 
     fireEvent.change(await screen.findByRole("combobox"), { target: { value: selectedPath } });
-    await waitFor(() => expect(screen.getByRole("button", { name: "Select" })).toBeEnabled());
+    await waitFor(() => expect(screen.getByRole("button", { name: "Select folder" })).toBeEnabled());
     fireEvent.keyDown(screen.getByRole("combobox"), { key: "Enter" });
     await waitFor(() => expect(onWorkspaceScopeChange).toHaveBeenCalledWith(expect.objectContaining({ project_path: selectedPath })));
   });
@@ -1662,6 +1664,8 @@ describe("ThreadComposer", () => {
         workspaceControls={{
           can_change_project: true,
           can_use_full_access: true,
+          can_browse_directories: true,
+          can_resolve_project: true,
         }}
         onBrowseWorkspaceDirectories={onBrowseWorkspaceDirectories}
         onResolveWorkspaceProject={onResolveWorkspaceProject}
@@ -1717,8 +1721,8 @@ describe("ThreadComposer", () => {
     fireEvent.change(screen.getByRole("combobox"), {
       target: { value: "/srv/nas-project" },
     });
-    await waitFor(() => expect(screen.getByRole("button", { name: "Select" })).toBeEnabled());
-    await user.click(screen.getByRole("button", { name: "Select" }));
+    await waitFor(() => expect(screen.getByRole("button", { name: "Select folder" })).toBeEnabled());
+    await user.click(screen.getByRole("button", { name: "Select folder" }));
 
     expect(onWorkspaceScopeChange).toHaveBeenCalledWith(expect.objectContaining({
       project_path: "/srv/nas-project",

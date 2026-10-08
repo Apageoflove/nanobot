@@ -32,7 +32,7 @@ function WorkspaceFavoriteButton({ path, pinned, busy, onToggle }: {
 }
 
 type PickerOption = ProjectDirectory & { kind: "directory" | "manual" };
-type PickerColumn = { path: string; options: PickerOption[]; selectedPath: string | null; hidden: boolean };
+type PickerColumn = { path: string; parent: string | null; options: PickerOption[]; selectedPath: string | null; hidden: boolean };
 
 function WorkspacePickerTooltip({ label, children }: { label: string; children: ReactElement }) {
   return (
@@ -434,7 +434,7 @@ export function WorkspaceProjectPicker({ isHero, disabled, scope, defaultScope, 
     if (!canBrowse) { void chooseProject(project.path, project.name); return; }
     navigate(project.path);
   }
-  const columns: PickerColumn[] = [...previousColumns, { path: directory?.path ?? requestedPath, options, selectedPath: null, hidden: showHidden }];
+  const columns: PickerColumn[] = [...previousColumns, { path: directory?.path ?? requestedPath, parent: directory?.parent ?? null, options, selectedPath: null, hidden: showHidden }];
   const activeOptions = columns[activeColumn]?.options ?? options;
   const activeOption = Math.min(activeIndex, Math.max(activeOptions.length - 1, 0));
   const selectionPath = canBrowse ? (!loading && directory && !directory.partial ? directory.path : null) : (pathDraft.trim() ? absoluteDraft ? pathDraft.trim() : null : scope?.project_path ?? defaultScope?.project_path);
@@ -464,10 +464,9 @@ export function WorkspaceProjectPicker({ isHero, disabled, scope, defaultScope, 
   async function completePath(keepEditing = true) {
     if (!absoluteDraft) { setPathError(t("workspace.dialog.absolutePathRequired")); return; }
     const request = workspacePathCompletionQuery(pathDraft) ?? { path: basePath, query: "" };
-    // Complete an exact address before descending into its implicitly active child.
-    const completingAddress = absoluteDraft && !!request.query && !highlightActive;
     const option = activeOptions[activeOption];
-    if (highlightActive && option && option.kind !== "manual" && !completingAddress) { navigate(option.path, undefined, keepEditing); return; }
+    // Only an explicit keyboard selection may enter a child before resolving the address.
+    if (highlightActive && option && option.kind !== "manual") { navigate(option.path, undefined, keepEditing); return; }
     if (!directoryCache || !canBrowse) return;
     const id = ++completionRequest.current;
     const session = pickerSession.current;
@@ -604,7 +603,7 @@ export function WorkspaceProjectPicker({ isHero, disabled, scope, defaultScope, 
                     setActiveIndex(event.key === "Home" ? 0 : event.key === "End" ? count - 1 : highlightActive ? (activeIndex + (event.key === "ArrowDown" ? 1 : -1) + count) % count : event.key === "ArrowDown" ? 0 : count - 1);
                   } else if (count && (event.key === "Enter" || event.key === "ArrowRight")) {
                     event.preventDefault(); activate(column.options[Math.min(activeIndex, count - 1)], columnIndex);
-                  } else if (event.key === "ArrowLeft" && parentPath) { event.preventDefault(); navigate(parentPath); }
+                  } else if (event.key === "ArrowLeft" && column.parent) { event.preventDefault(); navigate(column.parent); }
                 }}
                 renderOption={(option, index) => <div role="presentation" className="workspace-picker-row relative" data-keyboard-active={highlightActive && columnIndex === activeColumn && index === activeOption ? "" : undefined}>
                   <button id={`${optionsId}-${columnIndex}-${index}`} type="button" role="option" tabIndex={-1} aria-label={option.path} aria-selected={sameWorkspacePath(column.selectedPath, option.path)} aria-posinset={index + 1} aria-setsize={column.options.length} disabled={pickingFolder}
