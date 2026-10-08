@@ -2290,19 +2290,37 @@
     }
   },
   "workspace": {
+    "dialog": {
+      "manual": "Pegar ruta",
+      "absolutePathRequired": "Introduce una ruta absoluta de carpeta en esta máquina."
+    },
     "picker": {
       "favorites": "Favoritos",
       "recent": "Proyectos recientes",
       "pin": "Fijar {{name}}",
       "unpin": "Desfijar {{name}}",
-      "description": "Busca proyectos recientes o elige una carpeta en el equipo conectado.",
+      "description": "Elige una carpeta existente en el equipo conectado. La carpeta de trabajo no cambia hasta que confirmes.",
       "search": "Introduce una ruta o filtra esta carpeta…",
       "shortcuts": "Ubicaciones guardadas",
       "favoriteHint": "Pulsa la estrella de una carpeta para añadirla aquí.",
       "loading": "Cargando carpetas…",
       "truncated": "Se muestran 500 carpetas. Sigue escribiendo la ruta para reducir la lista.",
       "hidden": "Mostrar carpetas ocultas",
-      "select": "Seleccionar",
+      "select": "Seleccionar carpeta",
+      "title": "Elegir carpeta de trabajo",
+      "host": "Servidor: {{name}}",
+      "back": "Atrás",
+      "forward": "Adelante",
+      "up": "Carpeta superior",
+      "editPath": "Editar ruta",
+      "cancelPath": "Cancelar edición de ruta",
+      "location": "Ubicación actual",
+      "filter": "Filtrar esta carpeta…",
+      "pathNotFound": "No hay carpetas coincidentes. Comprueba la ruta.",
+      "empty": "Esta carpeta está vacía. Puedes seleccionarla igualmente.",
+      "noMatches": "No hay carpetas coincidentes.",
+      "retry": "Reintentar",
+      "cancel": "Cancelar",
       "switchDirectory": "Cambiar directorio de trabajo"
     }
   }

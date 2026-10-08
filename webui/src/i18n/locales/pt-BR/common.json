@@ -2303,19 +2303,37 @@
     }
   },
   "workspace": {
+    "dialog": {
+      "manual": "Colar caminho",
+      "absolutePathRequired": "Informe um caminho absoluto de pasta nesta máquina."
+    },
     "picker": {
       "favorites": "Favoritos",
       "recent": "Projetos recentes",
       "pin": "Fixar {{name}}",
       "unpin": "Desafixar {{name}}",
-      "description": "Pesquise projetos recentes ou escolha uma pasta no host conectado.",
+      "description": "Escolha uma pasta existente no host conectado. A pasta de trabalho só muda após a confirmação.",
       "search": "Digite um caminho ou filtre esta pasta…",
       "shortcuts": "Locais salvos",
       "favoriteHint": "Clique na estrela de uma pasta para adicioná-la aqui.",
       "loading": "Carregando pastas…",
       "truncated": "Exibindo 500 pastas. Continue digitando o caminho para reduzir a lista.",
       "hidden": "Mostrar pastas ocultas",
-      "select": "Selecionar",
+      "select": "Selecionar pasta",
+      "title": "Escolher pasta de trabalho",
+      "host": "Host: {{name}}",
+      "back": "Voltar",
+      "forward": "Avançar",
+      "up": "Pasta superior",
+      "editPath": "Editar caminho",
+      "cancelPath": "Cancelar edição do caminho",
+      "location": "Localização atual",
+      "filter": "Filtrar esta pasta…",
+      "pathNotFound": "Nenhuma pasta correspondente. Verifique o caminho.",
+      "empty": "Esta pasta está vazia. Você ainda pode selecioná-la.",
+      "noMatches": "Nenhuma pasta correspondente.",
+      "retry": "Tentar novamente",
+      "cancel": "Cancelar",
       "switchDirectory": "Alterar diretório de trabalho"
     }
   }

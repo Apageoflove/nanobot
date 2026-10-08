@@ -2489,19 +2489,37 @@
     }
   },
   "workspace": {
+    "dialog": {
+      "manual": "粘贴路径",
+      "absolutePathRequired": "请输入这台机器上的绝对文件夹路径。"
+    },
     "picker": {
       "favorites": "收藏",
       "recent": "最近项目",
       "pin": "收藏 {{name}}",
       "unpin": "取消收藏 {{name}}",
-      "description": "搜索最近项目，或选择当前连接主机上的文件夹。",
+      "description": "选择当前连接主机上已有的文件夹。浏览目录不会更改工作区，确认后才会生效。",
       "search": "输入路径或筛选当前目录…",
       "shortcuts": "快捷位置",
       "favoriteHint": "点击文件夹旁的星标收藏。",
       "loading": "正在加载文件夹…",
       "truncated": "已显示 500 个文件夹，继续输入路径以缩小范围。",
       "hidden": "显示隐藏文件夹",
-      "select": "选择",
+      "select": "选择此文件夹",
+      "title": "选择工作文件夹",
+      "host": "主机：{{name}}",
+      "back": "返回",
+      "forward": "前进",
+      "up": "上级文件夹",
+      "editPath": "编辑路径",
+      "cancelPath": "取消路径编辑",
+      "location": "当前位置",
+      "filter": "筛选当前文件夹…",
+      "pathNotFound": "没有匹配的文件夹，请检查路径后重试。",
+      "empty": "文件夹为空，仍可选择它。",
+      "noMatches": "没有匹配的文件夹。",
+      "retry": "重试",
+      "cancel": "取消",
       "switchDirectory": "切换工作目录"
     }
   }

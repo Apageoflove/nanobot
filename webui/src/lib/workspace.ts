@@ -62,4 +62,22 @@ export function workspaceDirectoryPrefix(path: string): string {
   return path.replace(/[\\/]+$/, "") + separator;
 }
 
+/** Build navigation from the gateway path, never the browser's operating system. */
+export function workspaceBreadcrumbs(path: string): { name: string; path: string }[] {
+  const windows = /^[A-Za-z]:[\\/]/.test(path) || path.startsWith("\\\\");
+  const separator = windows ? "\\" : "/";
+  const normalized = windows ? path.replace(/\//g, "\\") : path;
+  const root = windows
+    ? normalized.match(/^(?:[A-Za-z]:\\|\\\\[^\\]+\\[^\\]+\\?)/)?.[0]
+    : normalized.startsWith("/") ? "/" : normalized.startsWith("~") ? "~" : undefined;
+  if (!root) return [{ name: path, path }];
+  const crumbs = [{ name: root, path: root }];
+  let current = root.replace(/[\\/]$/, "");
+  for (const name of normalized.slice(root.length).split(separator).filter(Boolean)) {
+    current += separator + name;
+    crumbs.push({ name, path: current });
+  }
+  return crumbs;
+}
+
 export type BrowseWorkspaceDirectories = (path: string, query: string, showHidden: boolean, allowPartial?: boolean) => Promise<WorkspaceDirectoriesPayload>;

@@ -1670,12 +1670,12 @@ describe("ThreadComposer", () => {
     );
 
     await user.click(screen.getByRole("button", { name: "Switch working directory" }));
-    expect(screen.getByRole("dialog", { name: "Choose project" })).toBeInTheDocument();
+    expect(screen.getByRole("dialog", { name: "Choose a working folder" })).toBeInTheDocument();
     await user.click(await screen.findByRole("option", { name: project.path }));
-    await waitFor(() => expect(screen.getByRole("button", { name: "Select" })).toBeEnabled());
+    await waitFor(() => expect(screen.getByRole("button", { name: "Select folder" })).toBeEnabled());
     expect(onWorkspaceScopeChange).not.toHaveBeenCalled();
-    await user.click(screen.getByRole("button", { name: "Select" }));
-    await waitFor(() => expect(screen.queryByRole("dialog", { name: "Choose project" })).not.toBeInTheDocument());
+    await user.click(screen.getByRole("button", { name: "Select folder" }));
+    await waitFor(() => expect(screen.queryByRole("dialog", { name: "Choose a working folder" })).not.toBeInTheDocument());
     expect(onResolveWorkspaceProject).toHaveBeenCalledWith(project.path);
     expect(onWorkspaceScopeChange).toHaveBeenCalledWith(expect.objectContaining({
       project_path: project.path,

@@ -498,6 +498,9 @@ export interface WorkspacesPayload {
   controls: {
     can_change_project: boolean;
     can_use_full_access: boolean;
+    can_browse_directories?: boolean;
+    can_resolve_project?: boolean;
+    can_manage_favorites?: boolean;
   };
 }
 
