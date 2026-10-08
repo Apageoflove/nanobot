@@ -53,6 +53,8 @@ interface SettingsPageProps {
   onToggleTheme: () => void;
   onBackToChat: () => void;
   skills: SkillSummary[];
+  skillsLoading: boolean;
+  skillsError: boolean;
   onStartAutomationChat?: (
     content: string,
     images?: SendAttachment[],
@@ -75,6 +77,8 @@ export function SettingsPage({
   onToggleTheme,
   onBackToChat,
   skills,
+  skillsLoading,
+  skillsError,
   onStartAutomationChat,
   titleOverrides,
   sessions,
@@ -608,7 +612,7 @@ export function SettingsPage({
           </div>
         );
       case "skills":
-        return <SkillsCatalogSettings skills={skills} />;
+        return <SkillsCatalogSettings skills={skills} loading={skillsLoading} error={skillsError} />;
       case "runtime":
         return (
           <div className="settings-stack">

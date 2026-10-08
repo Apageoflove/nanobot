@@ -18,6 +18,8 @@ interface SettingsViewProps {
   onModelNameChange: (modelName: string | null) => void;
   onSettingsChange?: (payload: SettingsPayload) => void;
   skills?: SkillSummary[];
+  skillsLoading?: boolean;
+  skillsError?: boolean;
   onStartAutomationChat?: (
     content: string,
     images?: SendAttachment[],
@@ -46,6 +48,8 @@ export function SettingsView({
   onModelNameChange,
   onSettingsChange,
   skills = [],
+  skillsLoading = false,
+  skillsError = false,
   onStartAutomationChat,
   titleOverrides,
   sessions,
@@ -76,6 +80,8 @@ export function SettingsView({
       onToggleTheme={onToggleTheme}
       onBackToChat={onBackToChat}
       skills={skills}
+      skillsLoading={skillsLoading}
+      skillsError={skillsError}
       onStartAutomationChat={onStartAutomationChat}
       titleOverrides={titleOverrides}
       sessions={sessions}
