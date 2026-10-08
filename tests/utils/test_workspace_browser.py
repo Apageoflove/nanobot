@@ -1,5 +1,8 @@
 """Project selection directory metadata contracts."""
 
+import os
+import stat
+import sys
 from pathlib import Path
 
 import pytest
@@ -19,6 +22,17 @@ def test_directory_browser_filters_folders_and_exposes_navigation(tmp_path: Path
     assert result["parent"] == str(tmp_path.parent)
     hidden = browse_workspace_directories(str(tmp_path), default_workspace=tmp_path, show_hidden=True, query="HID")
     assert hidden["entries"] == [{"name": ".hidden", "path": str(tmp_path / ".hidden")}]
+
+
+@pytest.mark.skipif(sys.platform != "darwin", reason="Finder hidden flags are macOS metadata")
+def test_directory_browser_honors_finder_hidden_flag(tmp_path: Path) -> None:
+    hidden = tmp_path / "Finder hidden"
+    hidden.mkdir()
+    os.chflags(hidden, stat.UF_HIDDEN)
+    visible = browse_workspace_directories(str(tmp_path), default_workspace=tmp_path)
+    assert visible["entries"] == []
+    shown = browse_workspace_directories(str(tmp_path), default_workspace=tmp_path, show_hidden=True)
+    assert shown["entries"] == [{"name": hidden.name, "path": str(hidden)}]
 
 
 def test_directory_filter_reaches_folders_beyond_display_limit(tmp_path: Path) -> None:

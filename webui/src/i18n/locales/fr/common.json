@@ -2282,19 +2282,37 @@
     }
   },
   "workspace": {
+    "dialog": {
+      "manual": "Coller un chemin",
+      "absolutePathRequired": "Saisissez un chemin absolu de dossier sur cette machine."
+    },
     "picker": {
       "favorites": "Favoris",
       "recent": "Projets récents",
       "pin": "Épingler {{name}}",
       "unpin": "Désépingler {{name}}",
-      "description": "Recherchez un projet récent ou choisissez un dossier sur l’hôte connecté.",
+      "description": "Choisissez un dossier existant sur l’hôte connecté. Le dossier de travail ne change qu’après confirmation.",
       "search": "Saisir un chemin ou filtrer ce dossier…",
       "shortcuts": "Emplacements enregistrés",
       "favoriteHint": "Cliquez sur l’étoile d’un dossier pour l’ajouter ici.",
       "loading": "Chargement des dossiers…",
       "truncated": "500 dossiers affichés. Continuez à saisir le chemin pour réduire la liste.",
       "hidden": "Afficher les dossiers cachés",
-      "select": "Choisir",
+      "select": "Choisir ce dossier",
+      "title": "Choisir un dossier de travail",
+      "host": "Hôte : {{name}}",
+      "back": "Précédent",
+      "forward": "Suivant",
+      "up": "Dossier parent",
+      "editPath": "Modifier le chemin",
+      "cancelPath": "Annuler la saisie du chemin",
+      "location": "Emplacement actuel",
+      "filter": "Filtrer ce dossier…",
+      "pathNotFound": "Aucun dossier correspondant. Vérifiez le chemin.",
+      "empty": "Ce dossier est vide. Vous pouvez tout de même le choisir.",
+      "noMatches": "Aucun dossier correspondant.",
+      "retry": "Réessayer",
+      "cancel": "Annuler",
       "switchDirectory": "Changer de dossier de travail"
     }
   }

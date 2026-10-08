@@ -1175,8 +1175,8 @@ describe("App layout", () => {
     fireEvent.change(await screen.findByRole("combobox"), {
       target: { value: projectPath },
     });
-    await waitFor(() => expect(screen.getByRole("button", { name: "Select" })).toBeEnabled());
-    fireEvent.click(screen.getByRole("button", { name: "Select" }));
+    await waitFor(() => expect(screen.getByRole("button", { name: "Select folder" })).toBeEnabled());
+    fireEvent.click(screen.getByRole("button", { name: "Select folder" }));
     await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
 
     const message = screen.getByLabelText("Message input");

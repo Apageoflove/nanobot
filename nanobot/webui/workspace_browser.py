@@ -7,6 +7,7 @@ import os
 import platform
 import socket
 import stat
+import sys
 from collections.abc import Iterator
 from pathlib import Path
 from typing import TypedDict
@@ -70,6 +71,9 @@ def browse_workspace_directories(
                         hidden = entry.name.startswith(".") or (
                             os.name == "nt"
                             and bool(entry.stat(follow_symlinks=False).st_file_attributes & stat.FILE_ATTRIBUTE_HIDDEN)
+                        ) or (
+                            sys.platform == "darwin"
+                            and bool(entry.stat(follow_symlinks=False).st_flags & stat.UF_HIDDEN)
                         )
                         if show_hidden or prefix.startswith(".") or not hidden:
                             yield {"name": entry.name, "path": entry.path}
