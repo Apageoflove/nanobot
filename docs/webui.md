@@ -293,9 +293,21 @@ or a result you must retain.
 
 Use the workspace picker to browse folders on the connected nanobot host, enter
 an absolute path, or return to recent and starred projects; favorites persist
-across gateway restarts. Tab completes paths and Shift+wheel scrolls directory
-columns.
-Project paths refer to the gateway machine, not the browser's filesystem.
+across gateway restarts. The title identifies the host. Project paths refer to
+that machine, not the browser's filesystem.
+
+Use the breadcrumbs, Back, Forward, and Parent folder controls to navigate.
+**Filter this folder** only filters the current directory. **Edit path** (or
+**Cmd/Ctrl+Shift+G**) accepts a host path; Tab completes it and Enter opens it.
+Browsing does not change the workspace until you choose **Select folder**.
+**Cancel** leaves the current workspace unchanged. Desktop uses directory
+columns with Shift+wheel horizontal scrolling; narrow screens show one folder
+at a time, with favorites and recent projects under **Saved locations**.
+
+On a compatible host without the optional directory-browser capabilities,
+manual path entry remains available. Browse and favorite requests are not sent
+to that host. The gateway still validates the selected workspace and owns its
+access policy.
 
 Selecting a project does not replace the configured agent workspace. The two
 paths have different responsibilities:

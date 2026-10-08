@@ -1161,8 +1161,9 @@ describe("App layout", () => {
           access_mode: "restricted",
           restrict_to_workspace: true,
         },
-        controls: { can_change_project: true, can_use_full_access: true },
+        controls: { can_change_project: true, can_use_full_access: true, can_browse_directories: true, can_resolve_project: true },
       },
+      [directoryUrl("C:\\workspace")]: directory("C:\\workspace"),
       [directoryUrl("C:\\workspace\\")]: directory("C:\\workspace"),
       [directoryUrl(projectPath)]: directory(projectPath),
       [directoryUrl(`${projectPath}\\`)]: directory(projectPath),
@@ -1172,6 +1173,7 @@ describe("App layout", () => {
 
     await waitFor(() => expect(connectSpy).toHaveBeenCalled());
     fireEvent.click(await screen.findByRole("button", { name: "Switch working directory" }));
+    fireEvent.click(screen.getByRole("button", { name: "Edit path" }));
     fireEvent.change(await screen.findByRole("combobox"), {
       target: { value: projectPath },
     });
@@ -1191,6 +1193,7 @@ describe("App layout", () => {
       "The gateway rejected this project or access mode. Choose an existing project or a different access mode, then try again.",
     );
     fireEvent.click(projectButton);
+    fireEvent.click(screen.getByRole("button", { name: "Edit path" }));
     const pathInput = await screen.findByRole("combobox");
     expect(pathInput).toHaveValue(`${projectPath}\\`);
     expect(pathInput).toHaveAttribute("aria-invalid", "true");

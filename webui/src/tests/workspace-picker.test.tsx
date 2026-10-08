@@ -509,6 +509,24 @@ describe("Workspace project picker", () => {
     expect(input).toBeDisabled();
     expect(screen.getByRole("combobox")).toHaveValue("/srv/workspace/");
   });
+  it("moves to the focused column's parent with the left arrow", async () => {
+    const user = userEvent.setup();
+    const browse = vi.fn((raw: string) => {
+      const path = raw.replace(/\/$/, "");
+      return Promise.resolve({ ...directory, path, parent: path.slice(0, path.lastIndexOf("/")) || "/",
+        entries: [{ name: "child", path: `${path}/child` }] });
+    });
+    render(<WorkspaceProjectPicker isHero scope={scope} defaultScope={scope} controls={catalog.controls} onBrowseDirectories={browse} onChange={vi.fn()} />);
+    await user.click(screen.getByRole("button", { name: "Switch working directory" }));
+    await user.click(await screen.findByRole("option", { name: "/srv/workspace/child" }));
+    await user.click(await screen.findByRole("option", { name: "/srv/workspace/child/child" }));
+    const ancestor = screen.getByRole("listbox", { name: "/srv/workspace", exact: true });
+    act(() => ancestor.focus());
+    await user.keyboard("{ArrowLeft}");
+    await screen.findByRole("listbox", { name: "/srv", exact: true });
+    expect(screen.getAllByRole("listbox")).toHaveLength(1);
+  });
+
   it("keeps ancestor columns and replaces descendants when another folder is opened", async () => {
     const user = userEvent.setup();
     const onChange = vi.fn();

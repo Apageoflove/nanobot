@@ -3682,6 +3682,9 @@ def test_workspace_payload_separates_remote_project_selection_from_full_access(
     controls = json.loads(response.body.decode())["controls"]
     assert controls["can_change_project"] is True
     assert controls["can_use_full_access"] is can_use_full_access
+    assert controls["can_browse_directories"] is True
+    assert controls["can_resolve_project"] is True
+    assert controls["can_manage_favorites"] is True
 
 
 def test_local_browser_request_requires_loopback_host_and_forwarded_origin() -> None:
