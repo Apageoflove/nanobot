@@ -210,6 +210,102 @@ class TestBuildKwargsExtraBody:
         assert kwargs["extra_body"]["repetition_penalty"] == 1.15
 
 
+class TestHostedWebSearchChatCompletions:
+    """Hosted web-search tools must never ride Chat Completions requests (#6085).
+
+    The WebUI "DeepSeek web search" toggle stores ``extra_body.tools =
+    [{"type": "web_search"}]`` in the provider config. For models outside the
+    spec's ``responses_models`` (e.g. ``deepseek-flash``) the request still
+    goes through Chat Completions, which rejects the hosted tool type with
+    ``tools[N].type: unknown variant 'web_search'``.
+    """
+
+    def _deepseek_provider(self, model: str) -> OpenAICompatProvider:
+        return OpenAICompatProvider(
+            api_key="test-key",
+            default_model=model,
+            spec=find_by_name("deepseek"),
+            extra_body={"tools": [{"type": "web_search"}]},
+        )
+
+    def test_hosted_web_search_dropped_on_chat_completions(self) -> None:
+        provider = self._deepseek_provider("deepseek-flash")
+        assert provider._should_use_responses_api(None, None) is False
+
+        function_tools = [
+            {
+                "type": "function",
+                "function": {
+                    "name": f"tool_{i}",
+                    "description": "d",
+                    "parameters": {"type": "object"},
+                },
+            }
+            for i in range(23)
+        ]
+        kwargs = provider._build_kwargs(
+            messages=_simple_messages(),
+            tools=function_tools, model=None, max_tokens=100,
+            temperature=0.1, reasoning_effort=None, tool_choice=None,
+        )
+
+        assert kwargs["tools"] == function_tools
+        assert all(
+            tool.get("type") == "function" for tool in kwargs["tools"]
+        )
+
+    def test_only_hosted_variants_dropped_local_tools_kept(self) -> None:
+        function_tool = {
+            "type": "function",
+            "function": {
+                "name": "web_search",
+                "description": "Search with nanobot's configured backend",
+                "parameters": {"type": "object"},
+            },
+        }
+        provider = _make_provider({
+            "tools": [
+                {"type": "web_search"},
+                {"type": "web_search_preview"},
+                {"type": "openrouter:web_search"},
+            ],
+        })
+        kwargs = provider._build_kwargs(
+            messages=_simple_messages(),
+            tools=[function_tool], model=None, max_tokens=100,
+            temperature=0.1, reasoning_effort=None, tool_choice=None,
+        )
+
+        # Hosted Responses tools are stripped; chat-level server tools
+        # (openrouter:web_search) and local function tools are kept.
+        assert kwargs["tools"] == [
+            function_tool,
+            {"type": "openrouter:web_search"},
+        ]
+
+    def test_deepseek_toggle_uses_responses_for_v4_models(self) -> None:
+        provider = self._deepseek_provider("deepseek-v4-flash")
+        assert provider._should_use_responses_api(None, None) is True
+
+        body = provider._build_responses_body(
+            messages=_simple_messages(),
+            tools=[{
+                "type": "function",
+                "function": {
+                    "name": "web_search",
+                    "description": "Search with nanobot's configured backend",
+                    "parameters": {"type": "object"},
+                },
+            }],
+            model=None, max_tokens=100, temperature=0.1,
+            reasoning_effort=None, tool_choice=None,
+        )
+
+        # The hosted tool is injected exactly once on the Responses path and
+        # still owns the local web_search function.
+        assert body["tools"] == [{"type": "web_search"}]
+
+
 class TestBuildResponsesBodyExtraBody:
     """Verify extra_body flows into Responses API request bodies."""
 
